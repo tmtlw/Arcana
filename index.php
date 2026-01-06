@@ -77,7 +77,7 @@ $view = 'dashboard';
 if ($path == 'login' || $path == 'register') {
     $view = $path;
 } elseif (!$user) {
-    header('Location: /login');
+    header("Location: $baseUrl/login");
     exit;
 } else {
     // Engedélyezett oldalak bejelentkezett felhasználóknak
