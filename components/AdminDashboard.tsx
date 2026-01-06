@@ -4,8 +4,9 @@ import { useTarot } from '../context/TarotContext';
 import { AdminService } from '../services/adminService';
 import { User, Reading, Spread, DeckMeta, Lesson } from '../types';
 import { MarkdownEditor, MarkdownRenderer } from './MarkdownSupport';
+import { UpdateSystem } from './UpdateSystem';
 
-type AdminTab = 'users' | 'readings' | 'spreads' | 'decks' | 'lessons';
+type AdminTab = 'users' | 'readings' | 'spreads' | 'decks' | 'lessons' | 'update';
 
 export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
     const { currentUser, showToast } = useTarot();
@@ -235,6 +236,8 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                     <TabButton id="lessons" label="Minden Lecke" icon="🎓" />
                     <div className="my-4 border-t border-white/5"></div>
                     <TabButton id="users" label="Felhasználók" icon="👤" />
+                    <div className="my-4 border-t border-white/5"></div>
+                    <TabButton id="update" label="Rendszer Frissítés" icon="🔄" />
                 </nav>
                 <div className="p-4 border-t border-white/5">
                     <button onClick={onBack} className="w-full py-3 rounded bg-white/5 hover:bg-white/10 text-xs font-bold uppercase text-white transition-colors">
@@ -253,10 +256,13 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                             {activeTab === 'spreads' && 'Rendszernapló: Egyéni Kirakások'}
                             {activeTab === 'decks' && 'Rendszernapló: Feltöltött Paklik'}
                             {activeTab === 'lessons' && 'Rendszernapló: Létrehozott Leckék (Alap + Egyéni)'}
+                            {activeTab === 'update' && 'Rendszer Frissítés'}
                         </h3>
-                        <p className="text-xs text-gray-500 mt-1">
-                            Figyelem: A törlés végleges és a felhasználó saját fiókjából is eltávolítja az adatot.
-                        </p>
+                        {activeTab !== 'update' && (
+                            <p className="text-xs text-gray-500 mt-1">
+                                Figyelem: A törlés végleges és a felhasználó saját fiókjából is eltávolítja az adatot.
+                            </p>
+                        )}
                     </div>
                     <button onClick={loadData} className="text-xs bg-[#2a2a3c] hover:bg-[#3a3a4e] px-4 py-2 rounded text-white transition-colors">
                         Frissítés ↻
@@ -268,6 +274,9 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                         <div className="text-center py-20 text-white/20">Adatok betöltése az univerzumból...</div>
                     ) : (
                         <div className="w-full">
+                             {/* UPDATE SYSTEM */}
+                             {activeTab === 'update' && <UpdateSystem />}
+
                             {/* USER TABLE */}
                             {activeTab === 'users' && (
                                 <table className="w-full text-left text-sm border-collapse">
