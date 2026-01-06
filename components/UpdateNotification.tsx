@@ -1,8 +1,10 @@
-// src/components/UpdateNotification.tsx
+// components/UpdateNotification.tsx
 import React, { useEffect, useState } from 'react';
 import { UpdateService, UpdateResponse } from '../services/UpdateService';
+import { useTarot } from '../context/TarotContext';
 
 const UpdateNotification: React.FC = () => {
+  const { currentUser } = useTarot();
   const [updateAvailable, setUpdateAvailable] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -11,9 +13,11 @@ const UpdateNotification: React.FC = () => {
   const [backups, setBackups] = useState<string[]>([]);
 
   useEffect(() => {
-    // Ellenőrzés indításkor
-    check();
-  }, []);
+    // Csak adminnak ellenőrizzük
+    if (currentUser?.isAdmin) {
+      check();
+    }
+  }, [currentUser]);
 
   const check = async () => {
     const result = await UpdateService.checkForUpdates();
@@ -67,6 +71,8 @@ const UpdateNotification: React.FC = () => {
     }
   };
 
+  // Ha nem admin, vagy nincs frissítés/üzenet/lista, ne jelenjen meg
+  if (!currentUser?.isAdmin) return null;
   if (!updateAvailable && !showBackupList && !message) return null;
 
   return (
