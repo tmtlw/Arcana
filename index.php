@@ -28,9 +28,38 @@ if ($scriptName !== '/' && $scriptName !== '\\') {
     }
 }
 
-// Base URL meghatározása a nézetek számára
-$baseUrl = str_replace('/index.php', '', $_SERVER['SCRIPT_NAME']);
+// URL Kezelés (PathInfo támogatás a jobb kompatibilitásért)
+$scriptName = $_SERVER['SCRIPT_NAME']; // pl. /tarot/index.php
+$requestUri = $_SERVER['REQUEST_URI']; // pl. /tarot/index.php/dashboard
+
+// Base URL (eszközökhöz, pl. css) -> /tarot
+$baseUrl = dirname($scriptName);
 if ($baseUrl === '/' || $baseUrl === '\\') $baseUrl = '';
+
+// App URL (linkekhez) -> /tarot/index.php
+$appUrl = $scriptName;
+
+// Útvonal meghatározása (PathInfo vagy Request URI alapján)
+$path = '';
+if (isset($_SERVER['PATH_INFO'])) {
+    $path = trim($_SERVER['PATH_INFO'], '/');
+} else {
+    // Ha nincs PATH_INFO (pl. php -S), manuálisan vágjuk le
+    $path = str_replace($scriptName, '', $requestUri);
+    $path = strtok($path, '?');
+    $path = trim($path, '/');
+
+    // Ha a gyökérben vagyunk és nincs index.php a kérésben (pl. /tarot/dashboard)
+    // Ez csak akkor működik, ha van .htaccess, de itt most a fallback a cél.
+    if (strpos($requestUri, $scriptName) === false) {
+        // Próbáljuk kitalálni a path-t a base könyvtárhoz képest
+        $baseDir = dirname($scriptName);
+        if (strpos($requestUri, $baseDir) === 0) {
+            $path = substr($requestUri, strlen($baseDir));
+            $path = trim($path, '/');
+        }
+    }
+}
 
 // API Végpontok
 if (strpos($path, 'api/') === 0) {
@@ -77,7 +106,7 @@ $view = 'dashboard';
 if ($path == 'login' || $path == 'register') {
     $view = $path;
 } elseif (!$user) {
-    header("Location: $baseUrl/login");
+    header("Location: $appUrl/login");
     exit;
 } else {
     // Engedélyezett oldalak bejelentkezett felhasználóknak

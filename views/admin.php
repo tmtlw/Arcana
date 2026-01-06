@@ -164,7 +164,7 @@ async function performUpdate() {
             // Vagy létrehozunk egy újat a PHP struktúrában.
             // A legtisztább, ha az 'api/update.php' végpontot használjuk.
 
-            const baseUrl = '<?= $baseUrl ?>';
+            const appUrl = '<?= $appUrl ?>';
 
             const payload = {
                 path: file.substring(0, file.lastIndexOf('/')),
@@ -174,7 +174,7 @@ async function performUpdate() {
                 secret: secret
             };
 
-            const saveRes = await fetch(baseUrl + '/api/update.php', {
+            const saveRes = await fetch(appUrl + '/api/update.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(payload)

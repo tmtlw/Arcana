@@ -3,8 +3,8 @@
 
 <script>
 async function loadHistory() {
-    const baseUrl = '<?= $baseUrl ?>';
-    const res = await fetch(baseUrl + '/api/readings');
+    const appUrl = '<?= $appUrl ?>';
+    const res = await fetch(appUrl + '/api/readings');
     const readings = await res.json();
 
     document.getElementById('historyList').innerHTML = readings.map(r => {

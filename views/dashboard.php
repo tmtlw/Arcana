@@ -1,6 +1,6 @@
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     <!-- Napi Húzás -->
-    <div class="glass-panel p-6 rounded-2xl cursor-pointer hover:bg-white/10 transition-colors" onclick="window.location.href='<?= $baseUrl ?>/reading'">
+    <div class="glass-panel p-6 rounded-2xl cursor-pointer hover:bg-white/10 transition-colors" onclick="window.location.href='<?= $appUrl ?>/reading'">
         <div class="text-4xl mb-4">🃏</div>
         <h3 class="text-xl font-bold text-white mb-2">Napi Húzás</h3>
         <p class="text-sm text-gray-400">Fedezd fel, mit üzennek a kártyák a mai napra.</p>
@@ -18,7 +18,7 @@
 
     <!-- Admin Pult (Csak adminoknak) -->
     <?php if ($_SESSION['user']['role'] === 'admin'): ?>
-    <div class="glass-panel p-6 rounded-2xl cursor-pointer bg-red-900/20 border-red-500/30" onclick="window.location.href='<?= $baseUrl ?>/admin'">
+    <div class="glass-panel p-6 rounded-2xl cursor-pointer bg-red-900/20 border-red-500/30" onclick="window.location.href='<?= $appUrl ?>/admin'">
         <div class="text-4xl mb-4">🔧</div>
         <h3 class="text-xl font-bold text-white mb-2">Admin Pult</h3>
         <p class="text-sm text-gray-400">Rendszer karbantartás</p>
@@ -35,8 +35,8 @@
 
 <script>
 async function loadDashboard() {
-    const baseUrl = '<?= $baseUrl ?>';
-    const res = await fetch(baseUrl + '/api/readings');
+    const appUrl = '<?= $appUrl ?>';
+    const res = await fetch(appUrl + '/api/readings');
     const readings = await res.json();
 
     const container = document.getElementById('recentReadings');

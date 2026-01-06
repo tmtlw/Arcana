@@ -12,7 +12,7 @@
         <button type="submit" class="w-full bg-gradient-to-r from-yellow-600 to-amber-600 py-3 rounded-lg font-bold hover:scale-105 transition-transform">Belépés</button>
     </form>
     <p class="mt-4 text-center text-sm text-gray-400">
-        Nincs még fiókod? <a href="<?= $baseUrl ?>/register" class="text-yellow-400 hover:underline">Regisztráció</a>
+        Nincs még fiókod? <a href="<?= $appUrl ?>/register" class="text-yellow-400 hover:underline">Regisztráció</a>
     </p>
 </div>
 
@@ -22,20 +22,16 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
 
-    // A BASE_URL a layout.php-ból globálisan elérhető lenne, de itt biztonságosabb újra definiálni vagy window-ra tenni
-    // Az egyszerűség kedvéért feltételezzük, hogy a layout.php már definiálta a BASE_URL-t globálisan?
-    // Nem, mert a login.php include-olva van a layout-ba, így a script tag később fut.
-    // Használjuk a PHP-t itt is.
-    const baseUrl = '<?= $baseUrl ?>';
+    const appUrl = '<?= $appUrl ?>';
 
-    const res = await fetch(baseUrl + '/api/auth/login', {
+    const res = await fetch(appUrl + '/api/auth/login', {
         method: 'POST',
         body: JSON.stringify(data)
     });
 
     const result = await res.json();
     if (result.success) {
-        window.location.href = baseUrl + '/dashboard';
+        window.location.href = appUrl + '/dashboard';
     } else {
         alert(result.error);
     }

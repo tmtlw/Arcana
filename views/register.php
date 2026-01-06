@@ -16,7 +16,7 @@
         <button type="submit" class="w-full bg-gradient-to-r from-yellow-600 to-amber-600 py-3 rounded-lg font-bold hover:scale-105 transition-transform">Regisztráció</button>
     </form>
     <p class="mt-4 text-center text-sm text-gray-400">
-        Már van fiókod? <a href="<?= $baseUrl ?>/login" class="text-yellow-400 hover:underline">Belépés</a>
+        Már van fiókod? <a href="<?= $appUrl ?>/login" class="text-yellow-400 hover:underline">Belépés</a>
     </p>
 </div>
 
@@ -26,9 +26,9 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
 
-    const baseUrl = '<?= $baseUrl ?>';
+    const appUrl = '<?= $appUrl ?>';
 
-    const res = await fetch(baseUrl + '/api/auth/register', {
+    const res = await fetch(appUrl + '/api/auth/register', {
         method: 'POST',
         body: JSON.stringify(data)
     });
@@ -36,7 +36,7 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     const result = await res.json();
     if (result.success) {
         alert("Sikeres regisztráció! Kérlek jelentkezz be.");
-        window.location.href = baseUrl + '/login';
+        window.location.href = appUrl + '/login';
     } else {
         alert(result.error);
     }

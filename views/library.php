@@ -3,8 +3,8 @@
 
 <script>
 async function loadLibrary() {
-    const baseUrl = '<?= $baseUrl ?>';
-    const res = await fetch(baseUrl + '/api/cards');
+    const appUrl = '<?= $appUrl ?>';
+    const res = await fetch(appUrl + '/api/cards');
     const cards = await res.json();
 
     document.getElementById('libraryGrid').innerHTML = cards.map(c => `
