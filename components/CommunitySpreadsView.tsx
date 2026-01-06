@@ -1,0 +1,194 @@
+
+import React, { useEffect, useState } from 'react';
+import { CommunityService } from '../services/communityService';
+import { Spread } from '../types';
+import { useTarot } from '../context/TarotContext';
+
+export const CommunitySpreadsView = ({ onBack }: { onBack: () => void }) => {
+    const { addCustomSpread, showToast, customSpreads, currentUser } = useTarot();
+    const [spreads, setSpreads] = useState<Spread[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        loadSpreads();
+    }, []);
+
+    const loadSpreads = async () => {
+        setLoading(true);
+        const data = await CommunityService.getPublicSpreads();
+        // Sort by downloads descending
+        data.sort((a, b) => (b.downloads || 0) - (a.downloads || 0));
+        setSpreads(data);
+        setLoading(false);
+    };
+
+    const handleDownload = async (spread: Spread) => {
+        // Check if already exists by name to prevent duplicates (rudimentary check)
+        if (customSpreads.some(s => s.name === spread.name)) {
+            if(!confirm(`Már van "${spread.name}" nevű kirakásod. Szeretnéd duplikálni?`)) return;
+        }
+
+        // Create a new local copy with a fresh ID
+        const newLocalSpread: Spread = {
+            ...spread,
+            id: `downloaded_${Date.now()}_${Math.floor(Math.random()*1000)}`,
+            isCustom: true, // It becomes a custom spread for the user
+            isPublic: false // Reset public flag for the local copy
+        };
+
+        addCustomSpread(newLocalSpread);
+        await CommunityService.downloadSpread(spread.id);
+        
+        // Optimistic update of UI
+        setSpreads(prev => prev.map(s => s.id === spread.id ? { ...s, downloads: (s.downloads || 0) + 1 } : s));
+        
+        showToast(`"${spread.name}" hozzáadva a kirakásaidhoz!`, "success");
+    };
+
+    const handleAdminDelete = async (id: string) => {
+        if(!confirm("ADMIN: Biztosan törlöd ezt a kirakást?")) return;
+        try {
+            await CommunityService.deletePublicSpread(id);
+            setSpreads(prev => prev.filter(s => s.id !== id));
+            showToast("Kirakás törölve!", "success");
+        } catch (e) {
+            showToast("Hiba a törléskor (Jogosultság?)", "info");
+        }
+    };
+
+    const SpreadPreview = ({ spread }: { spread: Spread }) => {
+        const isFreeform = !!spread.backgroundImage || spread.positions.some(p => p.x > 15 || p.y > 15);
+
+        // FREEFORM PREVIEW
+        if (isFreeform) {
+            return (
+                <div className="w-full h-32 bg-black/40 rounded-xl relative mb-4 border border-white/5 overflow-hidden">
+                    {spread.backgroundImage && (
+                        <div className="absolute inset-0 bg-cover bg-center opacity-30 blur-[1px]" style={{ backgroundImage: `url(${spread.backgroundImage})` }}></div>
+                    )}
+                    {spread.positions.map(p => (
+                        <div 
+                            key={p.id}
+                            className="absolute bg-white/20 border border-white/40 rounded-sm"
+                            style={{
+                                width: '8%',
+                                height: '18%',
+                                left: `${p.x}%`,
+                                top: `${p.y}%`,
+                                transform: `translate(-50%, -50%) rotate(${p.rotation || 0}deg)`
+                            }}
+                        />
+                    ))}
+                    <div className="absolute bottom-2 right-2 text-[10px] text-white/30 font-mono bg-black/50 px-1 rounded">
+                        {spread.positions.length} Lap (Szabad)
+                    </div>
+                </div>
+            );
+        }
+
+        // GRID PREVIEW (Legacy)
+        const maxX = Math.max(...spread.positions.map(p => p.x));
+        const maxY = Math.max(...spread.positions.map(p => p.y));
+        const scale = Math.min(100 / maxX, 120 / maxY); // Scale to fit in preview box
+
+        return (
+            <div className="w-full h-32 bg-black/40 rounded-xl relative mb-4 border border-white/5 overflow-hidden flex items-center justify-center">
+                <div 
+                    className="relative"
+                    style={{
+                        width: maxX * 20, 
+                        height: maxY * 30,
+                        transform: `scale(${Math.min(1, scale / 25)})`, // Rough scaling logic
+                    }}
+                >
+                    {spread.positions.map(p => (
+                        <div 
+                            key={p.id}
+                            className="absolute bg-white/20 border border-white/40 rounded-sm"
+                            style={{
+                                width: 18,
+                                height: 28,
+                                left: (p.x - 1) * 22,
+                                top: (p.y - 1) * 32,
+                                transform: p.rotation ? 'rotate(90deg)' : 'none'
+                            }}
+                        />
+                    ))}
+                </div>
+                <div className="absolute bottom-2 right-2 text-[10px] text-white/30 font-mono">
+                    {spread.positions.length} Lap
+                </div>
+            </div>
+        );
+    };
+
+    return (
+        <div className="animate-fade-in max-w-5xl mx-auto pb-20">
+            <div className="flex items-center justify-between mb-8">
+                <button onClick={onBack} className="flex items-center gap-2 text-white/60 hover:text-white font-bold transition-colors">
+                    &larr; Vissza
+                </button>
+                <div className="flex gap-2">
+                    {currentUser?.isAdmin && <span className="bg-red-500/20 text-red-200 px-3 py-1 rounded-full text-xs font-bold border border-red-500/50">ADMIN MÓD</span>}
+                    <button onClick={loadSpreads} className="text-xs bg-white/5 hover:bg-white/10 px-3 py-1 rounded-full border border-white/10 transition-colors">
+                        Frissítés ↻
+                    </button>
+                </div>
+            </div>
+
+            <div className="text-center mb-10">
+                <h2 className="text-3xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-white to-purple-400">
+                    Kirakások Piactere
+                </h2>
+                <p className="text-white/60 mt-2 text-sm">Találj új elrendezéseket a közösségtől.</p>
+            </div>
+
+            {loading ? (
+                <div className="flex justify-center py-20"><div className="animate-spin text-4xl">💠</div></div>
+            ) : spreads.length === 0 ? (
+                <div className="text-center py-20 opacity-50">Még nincsenek feltöltött kirakások.</div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {spreads.map(spread => (
+                        <div key={spread.id} className="glass-panel p-5 rounded-2xl flex flex-col hover:bg-white/5 transition-colors border border-white/10 group relative">
+                            <SpreadPreview spread={spread} />
+                            
+                            <div className="flex justify-between items-start mb-2">
+                                <h3 className="font-serif font-bold text-lg text-white truncate pr-2" title={spread.name}>{spread.name}</h3>
+                                <div className="text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded border border-purple-500/30 font-mono">
+                                    ⬇ {spread.downloads || 0}
+                                </div>
+                            </div>
+                            
+                            <div className="text-xs text-gold-400 mb-2 font-bold opacity-80">
+                                Szerző: {spread.author || 'Ismeretlen'}
+                            </div>
+
+                            <p className="text-xs text-gray-400 mb-6 flex-1 line-clamp-3 leading-relaxed">
+                                {spread.description || "Nincs leírás."}
+                            </p>
+
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => handleDownload(spread)}
+                                    className="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-xl font-bold text-white text-sm border border-white/20 transition-all flex items-center justify-center gap-2 group-hover:bg-gold-500 group-hover:text-black group-hover:border-gold-500"
+                                >
+                                    <span>📥</span> Másolás
+                                </button>
+                                {currentUser?.isAdmin && (
+                                    <button 
+                                        onClick={() => handleAdminDelete(spread.id)}
+                                        className="py-2 px-3 bg-red-500/20 hover:bg-red-500 text-red-200 hover:text-white rounded-xl font-bold transition-all border border-red-500/30"
+                                        title="Admin Törlés"
+                                    >
+                                        🗑️
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};

@@ -1,0 +1,105 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- ADMIN DEFINÍCIÓ ---
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.email == "admin@example.com" || 
+        request.auth.token.email == "themadteam@gmail.com" || 
+        request.auth.token.email == "reamira22@gmail.com" ||
+        request.auth.token.email == "te_email_cimed@gmail.com"
+      );
+    }
+
+    // --- 1. GLOBÁLIS ADMIN JOG (GOD MODE) ---
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // --- 2. FELHASZNÁLÓI ADATOK (PRIVÁT) ---
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // --- 3. PUBLIKUS GYŰJTEMÉNYEK ---
+    
+    // Faliújság (Húzások)
+    match /public_readings/{document=**} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Kirakás Piactér
+    match /public_spreads/{document=**} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    // Pakli Piactér
+    match /public_decks/{document=**} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    // Lecke Piactér
+    match /public_lessons/{document=**} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Értesítések
+    match /notifications/{notifId} {
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if request.auth != null; 
+      allow update: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Közösségi Jelvények
+    match /community_badges/{badgeId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Jelvény Kérelmek
+    match /badge_requests/{reqId} {
+      allow read: if request.auth != null && (
+        resource.data.requesterId == request.auth.uid || 
+        resource.data.creatorId == request.auth.uid || 
+        isAdmin()
+      );
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && (
+        resource.data.requesterId == request.auth.uid || 
+        resource.data.creatorId == request.auth.uid || 
+        isAdmin()
+      );
+    }
+
+    // Közösségi Események (Naptár)
+    match /community_events/{eventId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && (resource.data.hostId == request.auth.uid || isAdmin());
+    }
+
+    // Távjóslás Szobák
+    match /sessions/{sessionId} {
+      allow read, write: if request.auth != null;
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+  }
+}

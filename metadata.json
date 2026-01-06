@@ -1,0 +1,8 @@
+{
+  "name": "Misztikus Tarot Napló",
+  "description": "Több felhasználós Tarot alkalmazás kártya adatbázissal, vizuális kirakásokkal, naptár funkcióval és AI alapú elemzéssel.",
+  "requestFramePermissions": [
+    "microphone",
+    "geolocation"
+  ]
+}
