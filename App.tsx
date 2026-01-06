@@ -28,6 +28,7 @@ import { BadgesView } from './components/BadgesView'; // Új
 import { Spread, Card } from './types';
 import { t } from './services/i18nService';
 import { AstroService } from './services/astroService'; // Import AstroService
+import UpdateNotification from './src/components/UpdateNotification'; // Import UpdateNotification
 
 // Icons
 const Icons = {
@@ -217,6 +218,7 @@ const AppContent = () => {
         <div className={`min-h-screen font-sans transition-colors duration-500 ${theme.bg} ${theme.text} ${fontSizeClass}`}>
             <ToastContainer />
             <MusicPlayer />
+            <UpdateNotification />
             
             {/* --- HEADER --- */}
             <header className="fixed top-0 left-0 right-0 z-50 px-4 py-3">
