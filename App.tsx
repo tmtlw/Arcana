@@ -50,7 +50,7 @@ const ToastContainer = () => {
     );
 };
 
-const NotificationCenter = ({ navigateTo }: { navigateTo: (v: string, param?: string) => void }) => {
+const NotificationCenter = ({ navigateTo }: { navigateTo: (v: string) => void }) => {
     const { notifications, unreadCount, markNotificationRead, markAllNotificationsRead } = useTarot();
     const [isOpen, setIsOpen] = useState(false);
 
