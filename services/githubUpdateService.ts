@@ -25,10 +25,10 @@ interface UpdateConfig {
 
 export const GitHubUpdateService = {
 
-    // Default config - replace with actual repo details or make configurable
+    // Alapértelmezett konfiguráció - cseréld le a tényleges repo adatokra vagy tedd konfigurálhatóvá
     config: {
-        owner: 'user', // Placeholder
-        repo: 'misztikus-tarot-naplo', // Placeholder
+        owner: 'user', // Helyőrző
+        repo: 'misztikus-tarot-naplo', // Helyőrző
         branch: 'main'
     } as UpdateConfig,
 
@@ -73,16 +73,16 @@ export const GitHubUpdateService = {
     },
 
     async installFile(path: string, content: string, secret: string): Promise<boolean> {
-        // Send to api.php
+        // Küldés az api.php-nak
         try {
             const dir = path.substring(0, path.lastIndexOf('/'));
             const filename = path.substring(path.lastIndexOf('/') + 1);
 
             const payload = {
-                path: dir, // Relative path
+                path: dir, // Relatív útvonal
                 filename: filename,
                 content: content,
-                is_system_update: true, // Flag for api.php
+                is_system_update: true, // Jelző az api.php számára
                 secret: secret
             };
 
