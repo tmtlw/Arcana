@@ -1,0 +1,9 @@
+RewriteEngine On
+RewriteBase /
+
+# Ha a fájl vagy könyvtár létezik, szolgálja ki azt
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Minden más kérést irányítson az index.php-ra
+RewriteRule ^ index.php [L]
