@@ -1,4 +1,64 @@
+<?php
+/**
+ * Arkánum - No-Build Frontend Loader
+ * Dinamikusan összegyűjti a szükséges TypeScript/React fájlokat és betölti az alkalmazást.
+ */
 
+// Könyvtárak, amelyekben rekurzívan keresünk
+$scanDirs = [
+    'cards',
+    'components',
+    'constants',
+    'context',
+    'lessons',
+    'services',
+    // 'hooks' - ha létezik, de a list_files nem mutatta
+];
+
+// Gyökérkönyvtár fájljai, amiket be kell tölteni (sorrend számíthat a függőségek miatt, de a require kezeli)
+// A types.ts-t előre vesszük
+$rootFiles = [
+    'types.ts',
+    'constants.ts',
+    'App.tsx',
+    'index.tsx'
+];
+
+// Fájlok összegyűjtése
+$files = [];
+
+// 1. Gyökér fájlok hozzáadása (ha léteznek)
+foreach ($rootFiles as $file) {
+    if (file_exists(__DIR__ . '/' . $file)) {
+        $files[] = './' . $file;
+    }
+}
+
+// 2. Mappák rekurzív bejárása
+foreach ($scanDirs as $dir) {
+    $path = __DIR__ . '/' . $dir;
+    if (is_dir($path)) {
+        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path));
+        foreach ($iterator as $file) {
+            // Csak .ts és .tsx fájlok
+            if ($file->isFile() && preg_match('/\.(ts|tsx)$/', $file->getFilename())) {
+                // Relatív útvonal előállítása
+                $fullPath = $file->getPathname();
+                // Normalizálás '/' elválasztókra minden rendszeren
+                $normalizedPath = str_replace(DIRECTORY_SEPARATOR, '/', $fullPath);
+                $normalizedBase = str_replace(DIRECTORY_SEPARATOR, '/', __DIR__);
+
+                $relativePath = str_replace($normalizedBase . '/', './', $normalizedPath);
+                $files[] = $relativePath;
+            }
+        }
+    }
+}
+
+// JSON formátum a JavaScript számára
+$criticalFilesJson = json_encode($files);
+
+?>
 <!DOCTYPE html>
 <html lang="hu">
   <head>
@@ -67,26 +127,8 @@
 
     <script>
       const modules = {};
-      const CRITICAL_FILES = [
-        './types.ts', './constants/deck.ts', './constants/astro.ts', './constants/ui.ts', './constants/spreads.ts',
-        './cards/major.ts', './cards/wands.ts', './cards/cups.ts', './cards/swords.ts', './cards/pentacles.ts',
-        './lessons/basics.ts', './lessons/major.ts', './lessons/minor.ts', './lessons/reading.ts', './lessons/symbolism.ts',
-        './constants/badges.ts', './constants/gamification.ts', './constants.ts',
-        './services/firebase.ts', './services/dbService.ts', './services/deckService.ts', './services/storageService.ts',
-        './services/i18nService.ts', './services/communityService.ts', './services/adminService.ts',
-        './services/astroService.ts', './services/numerologyService.ts',
-        './components/CardImage.tsx', './components/MarkdownSupport.tsx', './components/ReadingAnalysis.tsx',
-        './components/CardDetailView.tsx', './components/Dashboard.tsx', './components/ReadingView.tsx',
-        './components/HistoryView.tsx', './components/LibraryView.tsx', './components/CustomSpreadBuilder.tsx',
-        './components/AdvancedSpreadBuilder.tsx', './components/StatsView.tsx', './components/QuizView.tsx',
-        './components/ProfileView.tsx', './components/EducationView.tsx', './components/MultiplayerSession.tsx',
-        './components/InstallView.tsx', './components/DeckBuilder.tsx', './components/DeckImportWizard.tsx',
-        './components/MusicPlayer.tsx', './components/AuthView.tsx', './components/CommunityView.tsx',
-        './components/CommunityDecksView.tsx', './components/CommunitySpreadsView.tsx', './components/AdminDashboard.tsx',
-        './components/NumerologyView.tsx', './components/AstroCalendarView.tsx', './components/CompareView.tsx',
-        './components/BadgesView.tsx',
-        './context/TarotContext.tsx', './App.tsx', './index.tsx'
-      ];
+      // PHP által generált fájllista
+      const CRITICAL_FILES = <?php echo $criticalFilesJson; ?>;
 
       function updateStatus(msg, detail = "") {
           const s = document.getElementById('loading-status');
@@ -163,11 +205,20 @@
                 window.firebaseModules[pkg] = await import(pkg);
             }
 
-            for (const path of CRITICAL_FILES) {
+            // Párhuzamos letöltés, de soros regisztráció a konzisztencia érdekében (bár a modulrendszernek mindegy)
+            // A fetch-eket elindítjuk egyszerre
+            const promises = CRITICAL_FILES.map(path =>
+                fetch(path).then(res => {
+                    if (!res.ok) throw new Error(`Hiányzó rituális tárgy: ${path}`);
+                    return res.text().then(code => ({ path, code }));
+                })
+            );
+
+            const results = await Promise.all(promises);
+
+            // Regisztráció
+            for (const { path, code } of results) {
                 updateStatus("Idézés...", path.split('/').pop());
-                const response = await fetch(path);
-                if (!response.ok) throw new Error(`Hiányzó rituális tárgy: ${path}`);
-                const code = await response.text();
                 registerModule(path, code);
             }
 
