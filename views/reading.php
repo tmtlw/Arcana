@@ -26,6 +26,7 @@
 
 <script>
 let drawnCards = [];
+const baseUrl = '<?= $baseUrl ?>';
 
 async function drawCards() {
     const question = document.getElementById('questionInput').value;
@@ -34,7 +35,7 @@ async function drawCards() {
     }
 
     // Kártyák lekérése
-    const res = await fetch('/api/cards');
+    const res = await fetch(baseUrl + '/api/cards');
     const allCards = await res.json();
 
     // Véletlenszerű 3 lap (Múlt, Jelen, Jövő)
@@ -74,7 +75,7 @@ async function saveReading() {
         cards: drawnCards.map(c => ({ cardId: c.id, isReversed: c.isReversed, position: c.position }))
     };
 
-    const res = await fetch('/api/readings', {
+    const res = await fetch(baseUrl + '/api/readings', {
         method: 'POST',
         body: JSON.stringify(payload)
     });
@@ -82,7 +83,7 @@ async function saveReading() {
     const result = await res.json();
     if (result.success) {
         alert("Sikeres mentés!");
-        window.location.href = '/history';
+        window.location.href = baseUrl + '/history';
     } else {
         alert("Hiba mentéskor.");
     }

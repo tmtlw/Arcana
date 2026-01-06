@@ -12,12 +12,17 @@ Ez a projekt át lett írva **PHP** alapokra, hogy megszüntessük a build folya
     *   Szerkeszd a `config.php` fájlt az adatbázis elérési adatokkal.
 
 3.  **Adatbázis inicializálása:**
-    *   Futtasd a böngészőben az `install.php` fájlt (pl. `http://localhost/install.php`).
+    *   Futtasd a böngészőben az `install.php` fájlt.
     *   Ez létrehozza a táblákat és feltölti az alap kártyaadatokkal.
     *   **Fontos:** A telepítés után töröld az `install.php`-t!
 
-4.  **Használat:**
-    *   Nyisd meg az oldalt (pl. `http://localhost/`).
+4.  **Futtatás (legegyszerűbb mód):**
+    *   Ha nincs telepített webszervered (Apache/XAMPP), használd a PHP beépített szerverét:
+    *   Nyiss egy terminált a projekt mappájában.
+    *   Futtasd: `php -S localhost:8000 index.php`
+    *   Nyisd meg a böngészőben: `http://localhost:8000`
+
+5.  **Használat:**
     *   Jelentkezz be az `admin / admin123` adatokkal (vagy regisztrálj újat).
 
 ## Funkciók

@@ -2,11 +2,35 @@
 session_start();
 require_once 'config.php';
 
-// Egyszerű router
+// PHP Beépített Szerver Támogatás (php -S)
+// Ha a kért fájl létezik (pl. css, js, képek), szolgálja ki azt közvetlenül.
+if (php_sapi_name() === 'cli-server') {
+    $file = __DIR__ . parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    if (is_file($file)) {
+        return false;
+    }
+}
+
+// Router logika
 $request = $_SERVER['REQUEST_URI'];
-$basePath = '/'; // Ha alkönyvtárban van, ide kell írni
-$path = str_replace($basePath, '', $request);
-$path = strtok($path, '?'); // Query string levágása
+// Eltávolítjuk a query stringet
+$parsedUrl = parse_url($request);
+$path = trim($parsedUrl['path'], '/'); // Vezető és záró perjelek eltávolítása
+
+// Ha a projekt alkönyvtárban van (pl. localhost/tarot/), azt le kell vágni.
+// Jelenleg feltételezzük a gyökérkönyvtárat, de ha nem ott van:
+$scriptName = dirname($_SERVER['SCRIPT_NAME']);
+if ($scriptName !== '/' && $scriptName !== '\\') {
+    $scriptName = trim($scriptName, '/\\');
+    if (strpos($path, $scriptName) === 0) {
+        $path = substr($path, strlen($scriptName));
+        $path = trim($path, '/');
+    }
+}
+
+// Base URL meghatározása a nézetek számára
+$baseUrl = str_replace('/index.php', '', $_SERVER['SCRIPT_NAME']);
+if ($baseUrl === '/' || $baseUrl === '\\') $baseUrl = '';
 
 // API Végpontok
 if (strpos($path, 'api/') === 0) {

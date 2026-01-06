@@ -3,7 +3,7 @@
 // Ez a fájl kezeli a rendszerfrissítéseket (fájlok felülírása).
 
 header('Content-Type: application/json');
-require_once '../config.php';
+require_once __DIR__ . '/../config.php';
 
 $input = file_get_contents('php://input');
 $data = json_decode($input, true);

@@ -19,9 +19,9 @@
     <nav class="fixed top-0 w-full z-50 glass-panel border-b border-white/10 px-6 py-4 flex justify-between items-center">
         <div class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-500">🔮 ARKÁNUM</div>
         <div class="flex gap-4 text-sm font-bold uppercase tracking-widest">
-            <a href="/dashboard" class="hover:text-yellow-400 transition-colors">Főoldal</a>
-            <a href="/history" class="hover:text-yellow-400 transition-colors">Napló</a>
-            <a href="/library" class="hover:text-yellow-400 transition-colors">Tudástár</a>
+            <a href="<?= $baseUrl ?>/dashboard" class="hover:text-yellow-400 transition-colors">Főoldal</a>
+            <a href="<?= $baseUrl ?>/history" class="hover:text-yellow-400 transition-colors">Napló</a>
+            <a href="<?= $baseUrl ?>/library" class="hover:text-yellow-400 transition-colors">Tudástár</a>
             <button onclick="logout()" class="text-red-400 hover:text-red-300">Kilépés</button>
         </div>
     </nav>
@@ -41,9 +41,10 @@
     <?php endif; ?>
 
     <script>
+        const BASE_URL = '<?= $baseUrl ?>';
         async function logout() {
-            await fetch('/api/auth/logout');
-            window.location.href = '/login';
+            await fetch(BASE_URL + '/api/auth/logout');
+            window.location.href = BASE_URL + '/login';
         }
     </script>
 </body>

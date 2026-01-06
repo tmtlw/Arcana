@@ -3,15 +3,22 @@
 
 <script>
 async function loadHistory() {
-    const res = await fetch('/api/readings');
+    const baseUrl = '<?= $baseUrl ?>';
+    const res = await fetch(baseUrl + '/api/readings');
     const readings = await res.json();
 
-    document.getElementById('historyList').innerHTML = readings.map(r => `
+    document.getElementById('historyList').innerHTML = readings.map(r => {
+        // XSS védelem
+        const escape = (str) => str ? str.replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
+        const question = escape(r.question);
+        const notes = escape(r.notes);
+
+        return `
         <div class="glass-panel p-6 rounded-2xl">
             <div class="flex justify-between items-start mb-4">
                 <div>
                     <div class="text-yellow-500 font-bold text-lg">${new Date(r.date).toLocaleDateString()}</div>
-                    <div class="text-xl text-white italic">"${r.question}"</div>
+                    <div class="text-xl text-white italic">"${question}"</div>
                 </div>
                 <button class="text-red-400 hover:text-white" onclick="alert('Törlés funkció hamarosan...')">🗑️</button>
             </div>
@@ -23,9 +30,9 @@ async function loadHistory() {
                     </div>
                 `).join('')}
             </div>
-            ${r.notes ? `<div class="mt-4 p-4 bg-white/5 rounded-lg text-sm text-gray-300 italic">${r.notes}</div>` : ''}
+            ${notes ? `<div class="mt-4 p-4 bg-white/5 rounded-lg text-sm text-gray-300 italic">${notes}</div>` : ''}
         </div>
-    `).join('');
+    `}).join('');
 }
 loadHistory();
 </script>
