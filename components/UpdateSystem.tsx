@@ -87,11 +87,11 @@ export const UpdateSystem = () => {
 
     return (
         <div className="p-6 glass-panel-dark rounded-xl border border-white/10 text-white">
-            <h2 className="text-xl font-bold mb-4 text-gold-400">System Update</h2>
+            <h2 className="text-xl font-bold mb-4 text-gold-400">Rendszer Frissítés</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div>
-                    <label className="block text-xs text-white/50 mb-1">GitHub Owner</label>
+                    <label className="block text-xs text-white/50 mb-1">GitHub Tulajdonos</label>
                     <input
                         type="text"
                         value={config.owner}
@@ -100,7 +100,7 @@ export const UpdateSystem = () => {
                     />
                 </div>
                 <div>
-                    <label className="block text-xs text-white/50 mb-1">Repo Name</label>
+                    <label className="block text-xs text-white/50 mb-1">Repo Neve</label>
                     <input
                         type="text"
                         value={config.repo}
@@ -109,7 +109,7 @@ export const UpdateSystem = () => {
                     />
                 </div>
                 <div>
-                    <label className="block text-xs text-white/50 mb-1">Branch</label>
+                    <label className="block text-xs text-white/50 mb-1">Ág (Branch)</label>
                     <input
                         type="text"
                         value={config.branch}
@@ -121,26 +121,26 @@ export const UpdateSystem = () => {
 
             <div className="flex items-center gap-4 mb-6">
                 <div className="text-sm">
-                    <span className="text-white/50">Current Version:</span>
-                    <span className="font-mono ml-2">{currentSha ? currentSha.substring(0, 7) : 'Unknown'}</span>
+                    <span className="text-white/50">Jelenlegi Verzió:</span>
+                    <span className="font-mono ml-2">{currentSha ? currentSha.substring(0, 7) : 'Ismeretlen'}</span>
                 </div>
                 <button
                     onClick={handleCheck}
                     disabled={status === 'checking' || status === 'updating'}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-bold transition-colors disabled:opacity-50"
                 >
-                    {status === 'checking' ? 'Checking...' : 'Check for Updates'}
+                    {status === 'checking' ? 'Ellenőrzés...' : 'Frissítések Keresése'}
                 </button>
             </div>
 
             {status === 'ready' && (
                 <div className="mb-4">
-                    <label className="block text-xs text-white/50 mb-1">Update Secret Key</label>
+                    <label className="block text-xs text-white/50 mb-1">Frissítési Titkos Kulcs</label>
                     <input
                         type="password"
                         value={updateSecret}
                         onChange={e => setUpdateSecret(e.target.value)}
-                        placeholder="Enter secret key to authorize write..."
+                        placeholder="Add meg a titkos kulcsot az íráshoz..."
                         className="w-full bg-black/30 border border-white/10 rounded px-3 py-2 text-sm"
                     />
                 </div>
@@ -148,7 +148,7 @@ export const UpdateSystem = () => {
 
             {status === 'ready' && (
                 <div className="mb-6 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
-                    <h3 className="font-bold text-green-400 mb-2">Update Available</h3>
+                    <h3 className="font-bold text-green-400 mb-2">Frissítés Elérhető</h3>
                     <div className="max-h-40 overflow-y-auto text-xs font-mono bg-black/20 p-2 rounded mb-3">
                         {changes.map(f => <div key={f}>{f}</div>)}
                     </div>
@@ -156,22 +156,22 @@ export const UpdateSystem = () => {
                         onClick={handleUpdate}
                         className="w-full py-2 bg-green-600 hover:bg-green-500 rounded font-bold transition-colors"
                     >
-                        Install Update ({changes.length} files)
+                        Frissítés Telepítése ({changes.length} fájl)
                     </button>
                 </div>
             )}
 
             {status === 'done' && (
                 <div className="mb-6 p-4 bg-green-500/20 border border-green-500/50 rounded-lg text-center">
-                    <h3 className="font-bold text-green-300 text-lg mb-2">Update Successful!</h3>
+                    <h3 className="font-bold text-green-300 text-lg mb-2">Frissítés Sikeres!</h3>
                     <button onClick={() => window.location.reload()} className="px-6 py-2 bg-white text-green-900 font-bold rounded hover:bg-gray-100">
-                        Reload Application
+                        Alkalmazás Újratöltése
                     </button>
                 </div>
             )}
 
             <div className="bg-black/50 rounded-lg p-3 font-mono text-xs h-48 overflow-y-auto custom-scrollbar border border-white/5">
-                {logs.length === 0 ? <span className="text-white/30">System logs...</span> : logs.map((l, i) => (
+                {logs.length === 0 ? <span className="text-white/30">Rendszernapló...</span> : logs.map((l, i) => (
                     <div key={i} className="mb-0.5">{l}</div>
                 ))}
             </div>

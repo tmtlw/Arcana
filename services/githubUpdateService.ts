@@ -1,6 +1,4 @@
 
-import { t } from './i18nService';
-
 interface GitHubFile {
     path: string;
     mode: string;
