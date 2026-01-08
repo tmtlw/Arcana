@@ -506,5 +506,34 @@ export const DEFAULT_SPREADS: Spread[] = [
             { id: 3, name: 'Levegő', description: 'Gondolatok, tervek, kommunikáció.', x: 3, y: 2 },
             { id: 4, name: 'Föld', description: 'Anyagiak, stabilitás, egészség.', x: 2, y: 3 }
         ]
+    },
+    {
+        id: 'current-love',
+        name: 'Jelenlegi Szerelem',
+        category: 'love',
+        description: 'Részletes 9 lapos elemzés a kapcsolat jelenlegi helyzetéről.',
+        positions: [
+            { id: 1, name: 'Hogyan érez irántad?', description: 'Az ő érzelmei.', x: 1, y: 1, defaultContext: 'love' },
+            { id: 2, name: 'Valós szándékai', description: 'Mit akar valójában?', x: 3, y: 1, defaultContext: 'love' },
+            { id: 3, name: 'Mit szeretnél te?', description: 'A te vágyaid.', x: 1, y: 2, defaultContext: 'love' },
+            { id: 4, name: 'Mit szeretne ő?', description: 'Az ő vágyai.', x: 2, y: 2, defaultContext: 'love' },
+            { id: 5, name: 'Mi hoz össze?', description: 'Közös pontok.', x: 3, y: 2, defaultContext: 'love' },
+            { id: 6, name: 'Mi választ el?', description: 'Konfliktusforrások.', x: 2, y: 3, defaultContext: 'love' },
+            { id: 7, name: 'Energia', description: 'A kapcsolat energiája.', x: 1, y: 4, defaultContext: 'love' },
+            { id: 8, name: 'Rejtett', description: 'Ami a felszín alatt van.', x: 2, y: 4, defaultContext: 'love' },
+            { id: 9, name: 'Kimenetel', description: 'Sikeres lesz-e a kapcsolat?', x: 3, y: 4, defaultContext: 'love' }
+        ]
+    },
+    {
+        id: 'weekly-insight',
+        name: 'Heti Útmutatás',
+        category: 'general',
+        description: 'Heti előrejelzés: téma, tanulás, akadályok és segítség.',
+        positions: [
+            { id: 1, name: 'Fő Téma', description: 'A hét energiája.', x: 2, y: 1 },
+            { id: 2, name: 'Tanulás', description: 'Milyen lehetőség adódik?', x: 1, y: 2, rotation: -15, defaultContext: 'advice' },
+            { id: 3, name: 'Akadályok', description: 'Hogyan győzd le őket?', x: 2, y: 2, defaultContext: 'advice' },
+            { id: 4, name: 'Támogatás', description: 'Hol találsz segítséget?', x: 3, y: 2, rotation: 15, defaultContext: 'advice' }
+        ]
     }
 ];
