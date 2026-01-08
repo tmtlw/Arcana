@@ -30,6 +30,9 @@ import { t } from './services/i18nService';
 import { AstroService } from './services/astroService'; // Import AstroService
 import { UpdateNotification } from './components/UpdateNotification'; // Import UpdateNotification
 
+// Fallback if UpdateNotification is undefined (e.g. bootloader race condition)
+const SafeUpdateNotification = UpdateNotification || (() => null);
+
 // Icons
 const Icons = {
   Menu: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>,
@@ -218,7 +221,7 @@ const AppContent = () => {
         <div className={`min-h-screen font-sans transition-colors duration-500 ${theme.bg} ${theme.text} ${fontSizeClass}`}>
             <ToastContainer />
             <MusicPlayer />
-            <UpdateNotification />
+            <SafeUpdateNotification />
             
             {/* --- HEADER --- */}
             <header className="fixed top-0 left-0 right-0 z-50 px-4 py-3">
