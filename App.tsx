@@ -28,7 +28,7 @@ import { BadgesView } from './components/BadgesView'; // Új
 import { Spread, Card } from './types';
 import { t } from './services/i18nService';
 import { AstroService } from './services/astroService'; // Import AstroService
-import UpdateNotification from './components/UpdateNotification'; // Import UpdateNotification
+import { UpdateNotification } from './components/UpdateNotification'; // Import UpdateNotification
 
 // Icons
 const Icons = {

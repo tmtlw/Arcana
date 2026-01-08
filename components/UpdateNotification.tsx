@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { UpdateService, UpdateResponse } from '../services/UpdateService';
 import { useTarot } from '../context/TarotContext';
 
-const UpdateNotification: React.FC = () => {
+export const UpdateNotification: React.FC = () => {
   const { currentUser } = useTarot();
   const [updateAvailable, setUpdateAvailable] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -151,5 +151,3 @@ const UpdateNotification: React.FC = () => {
     </div>
   );
 };
-
-export default UpdateNotification;
