@@ -2,14 +2,16 @@
 import React, { useState, useEffect } from 'react';
 import { useTarot } from '../context/TarotContext';
 import { AdminService } from '../services/adminService';
-import { User, Reading, Spread, DeckMeta, Lesson } from '../types';
+import { UpdateService, UpdateResponse } from '../services/UpdateService';
+import { CommunityService } from '../services/communityService';
+import { User, Reading, Spread, DeckMeta, Lesson, TarotNotification } from '../types';
 import { MarkdownEditor, MarkdownRenderer } from './MarkdownSupport';
 
-type AdminTab = 'users' | 'readings' | 'spreads' | 'decks' | 'lessons';
+type AdminTab = 'users' | 'readings' | 'spreads' | 'decks' | 'lessons' | 'system';
 
 export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
     const { currentUser, showToast } = useTarot();
-    const [activeTab, setActiveTab] = useState<AdminTab>('readings');
+    const [activeTab, setActiveTab] = useState<AdminTab>('system');
     const [loading, setLoading] = useState(false);
     
     // Data States
@@ -18,6 +20,12 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
     const [spreads, setSpreads] = useState<Spread[]>([]);
     const [decks, setDecks] = useState<DeckMeta[]>([]);
     const [lessons, setLessons] = useState<Lesson[]>([]);
+
+    // System States
+    const [systemInfo, setSystemInfo] = useState<any>(null);
+    const [updateCheckResult, setUpdateCheckResult] = useState<UpdateResponse | null>(null);
+    const [backups, setBackups] = useState<string[]>([]);
+    const [updateLoading, setUpdateLoading] = useState(false);
 
     // Detail Modal State
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
@@ -43,6 +51,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                 case 'spreads': setSpreads(await AdminService.getGlobalSpreads()); break;
                 case 'decks': setDecks(await AdminService.getGlobalDecks()); break;
                 case 'lessons': setLessons(await AdminService.getGlobalLessons()); break;
+                case 'system': await loadSystemData(); break;
             }
         } catch (e) {
             alert("Hiba az adatok betöltésekor: " + e);
@@ -51,8 +60,77 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
         }
     };
 
-    const handleDelete = async (id: string, userId: string | undefined, type: 'user' | 'reading' | 'spread' | 'deck' | 'lesson') => {
-        if (!confirm("⚠️ ADMIN FIGYELMEZTETÉS: Biztosan törlöd ezt az elemet? Ez a művelet visszavonhatatlan és a felhasználó privát adatbázisából is töröl!")) return;
+    const loadSystemData = async () => {
+        try {
+            const vRes = await fetch('./version.json');
+            if (vRes.ok) {
+                setSystemInfo(await vRes.json());
+            }
+            const bRes = await UpdateService.listBackups();
+            if (bRes.status === 'success' && bRes.backups) {
+                setBackups(bRes.backups);
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const handleCheckUpdate = async () => {
+        setUpdateLoading(true);
+        try {
+            const res = await UpdateService.checkForUpdates();
+            setUpdateCheckResult(res);
+            if (res.has_update) {
+                showToast("Új frissítés érhető el!", "success");
+            } else {
+                showToast("A rendszer naprakész.", "info");
+            }
+        } catch (e) {
+            showToast("Hiba a frissítés ellenőrzésekor.", "error");
+        } finally {
+            setUpdateLoading(false);
+        }
+    };
+
+    const handlePerformUpdate = async () => {
+        if (!confirm("Biztosan frissíteni szeretnéd a rendszert? A folyamat előtt biztonsági mentés készül.")) return;
+        setUpdateLoading(true);
+        try {
+            const res = await UpdateService.performUpdate();
+            if (res.status === 'success') {
+                alert(`Sikeres frissítés! (Backup ID: ${res.backup_id}) Az oldal újratöltődik...`);
+                window.location.reload();
+            } else {
+                alert("Hiba történt: " + res.message);
+            }
+        } catch (e) {
+            alert("Végzetes hiba a frissítés során.");
+        } finally {
+            setUpdateLoading(false);
+        }
+    };
+
+    const handleRestoreBackup = async (id: string) => {
+        if (!confirm(`Biztosan visszaállítod ezt a verziót: ${id}? A jelenlegi állapot elveszhet.`)) return;
+        setUpdateLoading(true);
+        try {
+            const res = await UpdateService.restoreBackup(id);
+            if (res.status === 'success') {
+                alert("Sikeres visszaállítás! Az oldal újratöltődik...");
+                window.location.reload();
+            } else {
+                alert("Hiba történt: " + res.message);
+            }
+        } catch (e) {
+            alert("Végzetes hiba a visszaállítás során.");
+        } finally {
+            setUpdateLoading(false);
+        }
+    };
+
+    const handleDelete = async (id: string, userId: string | undefined, type: 'user' | 'reading' | 'spread' | 'deck' | 'lesson', itemName?: string) => {
+        const reason = prompt("Kérlek indokold meg a törlést (az érintett felhasználó értesítést kap róla):", "Szabályzat megsértése");
+        if (reason === null) return; // Cancelled
 
         if (!userId && type !== 'user') {
             alert("Hiba: A tulajdonos ID-ja nem azonosítható.");
@@ -60,6 +138,21 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
         }
 
         try {
+            // Send Notification to Owner
+            if (userId) {
+                const notif: TarotNotification = {
+                    id: `admin_del_${Date.now()}`,
+                    userId: userId,
+                    type: 'system_alert',
+                    title: 'Rendszerüzenet: Tartalom törölve',
+                    message: `Egy általad létrehozott tartalom (${type}: ${itemName || id}) törlésre került adminisztrátor által. Indoklás: ${reason}`,
+                    isRead: false,
+                    createdAt: new Date().toISOString()
+                };
+                await CommunityService.addNotification(notif);
+            }
+
+            // Perform Deletion
             switch (type) {
                 case 'user':
                     await AdminService.banUser(id);
@@ -78,7 +171,6 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                     setDecks(prev => prev.filter(d => d.id !== id));
                     break;
                 case 'lesson':
-                    // If it is a public lesson (system override), delete from public_lessons
                     if (lessons.find(l => l.id === id)?.isPublic) {
                         await AdminService.deletePublicLesson(id);
                     } else {
@@ -87,8 +179,9 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                     setLessons(prev => prev.filter(l => l.id !== id));
                     break;
             }
+            showToast("Sikeres törlés és értesítés elküldve.", "success");
         } catch (e) {
-            alert("Hiba a törléskor (Jogosultság? Ellenőrizd a rules fájlt): " + e);
+            alert("Hiba a törléskor (Jogosultság?): " + e);
         }
     };
 
@@ -103,19 +196,16 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
             await AdminService.saveSystemLesson(editingLesson);
             showToast("Lecke sikeresen felülírva a szerveren!", "success");
             setIsEditingLesson(false);
-            loadData(); // Refresh list
+            loadData();
         } catch (e) {
             alert("Hiba a mentéskor: " + e);
         }
     };
 
-    // --- Helper for Masking Sensitive Data ---
     const maskData = (data: string | undefined) => {
         if (!data) return '-';
         return '******** (Titkosítva)';
     };
-
-    // --- Components ---
 
     const TabButton = ({ id, label, icon }: { id: AdminTab, label: string, icon: string }) => (
         <button 
@@ -141,13 +231,11 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
 
     const DetailModal = () => {
         if (!selectedItem) return null;
-        
         let displayItem = { ...selectedItem };
         if (activeTab === 'users') {
             displayItem.realName = maskData(displayItem.realName);
             displayItem.birthTime = maskData(displayItem.birthTime);
         }
-
         return (
             <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setSelectedItem(null)}>
                 <div className="bg-[#1e1e2e] w-full max-w-2xl rounded-2xl p-6 border border-white/10 max-h-[80vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
@@ -155,13 +243,11 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                         <h3 className="text-xl font-bold text-white">Részletes Adatok</h3>
                         <button onClick={() => setSelectedItem(null)} className="text-gray-500 hover:text-white text-2xl">✕</button>
                     </div>
-                    
                     {activeTab === 'users' && (
                         <div className="bg-yellow-500/10 border border-yellow-500/20 p-3 rounded mb-4 text-xs text-yellow-200">
                             🔒 Adatvédelmi okokból a személyes adatok (valódi név, születési idő) maszkolva vannak.
                         </div>
                     )}
-
                     <pre className="text-xs text-gray-300 whitespace-pre-wrap font-mono bg-black/30 p-4 rounded-xl border border-white/5 overflow-x-auto">
                         {JSON.stringify(displayItem, null, 2)}
                     </pre>
@@ -172,7 +258,6 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
 
     const EditLessonModal = () => {
         if (!isEditingLesson || !editingLesson) return null;
-        
         return (
             <div className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4">
                 <div className="bg-[#1e1e2e] w-full max-w-4xl h-[90vh] rounded-2xl p-6 border border-white/10 flex flex-col">
@@ -180,7 +265,6 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                         <h3 className="text-xl font-bold text-white">Lecke Szerkesztése ({editingLesson.id})</h3>
                         <button onClick={() => setIsEditingLesson(false)} className="text-gray-500 hover:text-white text-2xl">✕</button>
                     </div>
-                    
                     <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-2">
                         <div>
                             <label className="block text-xs font-bold text-gray-500 mb-1">Cím</label>
@@ -207,7 +291,6 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                             />
                         </div>
                     </div>
-
                     <div className="mt-4 pt-4 border-t border-white/10 flex justify-end gap-2">
                         <button onClick={() => setIsEditingLesson(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-white">Mégse</button>
                         <button onClick={saveEditedLesson} className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded shadow-lg">Mentés & Publikálás</button>
@@ -222,13 +305,14 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
             {selectedItem && <DetailModal />}
             {isEditingLesson && <EditLessonModal />}
             
-            {/* Sidebar */}
             <div className="w-full md:w-64 bg-[#1e1e2e] flex-shrink-0 flex flex-col border-r border-white/5">
                 <div className="p-6 border-b border-white/5">
                     <h2 className="text-xl font-bold text-white tracking-widest uppercase">Admin Pult</h2>
                     <p className="text-xs text-red-400 mt-1 font-bold">⚠️ Isten Mód (Mindent lát)</p>
                 </div>
                 <nav className="flex-1 py-4">
+                    <TabButton id="system" label="Rendszer & Frissítés" icon="🖥️" />
+                    <div className="my-4 border-t border-white/5"></div>
                     <TabButton id="readings" label="Minden Húzás" icon="📜" />
                     <TabButton id="spreads" label="Minden Kirakás" icon="💠" />
                     <TabButton id="decks" label="Minden Pakli" icon="🎨" />
@@ -243,11 +327,11 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                 </div>
             </div>
 
-            {/* Main Content */}
             <div className="flex-1 overflow-hidden flex flex-col h-screen">
                 <header className="p-6 bg-[#1e1e2e] border-b border-white/5 flex justify-between items-center">
                     <div>
                         <h3 className="text-lg font-bold text-white">
+                            {activeTab === 'system' && 'Rendszer Állapot & Frissítés Kezelő'}
                             {activeTab === 'users' && 'Összes Regisztrált Felhasználó (Személyes adatok védve)'}
                             {activeTab === 'readings' && 'Rendszernapló: Összes Húzás (Privát is látható)'}
                             {activeTab === 'spreads' && 'Rendszernapló: Egyéni Kirakások'}
@@ -268,7 +352,78 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                         <div className="text-center py-20 text-white/20">Adatok betöltése az univerzumból...</div>
                     ) : (
                         <div className="w-full">
-                            {/* USER TABLE */}
+                            {activeTab === 'system' && (
+                                <div className="space-y-8 max-w-4xl mx-auto">
+                                    <div className="bg-[#2a2a3c] rounded-2xl p-6 border border-white/10">
+                                        <h4 className="text-xl font-bold text-white mb-4">Rendszer Információ</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <div className="bg-black/20 p-4 rounded-xl">
+                                                <div className="text-xs text-gray-500 uppercase tracking-widest">Jelenlegi Verzió</div>
+                                                <div className="text-2xl font-bold text-gold-400">{systemInfo?.version || 'Ismeretlen'}</div>
+                                            </div>
+                                            <div className="bg-black/20 p-4 rounded-xl">
+                                                <div className="text-xs text-gray-500 uppercase tracking-widest">Utolsó Frissítés</div>
+                                                <div className="text-sm font-bold text-white">{systemInfo?.last_update || '-'}</div>
+                                            </div>
+                                            <div className="bg-black/20 p-4 rounded-xl">
+                                                <div className="text-xs text-gray-500 uppercase tracking-widest">Commit SHA</div>
+                                                <div className="text-xs font-mono text-gray-400 break-all">{systemInfo?.commit_sha || '-'}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-[#2a2a3c] rounded-2xl p-6 border border-white/10">
+                                        <h4 className="text-xl font-bold text-white mb-4">Frissítés Kezelő</h4>
+                                        <div className="flex items-center gap-4 mb-6">
+                                            <button
+                                                onClick={handleCheckUpdate}
+                                                disabled={updateLoading}
+                                                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2"
+                                            >
+                                                {updateLoading ? 'Ellenőrzés...' : 'Frissítések Keresése'}
+                                            </button>
+                                            {updateCheckResult && (
+                                                <div className={`px-4 py-3 rounded-xl border ${updateCheckResult.has_update ? 'bg-green-500/20 border-green-500 text-green-300' : 'bg-white/5 border-white/10 text-gray-400'}`}>
+                                                    {updateCheckResult.message}
+                                                    {updateCheckResult.has_update && (
+                                                        <span className="ml-2 font-mono text-xs">({updateCheckResult.remote_sha?.substring(0,7)})</span>
+                                                    )}
+                                                </div>
+                                            )}
+                                            {updateCheckResult?.has_update && (
+                                                <button
+                                                    onClick={handlePerformUpdate}
+                                                    disabled={updateLoading}
+                                                    className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white px-6 py-3 rounded-xl font-bold animate-pulse"
+                                                >
+                                                    🚀 Frissítés Indítása
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="border-t border-white/10 pt-6">
+                                            <h5 className="text-sm font-bold text-gray-400 mb-4 uppercase tracking-widest">Biztonsági Mentések</h5>
+                                            {backups.length === 0 ? (
+                                                <div className="text-sm text-gray-600 italic">Nincsenek mentések.</div>
+                                            ) : (
+                                                <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                                                    {backups.map(backup => (
+                                                        <div key={backup} className="flex justify-between items-center bg-black/20 p-3 rounded-lg hover:bg-black/30 transition-colors">
+                                                            <span className="font-mono text-sm text-gray-300">{backup}</span>
+                                                            <button
+                                                                onClick={() => handleRestoreBackup(backup)}
+                                                                className="bg-red-500/10 hover:bg-red-600 hover:text-white text-red-400 px-3 py-1 rounded text-xs font-bold uppercase transition-colors"
+                                                            >
+                                                                Visszaállítás
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {activeTab === 'users' && (
                                 <table className="w-full text-left text-sm border-collapse">
                                     <thead className="bg-[#2a2a3c] text-white/50 text-xs uppercase sticky top-0">
@@ -297,7 +452,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                                     <span className="text-xs opacity-50">Lvl {u.level || 1}</span>
                                                 </td>
                                                 <td className="p-4 text-right">
-                                                    {!u.isAdmin && <DeleteButton onClick={() => handleDelete(u.id, u.id, 'user')} />}
+                                                    {!u.isAdmin && <DeleteButton onClick={() => handleDelete(u.id, u.id, 'user', u.name)} />}
                                                 </td>
                                             </tr>
                                         ))}
@@ -305,7 +460,6 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                 </table>
                             )}
 
-                            {/* READINGS TABLE */}
                             {activeTab === 'readings' && (
                                 <table className="w-full text-left text-sm border-collapse">
                                     <thead className="bg-[#2a2a3c] text-white/50 text-xs uppercase sticky top-0">
@@ -333,7 +487,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                                     <StatusBadge isPublic={r.isPublic} />
                                                 </td>
                                                 <td className="p-4 text-right">
-                                                    <DeleteButton onClick={() => handleDelete(r.id, r.userId, 'reading')} />
+                                                    <DeleteButton onClick={() => handleDelete(r.id, r.userId, 'reading', r.question)} />
                                                 </td>
                                             </tr>
                                         ))}
@@ -341,7 +495,6 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                 </table>
                             )}
 
-                            {/* SPREADS TABLE */}
                             {activeTab === 'spreads' && (
                                 <table className="w-full text-left text-sm border-collapse">
                                     <thead className="bg-[#2a2a3c] text-white/50 text-xs uppercase sticky top-0">
@@ -362,7 +515,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                                 <td className="p-4 text-gray-400 text-xs font-mono">{s.userId || 'System/Unknown'}</td>
                                                 <td className="p-4 text-gray-400"><StatusBadge isPublic={s.isPublic} /></td>
                                                 <td className="p-4 text-right">
-                                                    <DeleteButton onClick={() => handleDelete(s.id, s.userId, 'spread')} />
+                                                    <DeleteButton onClick={() => handleDelete(s.id, s.userId, 'spread', s.name)} />
                                                 </td>
                                             </tr>
                                         ))}
@@ -370,7 +523,6 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                 </table>
                             )}
 
-                            {/* DECKS TABLE */}
                             {activeTab === 'decks' && (
                                 <table className="w-full text-left text-sm border-collapse">
                                     <thead className="bg-[#2a2a3c] text-white/50 text-xs uppercase sticky top-0">
@@ -388,7 +540,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                                 <td className="p-4 text-gray-400 text-xs font-mono">{d.userId || 'System'}</td>
                                                 <td className="p-4 text-gray-400"><StatusBadge isPublic={d.isPublic} /></td>
                                                 <td className="p-4 text-right">
-                                                    <DeleteButton onClick={() => handleDelete(d.id, d.userId, 'deck')} />
+                                                    <DeleteButton onClick={() => handleDelete(d.id, d.userId, 'deck', d.name)} />
                                                 </td>
                                             </tr>
                                         ))}
@@ -396,7 +548,6 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                 </table>
                             )}
 
-                            {/* LESSONS TABLE */}
                             {activeTab === 'lessons' && (
                                 <table className="w-full text-left text-sm border-collapse">
                                     <thead className="bg-[#2a2a3c] text-white/50 text-xs uppercase sticky top-0">
@@ -423,7 +574,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                                     >
                                                         Szerkesztés
                                                     </button>
-                                                    <DeleteButton onClick={() => handleDelete(l.id, l.userId, 'lesson')} />
+                                                    <DeleteButton onClick={() => handleDelete(l.id, l.userId, 'lesson', l.title)} />
                                                 </td>
                                             </tr>
                                         ))}
