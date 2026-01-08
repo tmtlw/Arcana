@@ -11,7 +11,11 @@ const FILES = {
     'Swords': { path: 'cards/swords.ts', variable: 'SWORDS', type: 'Card[]', importType: 'Card' },
     'Pentacles': { path: 'cards/pentacles.ts', variable: 'PENTACLES', type: 'Card[]', importType: 'Card' },
     'Spreads': { path: 'constants/spreads.ts', variable: 'DEFAULT_SPREADS', type: 'Spread[]', importType: 'Spread' },
-    'Lessons - Basics': { path: 'lessons/basics.ts', variable: 'LESSONS_BASICS', type: 'Lesson[]', importType: 'Lesson' }
+    'Lessons - Basics': { path: 'lessons/basics.ts', variable: 'LESSONS_BASICS', type: 'Lesson[]', importType: 'Lesson' },
+    'Lessons - Major': { path: 'lessons/major.ts', variable: 'MAJOR_LESSONS', type: 'Lesson[]', importType: 'Lesson' },
+    'Lessons - Minor': { path: 'lessons/minor.ts', variable: 'MINOR_LESSONS', type: 'Lesson[]', importType: 'Lesson' },
+    'Lessons - Reading': { path: 'lessons/reading.ts', variable: 'READING_LESSONS', type: 'Lesson[]', importType: 'Lesson' },
+    'Lessons - Symbolism': { path: 'lessons/symbolism.ts', variable: 'SYMBOLISM_LESSONS', type: 'Lesson[]', importType: 'Lesson' }
 };
 
 interface ContentEditorProps {
@@ -30,25 +34,84 @@ const FieldEditor = ({
     value: any,
     onChange: (val: any) => void
 }) => {
-    // 1. Array of Strings (e.g. keywords)
-    if (Array.isArray(value) && value.every(v => typeof v === 'string')) {
+    // 1. Array handling
+    if (Array.isArray(value)) {
+        // If it's an array of strings/numbers, use textarea
+        if (value.length === 0 || typeof value[0] === 'string' || typeof value[0] === 'number') {
+            return (
+                <div className="flex flex-col gap-1 mb-4">
+                    <label className="text-xs font-bold text-gray-500 uppercase">{label}</label>
+                    <textarea
+                        className="w-full bg-black/30 border border-white/10 rounded p-2 text-white font-mono text-sm h-20 resize-y focus:border-gold-500 outline-none"
+                        value={value.join('\n')}
+                        onChange={(e) => onChange(e.target.value.split('\n').filter(s => s.trim() !== '').map(s => !isNaN(Number(s)) && s.trim() !== '' ? Number(s) : s))}
+                        placeholder="Egy sor egy elem..."
+                    />
+                </div>
+            );
+        }
+        // If it's an array of objects, we need recursive rendering
         return (
-            <div className="flex flex-col gap-1 mb-4">
-                <label className="text-xs font-bold text-gray-500 uppercase">{label}</label>
-                <textarea
-                    className="w-full bg-black/30 border border-white/10 rounded p-2 text-white font-mono text-sm h-20 resize-y focus:border-gold-500 outline-none"
-                    value={value.join('\n')}
-                    onChange={(e) => onChange(e.target.value.split('\n').filter(s => s.trim() !== ''))}
-                    placeholder="Egy sor egy elem..."
-                />
+            <div className="flex flex-col gap-2 mb-4 pl-4 border-l-2 border-white/10">
+                <label className="text-xs font-bold text-gold-400 uppercase tracking-widest mb-1">{label} (Lista)</label>
+                {value.map((item: any, idx: number) => (
+                    <div key={idx} className="mb-4 p-2 bg-white/5 rounded border border-white/5">
+                        <div className="text-xs text-gray-500 mb-2">#{idx + 1}</div>
+                        {typeof item === 'object' ? (
+                            Object.keys(item).map(key => (
+                                <FieldEditor
+                                    key={key}
+                                    label={key}
+                                    value={item[key]}
+                                    onChange={(newVal) => {
+                                        const newArr = [...value];
+                                        newArr[idx] = { ...item, [key]: newVal };
+                                        onChange(newArr);
+                                    }}
+                                />
+                            ))
+                        ) : (
+                            <FieldEditor
+                                label={`Item ${idx}`}
+                                value={item}
+                                onChange={(val) => {
+                                    const newArr = [...value];
+                                    newArr[idx] = val;
+                                    onChange(newArr);
+                                }}
+                            />
+                        )}
+                        <button
+                            onClick={() => {
+                                const newArr = value.filter((_, i) => i !== idx);
+                                onChange(newArr);
+                            }}
+                            className="text-xs text-red-400 hover:text-red-200 mt-1"
+                        >
+                            Törlés
+                        </button>
+                    </div>
+                ))}
+                <button
+                    onClick={() => {
+                        // Try to infer structure from first item or add empty object
+                        const newItem = value.length > 0 ? JSON.parse(JSON.stringify(value[0])) : {};
+                        // Clear values
+                        if(typeof newItem === 'object') Object.keys(newItem).forEach(k => newItem[k] = "");
+                        onChange([...value, newItem]);
+                    }}
+                    className="text-xs bg-green-600/20 text-green-400 px-2 py-1 rounded hover:bg-green-600/40 w-fit"
+                >
+                    + Új Elem hozzáadása
+                </button>
             </div>
         );
     }
 
-    // 2. Object (Recursive)
-    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    // 2. Object (Recursive) - Correctly identifying plain objects
+    if (typeof value === 'object' && value !== null) {
         return (
-            <div className="flex flex-col gap-2 mb-4 pl-4 border-l border-white/10">
+            <div className="flex flex-col gap-2 mb-4 pl-4 border-l-2 border-gold-500/30">
                 <label className="text-xs font-bold text-gold-400 uppercase tracking-widest mb-1">{label}</label>
                 {Object.keys(value).map(key => (
                     <FieldEditor
@@ -93,21 +156,23 @@ const FieldEditor = ({
     }
 
     // 5. String (Short vs Long)
-    const isLong = String(value).length > 60 || label.toLowerCase().includes('meaning') || label.toLowerCase().includes('desc');
+    const strVal = String(value || '');
+    const isLong = strVal.length > 60 || label.toLowerCase().includes('meaning') || label.toLowerCase().includes('desc') || label.toLowerCase().includes('content');
+
     return (
         <div className={`flex ${isLong ? 'flex-col gap-1' : 'items-center gap-4'} mb-4`}>
             <label className={`text-xs font-bold text-gray-500 uppercase ${isLong ? '' : 'w-32'}`}>{label}</label>
             {isLong ? (
                 <textarea
-                    className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-sm h-24 resize-y focus:border-gold-500 outline-none"
-                    value={value}
+                    className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-sm h-32 resize-y focus:border-gold-500 outline-none"
+                    value={strVal}
                     onChange={(e) => onChange(e.target.value)}
                 />
             ) : (
                 <input
                     type="text"
                     className="flex-1 bg-black/30 border border-white/10 rounded p-2 text-white focus:border-gold-500 outline-none"
-                    value={value}
+                    value={strVal}
                     onChange={(e) => onChange(e.target.value)}
                 />
             )}
@@ -160,15 +225,54 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({ secretKey }) => {
         setLoading(false);
     };
 
+    const validateData = (dataToSave: any[]) => {
+        if (!Array.isArray(dataToSave)) return false;
+        // Basic check: Ensure IDs exist and are strings
+        for (const item of dataToSave) {
+            if (!item.id || typeof item.id !== 'string') {
+                showToast("Validációs Hiba: Minden elemnek kell legyen 'id' mezője!", "error");
+                return false;
+            }
+        }
+        // Attempt JSON cycle check
+        try {
+            JSON.stringify(dataToSave);
+        } catch (e) {
+            showToast("Validációs Hiba: Ciklikus hivatkozás vagy érvénytelen struktúra.", "error");
+            return false;
+        }
+        return true;
+    };
+
     const handleSaveFile = async () => {
+        if (!validateData(data)) return;
         if (!confirm(`Biztosan felülírod a(z) ${FILES[selectedFileKey as keyof typeof FILES].path} fájlt a szerveren?`)) return;
+
         setLoading(true);
         const config = FILES[selectedFileKey as keyof typeof FILES];
+
+        // Pretty print JSON with indentation
         const jsonString = JSON.stringify(data, null, 4);
+
+        // Reconstruct TS file
         const fileContent = `import { ${config.importType} } from '../types';
 
 export const ${config.variable}: ${config.type} = ${jsonString};
 `;
+        // Double check syntax via "compile" simulation (parse back)
+        try {
+             // Basic syntax check: can we interpret what we just built?
+             // Since we use JSON.stringify, it is valid JS expression.
+             // Just ensure variables match.
+             if (!fileContent.includes(`export const ${config.variable}`)) {
+                 throw new Error("Variable mismatch");
+             }
+        } catch(e) {
+            showToast("Kritikus belső hiba a generáláskor.", "error");
+            setLoading(false);
+            return;
+        }
+
         try {
             const response = await fetch(`./admin_io.php?action=write&file=${config.path}`, {
                 method: 'POST',
@@ -220,8 +324,8 @@ export const ${config.variable}: ${config.type} = ${jsonString};
         };
 
         return (
-            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 animate-fade-in">
-                <div className="bg-gray-900 border border-gold-500 rounded-xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl">
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 animate-fade-in backdrop-blur-sm" style={{ pointerEvents: 'auto' }}>
+                <div className="bg-gray-900 border border-gold-500 rounded-xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl relative">
                     <div className="flex justify-between items-center p-6 border-b border-white/10 bg-black/20">
                         <h3 className="text-xl font-bold text-gold-400">
                             Szerkesztés: <span className="text-white">{localItem.name || localItem.id}</span>
@@ -286,7 +390,7 @@ export const ${config.variable}: ${config.type} = ${jsonString};
     };
 
     return (
-        <div className="animate-fade-in">
+        <div className="animate-fade-in relative">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-serif text-white">Tartalom Szerkesztő (Szerver Fájlok)</h2>
                 <select
@@ -316,7 +420,7 @@ export const ${config.variable}: ${config.type} = ${jsonString};
                                 {data.map((item) => (
                                     <tr key={item.id} className="hover:bg-white/5 transition-colors group">
                                         <td className="p-3 font-mono text-xs opacity-70">{item.id}</td>
-                                        <td className="p-3 font-bold text-white">{item.name}</td>
+                                        <td className="p-3 font-bold text-white">{item.name || item.title}</td>
                                         <td className="p-3 truncate max-w-md opacity-80">
                                             {item.description || (Array.isArray(item.keywords) ? item.keywords.join(', ') : '') || item.meaningUpright?.substring(0,50)+'...'}
                                         </td>
