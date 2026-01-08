@@ -324,8 +324,8 @@ export const ${config.variable}: ${config.type} = ${jsonString};
         };
 
         return (
-            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 animate-fade-in backdrop-blur-sm" style={{ pointerEvents: 'auto' }}>
-                <div className="bg-gray-900 border border-gold-500 rounded-xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl relative">
+            <div className="fixed inset-0 bg-black/80 flex items-start justify-center z-50 p-4 pt-12 overflow-y-auto animate-fade-in backdrop-blur-sm" style={{ pointerEvents: 'auto' }}>
+                <div className="bg-gray-900 border border-gold-500 rounded-xl w-full max-w-5xl max-h-[85vh] flex flex-col shadow-2xl relative my-8">
                     <div className="flex justify-between items-center p-6 border-b border-white/10 bg-black/20">
                         <h3 className="text-xl font-bold text-gold-400">
                             Szerkesztés: <span className="text-white">{localItem.name || localItem.id}</span>
