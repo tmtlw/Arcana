@@ -333,6 +333,111 @@ export const CommunityService = {
         } catch (e) {}
     },
 
+    // --- Ratings (General) ---
+    rateItem: async (collectionName: string, itemId: string, userId: string, rating: number): Promise<boolean> => {
+        if (!db) return false;
+        try {
+            // Store the rating in a subcollection to avoid document size limits and allow easy averaging
+            const ratingRef = doc(collection(db, collectionName, itemId, 'ratings'), userId);
+
+            // 1. Set the user's rating
+            await setDoc(ratingRef, {
+                userId,
+                rating,
+                timestamp: new Date().toISOString()
+            });
+
+            // 2. Update aggregate data on the main item (optional but good for performance)
+            // Note: For precise averages, we might need a cloud function, but here we approximate or re-calc on load if needed.
+            // For now, we will trust the client to re-fetch averages or handle it via a separate read.
+            // Actually, let's just store the count and sum on the main doc for easy access.
+
+            // To do this atomically is hard without a transaction reading all votes.
+            // Simplified approach: Just add the rating to the subcollection.
+            // The client will need to fetch ratings to calculate average, OR we trigger an aggregation.
+            // Let's do a simple aggregation here by reading all ratings (assuming < 1000 ratings usually).
+
+            const ratingsSnap = await getDocs(collection(db, collectionName, itemId, 'ratings'));
+            let sum = 0;
+            let count = 0;
+            ratingsSnap.forEach(doc => {
+                sum += doc.data().rating;
+                count++;
+            });
+
+            await updateDoc(doc(db, collectionName, itemId), {
+                ratingAvg: count > 0 ? sum / count : 0,
+                ratingCount: count
+            });
+
+            return true;
+        } catch (e) {
+            console.error("Rate item failed:", e);
+            return false;
+        }
+    },
+
+    getItemRatings: async (collectionName: string, itemId: string, userId?: string): Promise<{ avg: number, count: number, userRating?: number }> => {
+        if (!db) return { avg: 0, count: 0 };
+        try {
+            const ratingsSnap = await getDocs(collection(db, collectionName, itemId, 'ratings'));
+            let sum = 0;
+            let count = 0;
+            let userRating = undefined;
+
+            ratingsSnap.forEach(doc => {
+                const data = doc.data();
+                sum += data.rating;
+                count++;
+                if (userId && data.userId === userId) {
+                    userRating = data.rating;
+                }
+            });
+
+            return {
+                avg: count > 0 ? sum / count : 0,
+                count,
+                userRating
+            };
+        } catch (e) {
+            return { avg: 0, count: 0 };
+        }
+    },
+
+    // --- Comments (General for Marketplace) ---
+    addItemComment: async (collectionName: string, itemId: string, comment: Comment): Promise<boolean> => {
+        if (!db) return false;
+        try {
+            const docRef = doc(db, collectionName, itemId);
+            await updateDoc(docRef, {
+                comments: arrayUnion(comment)
+            });
+            return true;
+        } catch (e) {
+            console.error("Add item comment failed:", e);
+            return false;
+        }
+    },
+
+    deleteItemComment: async (collectionName: string, itemId: string, comment: Comment): Promise<boolean> => {
+        if (!db) return false;
+        try {
+            const docRef = doc(db, collectionName, itemId);
+            // Firestore arrayRemove needs exact object match.
+            // If checking exact object is hard, we might need to read-modify-write.
+            const snap = await getDoc(docRef);
+            if(snap.exists()) {
+                const data = snap.data();
+                const comments = data.comments || [];
+                const newComments = comments.filter((c: Comment) => c.id !== comment.id);
+                await updateDoc(docRef, { comments: newComments });
+            }
+            return true;
+        } catch (e) {
+            return false;
+        }
+    },
+
     // --- Lessons (Academy Marketplace) ---
 
     publishLesson: async (lesson: Lesson, authorName: string, userId: string) => {

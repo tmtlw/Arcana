@@ -418,5 +418,93 @@ export const DEFAULT_SPREADS: Spread[] = [
             { id: 6, name: 'Homlokcsakra', description: 'Intuíció, bölcsesség.', x: 2, y: 2 },
             { id: 7, name: 'Koronacsakra', description: 'Szellemi kapcsolat.', x: 2, y: 1 }
         ]
+    },
+    {
+        id: 'relationship-mirror',
+        name: 'Kapcsolati Tükör',
+        category: 'love',
+        description: 'Mit tükröz vissza nekem ez a kapcsolat?',
+        positions: [
+            { id: 1, name: 'Én', description: 'Hogy látom magam?', x: 1, y: 2 },
+            { id: 2, name: 'A Másik', description: 'Hogy látom őt?', x: 3, y: 2 },
+            { id: 3, name: 'A Tükör', description: 'Mit tanít ez a kapcsolat?', x: 2, y: 1 },
+            { id: 4, name: 'A Kihívás', description: 'Mi a legnehezebb?', x: 2, y: 3 }
+        ]
+    },
+    {
+        id: 'star-path',
+        name: 'A Csillag Útja',
+        category: 'career',
+        description: 'Útmutatás a karrier és hivatás területén.',
+        positions: [
+            { id: 1, name: 'A Jelen', description: 'Jelenlegi karrierhelyzet.', x: 2, y: 3 },
+            { id: 2, name: 'Vágyak', description: 'Mit szeretnél elérni?', x: 2, y: 1 },
+            { id: 3, name: 'Készségek', description: 'Miben vagy tehetséges?', x: 1, y: 2 },
+            { id: 4, name: 'Akadályok', description: 'Mi hátráltat?', x: 3, y: 2 },
+            { id: 5, name: 'A Következő Lépés', description: 'Konkrét tanács.', x: 2, y: 2, defaultContext: 'advice' }
+        ]
+    },
+    {
+        id: 'money-magnet',
+        name: 'Pénzmágnes',
+        category: 'career',
+        description: 'Hogyan vonzhatsz be több bőséget?',
+        positions: [
+            { id: 1, name: 'Hozzáállás', description: 'Mit gondolsz a pénzről?', x: 2, y: 2 },
+            { id: 2, name: 'Blokk', description: 'Mi gátolja az áramlást?', x: 1, y: 2 },
+            { id: 3, name: 'Erőforrás', description: 'Milyen rejtett kincsed van?', x: 3, y: 2 },
+            { id: 4, name: 'Cselekvés', description: 'Mit tegyél a bőségért?', x: 2, y: 1, defaultContext: 'advice' },
+            { id: 5, name: 'Eredmény', description: 'Várható pénzügyi helyzet.', x: 2, y: 3 }
+        ]
+    },
+    {
+        id: 'birthday-year',
+        name: 'Születésnapi Évkör',
+        category: 'calendar',
+        description: 'Áttekintés a következő életévedre.',
+        positions: [
+            { id: 1, name: 'Központi Téma', description: 'Az év fő tanítása.', x: 2, y: 2 },
+            { id: 2, name: 'Kihívás', description: 'Amivel meg kell küzdened.', x: 1, y: 2 },
+            { id: 3, name: 'Ajándék', description: 'Amit kapni fogsz.', x: 3, y: 2 },
+            { id: 4, name: 'Szerelem', description: 'Érzelmi életed.', x: 2, y: 1, defaultContext: 'love' },
+            { id: 5, name: 'Karrier', description: 'Szakmai utad.', x: 2, y: 3, defaultContext: 'career' }
+        ]
+    },
+    {
+        id: 'dream-interpretation',
+        name: 'Álomfejtés',
+        category: 'self',
+        description: 'Egy álom üzenetének megfejtése.',
+        positions: [
+            { id: 1, name: 'Az Álom', description: 'Miről szólt (összefoglalás)?', x: 2, y: 2 },
+            { id: 2, name: 'Felszín', description: 'Mit jelent a hétköznapokban?', x: 1, y: 1 },
+            { id: 3, name: 'Mély', description: 'Mit üzen a tudattalan?', x: 3, y: 1 },
+            { id: 4, name: 'Blokk', description: 'Miért álmodtad ezt?', x: 2, y: 3 },
+            { id: 5, name: 'Tanulság', description: 'Mit kell tenned?', x: 2, y: 1 }
+        ]
+    },
+    {
+        id: 'healing-light',
+        name: 'Gyógyító Fény',
+        category: 'self',
+        description: 'Testi-lelki gyógyulás támogatása.',
+        positions: [
+            { id: 1, name: 'A Fájdalom', description: 'Mi az, ami gyógyításra vár?', x: 2, y: 2 },
+            { id: 2, name: 'Az Ok', description: 'Mi váltotta ki?', x: 1, y: 2 },
+            { id: 3, name: 'A Gyógyír', description: 'Mi segít most a legjobban?', x: 3, y: 2, defaultContext: 'advice' },
+            { id: 4, name: 'A Jövő', description: 'Hová vezet a gyógyulás?', x: 2, y: 1 }
+        ]
+    },
+    {
+        id: 'four-elements',
+        name: 'A Négy Elem',
+        category: 'general',
+        description: 'Helyzetelemzés a négy őselem segítségével.',
+        positions: [
+            { id: 1, name: 'Tűz', description: 'Szenvedély, akarat, cselekvés.', x: 2, y: 1 },
+            { id: 2, name: 'Víz', description: 'Érzelmek, intuíció, kapcsolatok.', x: 1, y: 2 },
+            { id: 3, name: 'Levegő', description: 'Gondolatok, tervek, kommunikáció.', x: 3, y: 2 },
+            { id: 4, name: 'Föld', description: 'Anyagiak, stabilitás, egészség.', x: 2, y: 3 }
+        ]
     }
 ];
