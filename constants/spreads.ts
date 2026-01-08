@@ -372,5 +372,51 @@ export const DEFAULT_SPREADS: Spread[] = [
             { id: 3, name: 'Most igen', description: 'Mi az, ami most fontos?', x: 2, y: 3, defaultContext: 'advice' },
             { id: 4, name: 'Cél', description: 'Hová vezet a következő lépés?', x: 3, y: 2 }
         ]
+    },
+    // --- NEW SPREADS ---
+    {
+        id: 'horseshoe',
+        name: 'A Patkó',
+        category: 'general',
+        description: 'Részletes áttekintés egy adott helyzet fejlődéséről.',
+        positions: [
+            { id: 1, name: 'Múlt', description: 'A múlt hatásai a jelenre.', x: 1, y: 1 },
+            { id: 2, name: 'Jelen', description: 'A helyzet mostani állása.', x: 1, y: 2 },
+            { id: 3, name: 'Jövő', description: 'Merre tartanak a dolgok?', x: 1, y: 3 },
+            { id: 4, name: 'A Kulcs', description: 'A legjobb tanács a helyzetre.', x: 2, y: 2, defaultContext: 'advice' },
+            { id: 5, name: 'Környezet', description: 'Mások hatása rád.', x: 3, y: 3 },
+            { id: 6, name: 'Remények/Félelmek', description: 'Belső hozzáállásod.', x: 3, y: 2 },
+            { id: 7, name: 'Végkifejlet', description: 'A várható eredmény.', x: 3, y: 1 }
+        ]
+    },
+    {
+        id: 'planetary',
+        name: 'A Bolygók Tánca',
+        category: 'self',
+        description: 'Mélyebb önismeret a hét klasszikus bolygó erejével.',
+        positions: [
+            { id: 1, name: 'Hold', description: 'Érzelmek, otthon, intuíció.', x: 1, y: 4, defaultContext: 'general' },
+            { id: 2, name: 'Merkúr', description: 'Gondolkodás, kommunikáció, tanulás.', x: 1, y: 3, defaultContext: 'career' },
+            { id: 3, name: 'Vénusz', description: 'Szerelem, harmónia, vágyak.', x: 1, y: 2, defaultContext: 'love' },
+            { id: 4, name: 'Nap', description: 'Egó, életerő, siker.', x: 2, y: 1, defaultContext: 'general' },
+            { id: 5, name: 'Mars', description: 'Erő, akarat, konfliktus.', x: 3, y: 2, defaultContext: 'advice' },
+            { id: 6, name: 'Jupiter', description: 'Szerencse, növekedés, hit.', x: 3, y: 3, defaultContext: 'general' },
+            { id: 7, name: 'Szaturnusz', description: 'Korlátok, fegyelem, karma.', x: 3, y: 4, defaultContext: 'advice' }
+        ]
+    },
+    {
+        id: 'chakra-balance',
+        name: 'Csakra Egyensúly',
+        category: 'self',
+        description: 'Energiaközpontjaid állapota és harmonizálása.',
+        positions: [
+            { id: 1, name: 'Gyökércsakra', description: 'Fizikai biztonság, túlélés.', x: 2, y: 7 },
+            { id: 2, name: 'Szakrális Csakra', description: 'Kreativitás, szexualitás.', x: 2, y: 6 },
+            { id: 3, name: 'Napfonat Csakra', description: 'Személyes erő, önbizalom.', x: 2, y: 5 },
+            { id: 4, name: 'Szívcsakra', description: 'Szeretet, együttérzés.', x: 2, y: 4, defaultContext: 'love' },
+            { id: 5, name: 'Torokcsakra', description: 'Kommunikáció, igazság.', x: 2, y: 3 },
+            { id: 6, name: 'Homlokcsakra', description: 'Intuíció, bölcsesség.', x: 2, y: 2 },
+            { id: 7, name: 'Koronacsakra', description: 'Szellemi kapcsolat.', x: 2, y: 1 }
+        ]
     }
 ];
