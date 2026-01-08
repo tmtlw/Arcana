@@ -40,6 +40,8 @@ interface TarotContextType {
     isDay: boolean; // Computed flag for day/night
     notifications: TarotNotification[];
     unreadCount: number;
+    latestBadge: string | null;
+    setLatestBadge: (id: string | null) => void;
     setCurrentUser: (u: User | null) => void;
     updateUser: (u: User) => void;
     addUser: (name: string, theme: ThemeType) => void;
@@ -116,6 +118,7 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
     
     const [notifications, setNotifications] = useState<TarotNotification[]>([]);
     const unreadCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
+    const [latestBadge, setLatestBadge] = useState<string | null>(null);
 
     // Guest Timer Ref
     const guestTimerRef = useRef<any>(null);
@@ -550,7 +553,9 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
         const newBadges = earnedBadges.map(b => b.id).filter(bid => !currentUser.badges.includes(bid));
         if (newBadges.length > 0) {
             updateUser({ ...currentUser, badges: [...currentUser.badges, ...newBadges] });
-            showToast(`Új jelvény megszervezve!`, 'success');
+            // Show popup for the first one found (or we could queue them, but simple is better)
+            setLatestBadge(newBadges[0]);
+            // showToast(`Új jelvény megszervezve!`, 'success'); // Removed redundant toast
         }
     };
 
@@ -758,6 +763,7 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
             deck, availableDecks, activeDeck, quizResults, userLocation,
             isCloudAvailable, isSyncing, activeThemeKey, isDay,
             notifications, unreadCount,
+            latestBadge, setLatestBadge,
             setCurrentUser, updateUser, addUser, addReading, updateReading, deleteReading, 
             addCustomSpread, updateCustomSpread, deleteCustomSpread, 
             addCustomLesson, updateCustomLesson, deleteCustomLesson,

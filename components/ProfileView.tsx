@@ -32,7 +32,7 @@ const ThemeButton: React.FC<ThemeButtonProps> = ({ t, selected, onClick }) => (
 );
 
 export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
-    const { currentUser, updateUser, exportData, importData, availableDecks, language, setLanguage, logout, userLocation, activeThemeKey, isDay, allSpreads, deck } = useTarot();
+    const { currentUser, updateUser, exportData, importData, availableDecks, language, setLanguage, logout, userLocation, activeThemeKey, isDay, allSpreads, deck, readings } = useTarot();
     const theme = THEMES[activeThemeKey] || THEMES['mystic']; 
     
     // State
@@ -84,6 +84,55 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
         }
     };
 
+    // Calculate Stats based on available readings (Own -> All, Other -> Public only)
+    const statsData = useMemo(() => {
+        const sourceReadings = isOwnProfile ? readings.filter(r => r.userId === currentUser?.id) : publicReadings;
+        if (sourceReadings.length === 0) return null;
+
+        const cardCounts: Record<string, number> = {};
+        const elements: Record<string, number> = { wands: 0, cups: 0, swords: 0, pentacles: 0, major: 0 };
+
+        sourceReadings.forEach(r => {
+            r.cards.forEach(c => {
+                // Card Freq
+                cardCounts[c.cardId] = (cardCounts[c.cardId] || 0) + 1;
+
+                // Elements
+                const cardDef = FULL_DECK.find(d => d.id === c.cardId);
+                if (cardDef) {
+                    if (cardDef.arcana === 'Major') elements.major++;
+                    else if (cardDef.suit === 'Botok') elements.wands++;
+                    else if (cardDef.suit === 'Kelyhek') elements.cups++;
+                    else if (cardDef.suit === 'Kardok') elements.swords++;
+                    else if (cardDef.suit === 'Érmék') elements.pentacles++;
+                }
+            });
+        });
+
+        // Most Drawn Card
+        let max = 0;
+        let signatureId = '';
+        for (const [id, count] of Object.entries(cardCounts)) {
+            if (count > max) {
+                max = count;
+                signatureId = id;
+            }
+        }
+        const signatureCard = signatureId ? FULL_DECK.find(d => d.id === signatureId) : null;
+
+        // Element Percentages
+        const total = Object.values(elements).reduce((a,b) => a+b, 0);
+        const elementPcts = {
+            wands: total ? Math.round((elements.wands / total) * 100) : 0,
+            cups: total ? Math.round((elements.cups / total) * 100) : 0,
+            swords: total ? Math.round((elements.swords / total) * 100) : 0,
+            pentacles: total ? Math.round((elements.pentacles / total) * 100) : 0,
+            major: total ? Math.round((elements.major / total) * 100) : 0,
+        };
+
+        return { signatureCard, count: max, elementPcts };
+    }, [readings, publicReadings, isOwnProfile, currentUser]);
+
     const handleSaveProfile = () => {
         if (currentUser) {
             updateUser({
@@ -115,9 +164,7 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
 
     const natalInfo = useMemo(() => {
         if (!viewedUser?.birthDate) return null;
-        // Allow viewing natal info if it's your profile, OR if the user is public (conceptually)
-        // Currently relying on isOwnProfile for privacy of birth data
-        if (!isOwnProfile) return null;
+        if (!isOwnProfile) return null; // Privacy
 
         const dateTimeString = `${viewedUser.birthDate}T${viewedUser.birthTime || "12:00"}:00`;
         const date = new Date(dateTimeString);
@@ -244,6 +291,55 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                         
                         {/* LEFT COLUMN: Stats & Badges */}
                         <div className="space-y-6">
+
+                            {/* NEW: Stats Box */}
+                            {statsData && statsData.signatureCard && (
+                                <div className="glass-panel p-6 rounded-2xl border border-white/5">
+                                    <h3 className="font-bold text-white/60 text-xs uppercase tracking-widest mb-4">Statisztika</h3>
+
+                                    {/* Signature Card */}
+                                    <div className="flex items-center gap-4 mb-6 bg-black/20 p-3 rounded-xl border border-white/5">
+                                        <div className="w-12 h-16 rounded overflow-hidden flex-shrink-0">
+                                            <CardImage cardId={statsData.signatureCard.id} className="w-full h-full object-cover" />
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] text-gold-500 uppercase font-bold">Leggyakoribb Lap</div>
+                                            <div className="font-serif font-bold text-white leading-tight">{statsData.signatureCard.name}</div>
+                                            <div className="text-xs opacity-50">{statsData.count}x húzva</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Element Bars */}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <div className="w-16 opacity-70">Tűz</div>
+                                            <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-red-500" style={{ width: `${statsData.elementPcts.wands}%` }}></div></div>
+                                            <div className="w-8 text-right opacity-50">{statsData.elementPcts.wands}%</div>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <div className="w-16 opacity-70">Víz</div>
+                                            <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-blue-500" style={{ width: `${statsData.elementPcts.cups}%` }}></div></div>
+                                            <div className="w-8 text-right opacity-50">{statsData.elementPcts.cups}%</div>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <div className="w-16 opacity-70">Levegő</div>
+                                            <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-yellow-500" style={{ width: `${statsData.elementPcts.swords}%` }}></div></div>
+                                            <div className="w-8 text-right opacity-50">{statsData.elementPcts.swords}%</div>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <div className="w-16 opacity-70">Föld</div>
+                                            <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-green-500" style={{ width: `${statsData.elementPcts.pentacles}%` }}></div></div>
+                                            <div className="w-8 text-right opacity-50">{statsData.elementPcts.pentacles}%</div>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <div className="w-16 opacity-70 text-purple-300">Nagy Árk.</div>
+                                            <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-purple-500" style={{ width: `${statsData.elementPcts.major}%` }}></div></div>
+                                            <div className="w-8 text-right opacity-50">{statsData.elementPcts.major}%</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {isOwnProfile && natalInfo && (
                                 <div className="space-y-4">
                                     <h3 className="font-bold text-gold-400 text-xs uppercase tracking-widest pl-2">Kozmikus Identitás</h3>
@@ -323,7 +419,6 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                                                 <div className="p-4 flex-1 bg-gradient-to-b from-transparent to-black/20">
                                                     <div className="flex gap-2 justify-center items-end h-24 mb-2">
                                                         {reading.cards.slice(0, 3).map((c, i) => {
-                                                            const cardData = deck.find(d => d.id === c.cardId);
                                                             return (
                                                                 <div key={i} className={`relative w-16 transition-transform hover:z-10 hover:scale-110 shadow-lg ${i===1 ? '-mb-2 z-10 scale-110' : 'opacity-80'}`} style={{ transform: c.isReversed ? 'rotate(180deg)' : 'none' }}>
                                                                     <div className="aspect-[2/3] rounded-lg overflow-hidden border border-white/20">
