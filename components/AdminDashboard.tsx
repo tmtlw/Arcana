@@ -6,8 +6,9 @@ import { UpdateService, UpdateResponse } from '../services/UpdateService';
 import { CommunityService } from '../services/communityService';
 import { User, Reading, Spread, DeckMeta, Lesson, TarotNotification } from '../types';
 import { MarkdownEditor, MarkdownRenderer } from './MarkdownSupport';
+import { ContentEditor } from './ContentEditor';
 
-type AdminTab = 'users' | 'readings' | 'spreads' | 'decks' | 'lessons' | 'system';
+type AdminTab = 'users' | 'readings' | 'spreads' | 'decks' | 'lessons' | 'system' | 'content';
 
 export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
     const { currentUser, showToast } = useTarot();
@@ -312,6 +313,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                 </div>
                 <nav className="flex-1 py-4">
                     <TabButton id="system" label="Rendszer & Frissítés" icon="🖥️" />
+                    <TabButton id="content" label="Tartalom Szerkesztő" icon="📝" />
                     <div className="my-4 border-t border-white/5"></div>
                     <TabButton id="readings" label="Minden Húzás" icon="📜" />
                     <TabButton id="spreads" label="Minden Kirakás" icon="💠" />
@@ -352,6 +354,10 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                         <div className="text-center py-20 text-white/20">Adatok betöltése az univerzumból...</div>
                     ) : (
                         <div className="w-full">
+                            {activeTab === 'content' && (
+                                <ContentEditor secretKey="admin123" />
+                            )}
+
                             {activeTab === 'system' && (
                                 <div className="space-y-8 max-w-4xl mx-auto">
                                     <div className="bg-[#2a2a3c] rounded-2xl p-6 border border-white/10">
