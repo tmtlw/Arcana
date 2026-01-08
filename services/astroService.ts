@@ -222,5 +222,30 @@ export const AstroService = {
             moonrise: lunarTimes.moonrise,
             moonset: lunarTimes.moonset
         };
+    },
+
+    fetchAccurateAstroData: async (date: Date, location?: {lat: number, lng: number}): Promise<Partial<AstrologyData>> => {
+        try {
+            const dateStr = date.toISOString().split('T')[0];
+            const lat = location?.lat || DEFAULT_LAT;
+            const lng = location?.lng || DEFAULT_LNG;
+
+            const response = await fetch(`./astro.php?date=${dateStr}&lat=${lat}&lng=${lng}`);
+            if (!response.ok) throw new Error("API Error");
+
+            const json = await response.json();
+            if (json.status === 'success' && json.data) {
+                return {
+                    moonPhase: json.data.moon.phase_name,
+                    icon: json.data.moon.icon,
+                    illumination: json.data.moon.illumination,
+                    sunSign: json.data.sun.sign,
+                    moonSign: json.data.moon.sign
+                };
+            }
+        } catch (e) {
+            console.warn("Nem sikerült pontos asztrológiai adatokat lekérni, marad a közelítő számítás.", e);
+        }
+        return {};
     }
 };
