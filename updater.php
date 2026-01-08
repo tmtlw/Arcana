@@ -38,6 +38,64 @@ if ($requestSecret !== $SECRET_KEY) {
     exit;
 }
 
+// Segédfüggvény: cURL kérés
+function fetchUrl($url) {
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'MisztikusTarotUpdater');
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
+    // SSL hitelesítés kikapcsolása (csak fejlesztéshez vagy ha a szerver cert bundle hiányzik)
+    // Élesben javasolt bekapcsolva hagyni!
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+    $data = curl_exec($ch);
+    $error = curl_error($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($data === false) {
+        throw new Exception("cURL hiba: " . $error);
+    }
+
+    if ($httpCode >= 400) {
+        throw new Exception("HTTP hiba: " . $httpCode);
+    }
+
+    return $data;
+}
+
+// Segédfüggvény: cURL letöltés
+function downloadFile($url, $path) {
+    $fp = fopen($path, 'w+');
+    if ($fp === false) {
+        throw new Exception("Nem sikerült megnyitni a célfájlt írásra: " . $path);
+    }
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_FILE, $fp);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'MisztikusTarotUpdater');
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+    $exec = curl_exec($ch);
+    $error = curl_error($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    fclose($fp);
+
+    if ($exec === false) {
+        throw new Exception("cURL letöltési hiba: " . $error);
+    }
+
+    if ($httpCode >= 400) {
+        throw new Exception("HTTP letöltési hiba: " . $httpCode);
+    }
+
+    return true;
+}
+
 // Segédfüggvény: Rekurzív másolás
 function recurseCopy($src, $dst) {
     $dir = opendir($src);
@@ -62,18 +120,7 @@ $response = ['status' => 'error', 'message' => 'Ismeretlen művelet'];
 try {
     // 1. Verzió ellenőrzés
     if ($action === 'check') {
-        $opts = [
-            "http" => [
-                "method" => "GET",
-                "header" => "User-Agent: MisztikusTarotUpdater\r\n"
-            ]
-        ];
-        $context = stream_context_create($opts);
-        $githubDataRaw = @file_get_contents($GITHUB_API_URL, false, $context);
-
-        if (!$githubDataRaw) {
-            throw new Exception("Nem sikerült elérni a GitHub API-t.");
-        }
+        $githubDataRaw = fetchUrl($GITHUB_API_URL);
 
         $githubData = json_decode($githubDataRaw, true);
         $remoteSha = $githubData['sha'] ?? null;
@@ -117,17 +164,7 @@ try {
 
         // B. Letöltés
         $zipFile = __DIR__ . '/update_temp.zip';
-        $opts = [
-            "http" => [
-                "method" => "GET",
-                "header" => "User-Agent: MisztikusTarotUpdater\r\n"
-            ]
-        ];
-        $context = stream_context_create($opts);
-
-        if (!copy($GITHUB_ZIP_URL, $zipFile, $context)) {
-             throw new Exception("Nem sikerült letölteni a frissítést.");
-        }
+        downloadFile($GITHUB_ZIP_URL, $zipFile);
 
         // C. Kicsomagolás
         $zip = new ZipArchive;
@@ -148,31 +185,21 @@ try {
             recurseCopy($extractPath, __DIR__ . '/temp_del');
             unlink($zipFile);
 
-            // F. Buildelés (opcionális, ha van npm)
-            $buildOutput = [];
-            $buildStatus = -1;
-            // Megpróbáljuk futtatni a buildet, ha van package.json
-            if (file_exists(__DIR__ . '/package.json')) {
-                 // Ez veszélyes lehet és sokáig tarthat, shared hostingon gyakran tiltott
-                 // exec("npm install && npm run build", $buildOutput, $buildStatus);
-            }
-
             // G. Verzió frissítése
-            $githubDataRaw = @file_get_contents($GITHUB_API_URL, false, $context);
+            $githubDataRaw = fetchUrl($GITHUB_API_URL);
             $githubData = json_decode($githubDataRaw, true);
             $remoteSha = $githubData['sha'] ?? 'unknown';
 
             $newVersionData = [
                 'version' => date('Y.m.d'),
                 'commit_sha' => $remoteSha,
-                'last_update' => $timestamp,
-                'build_info' => ($buildStatus === 0) ? 'Build successful' : 'Build skipped/failed'
+                'last_update' => $timestamp
             ];
             file_put_contents($VERSION_FILE, json_encode($newVersionData, JSON_PRETTY_PRINT));
 
             $response = [
                 'status' => 'success',
-                'message' => 'Frissítés sikeres! (Build: ' . (($buildStatus === 0) ? 'OK' : 'Skipped') . ')',
+                'message' => 'Frissítés sikeres!',
                 'backup_id' => $timestamp
             ];
 
