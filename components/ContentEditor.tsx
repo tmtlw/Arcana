@@ -3,10 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { Card, Spread, Lesson } from '../types';
 import { useTarot } from '../context/TarotContext';
 
-// Import data sources to read initial structure if needed,
-// but we will rely on loading them dynamically or from the context.
-// We need the *raw* objects to edit.
-
 // File Mapping Configuration
 const FILES = {
     'Major Arcana': { path: 'cards/major.ts', variable: 'MAJOR_ARCANA', type: 'Card[]', importType: 'Card' },
@@ -22,15 +18,111 @@ interface ContentEditorProps {
     secretKey: string;
 }
 
+// ----------------------------------------------------------------------
+// Field Editor Component
+// ----------------------------------------------------------------------
+const FieldEditor = ({
+    label,
+    value,
+    onChange
+}: {
+    label: string,
+    value: any,
+    onChange: (val: any) => void
+}) => {
+    // 1. Array of Strings (e.g. keywords)
+    if (Array.isArray(value) && value.every(v => typeof v === 'string')) {
+        return (
+            <div className="flex flex-col gap-1 mb-4">
+                <label className="text-xs font-bold text-gray-500 uppercase">{label}</label>
+                <textarea
+                    className="w-full bg-black/30 border border-white/10 rounded p-2 text-white font-mono text-sm h-20 resize-y focus:border-gold-500 outline-none"
+                    value={value.join('\n')}
+                    onChange={(e) => onChange(e.target.value.split('\n').filter(s => s.trim() !== ''))}
+                    placeholder="Egy sor egy elem..."
+                />
+            </div>
+        );
+    }
+
+    // 2. Object (Recursive)
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        return (
+            <div className="flex flex-col gap-2 mb-4 pl-4 border-l border-white/10">
+                <label className="text-xs font-bold text-gold-400 uppercase tracking-widest mb-1">{label}</label>
+                {Object.keys(value).map(key => (
+                    <FieldEditor
+                        key={key}
+                        label={key}
+                        value={value[key]}
+                        onChange={(newVal) => onChange({ ...value, [key]: newVal })}
+                    />
+                ))}
+            </div>
+        );
+    }
+
+    // 3. Boolean
+    if (typeof value === 'boolean') {
+        return (
+            <div className="flex items-center gap-2 mb-4">
+                 <label className="text-xs font-bold text-gray-500 uppercase w-32">{label}</label>
+                 <button
+                    onClick={() => onChange(!value)}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${value ? 'bg-green-600' : 'bg-gray-600'}`}
+                 >
+                     <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${value ? 'left-7' : 'left-1'}`} />
+                 </button>
+            </div>
+        );
+    }
+
+    // 4. Number
+    if (typeof value === 'number') {
+        return (
+            <div className="flex items-center gap-4 mb-4">
+                <label className="text-xs font-bold text-gray-500 uppercase w-32">{label}</label>
+                <input
+                    type="number"
+                    className="flex-1 bg-black/30 border border-white/10 rounded p-2 text-white font-mono focus:border-gold-500 outline-none"
+                    value={value}
+                    onChange={(e) => onChange(Number(e.target.value))}
+                />
+            </div>
+        );
+    }
+
+    // 5. String (Short vs Long)
+    const isLong = String(value).length > 60 || label.toLowerCase().includes('meaning') || label.toLowerCase().includes('desc');
+    return (
+        <div className={`flex ${isLong ? 'flex-col gap-1' : 'items-center gap-4'} mb-4`}>
+            <label className={`text-xs font-bold text-gray-500 uppercase ${isLong ? '' : 'w-32'}`}>{label}</label>
+            {isLong ? (
+                <textarea
+                    className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-sm h-24 resize-y focus:border-gold-500 outline-none"
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                />
+            ) : (
+                <input
+                    type="text"
+                    className="flex-1 bg-black/30 border border-white/10 rounded p-2 text-white focus:border-gold-500 outline-none"
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                />
+            )}
+        </div>
+    );
+};
+
 export const ContentEditor: React.FC<ContentEditorProps> = ({ secretKey }) => {
     const { showToast } = useTarot();
     const [selectedFileKey, setSelectedFileKey] = useState<string>(Object.keys(FILES)[0]);
     const [data, setData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
-    const [editItem, setEditItem] = useState<any | null>(null); // Item being edited
-    const [jsonMode, setJsonMode] = useState(false); // Toggle between Form and JSON view for item
+    const [editItem, setEditItem] = useState<any | null>(null);
+    const [jsonMode, setJsonMode] = useState(false);
 
-    // Load data when selection changes
     useEffect(() => {
         loadData();
     }, [selectedFileKey]);
@@ -38,30 +130,18 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({ secretKey }) => {
     const loadData = async () => {
         setLoading(true);
         const config = FILES[selectedFileKey as keyof typeof FILES];
-
         try {
-            // We fetch the raw TS file content
             const response = await fetch(`./admin_io.php?action=read&file=${config.path}`, {
                 headers: { 'X-Updater-Secret': secretKey }
             });
             const result = await response.json();
-
             if (result.error) {
                 showToast(`Hiba: ${result.error}`, 'error');
                 setData([]);
             } else {
-                // Parse the TS content to JSON
-                // Logic: Find the array bracket [ ... ]
-                // This is a "risky" parse but since we control the format it's okay for now.
-                // We use a Function constructor to evaluate the right hand side.
-
                 const content = result.content;
                 const match = content.match(/=\s*(\[[\s\S]*\]);/);
                 if (match && match[1]) {
-                    // We need to be careful with 'defaultContext: 'general'' strings which might not be quoted keys
-                    // actually TS object keys don't need quotes. JSON.parse fails there.
-                    // We use `eval` or `new Function` to parse the object literal.
-                    // Security: We trust the server content (it's our own code).
                     try {
                         const parsed = new Function(`return ${match[1]}`)();
                         setData(parsed);
@@ -82,21 +162,13 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({ secretKey }) => {
 
     const handleSaveFile = async () => {
         if (!confirm(`Biztosan felülírod a(z) ${FILES[selectedFileKey as keyof typeof FILES].path} fájlt a szerveren?`)) return;
-
         setLoading(true);
         const config = FILES[selectedFileKey as keyof typeof FILES];
-
-        // Serialize Data to TS String
-        // We use JSON.stringify but we might want to make it look nicer (unquoted keys where possible?)
-        // For simplicity and robustness, JSON.stringify is fine, TS accepts it.
         const jsonString = JSON.stringify(data, null, 4);
-
-        // Reconstruct the file content
         const fileContent = `import { ${config.importType} } from '../types';
 
 export const ${config.variable}: ${config.type} = ${jsonString};
 `;
-
         try {
             const response = await fetch(`./admin_io.php?action=write&file=${config.path}`, {
                 method: 'POST',
@@ -123,39 +195,90 @@ export const ${config.variable}: ${config.type} = ${jsonString};
         setEditItem(null);
     };
 
-    // Generic Form Component
+    // New Item Editor with Form support
     const ItemEditor = ({ item, onSave, onCancel }: { item: any, onSave: (i: any) => void, onCancel: () => void }) => {
-        const [formData, setFormData] = useState(JSON.stringify(item, null, 2));
+        const [localItem, setLocalItem] = useState(JSON.parse(JSON.stringify(item))); // Deep copy
+        const [rawJson, setRawJson] = useState(JSON.stringify(item, null, 2));
+        const [mode, setMode] = useState<'form' | 'json'>('form');
         const [error, setError] = useState('');
 
         const handleSave = () => {
-            try {
-                const parsed = JSON.parse(formData);
-                onSave(parsed);
-            } catch (e) {
-                setError("Érvénytelen JSON formátum!");
+            if (mode === 'json') {
+                try {
+                    const parsed = JSON.parse(rawJson);
+                    onSave(parsed);
+                } catch (e) {
+                    setError("Érvénytelen JSON!");
+                }
+            } else {
+                onSave(localItem);
             }
         };
 
-        return (
-            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-                <div className="bg-gray-900 border border-gold-500 rounded-xl p-6 w-full max-w-4xl max-h-[90vh] flex flex-col">
-                    <h3 className="text-xl font-bold text-gold-400 mb-4">Szerkesztés: {item.name || item.id}</h3>
+        const handleFieldChange = (key: string, value: any) => {
+            setLocalItem((prev: any) => ({ ...prev, [key]: value }));
+        };
 
-                    <div className="flex-1 overflow-hidden flex flex-col">
-                         <div className="text-xs text-gray-400 mb-2">JSON Szerkesztő (Formátum megtartása kötelező!)</div>
-                         <textarea
-                            className="flex-1 bg-black/50 border border-gray-700 rounded p-4 font-mono text-sm text-green-400 focus:outline-none focus:border-gold-500 resize-none"
-                            value={formData}
-                            onChange={(e) => setFormData(e.target.value)}
-                         />
+        return (
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 animate-fade-in">
+                <div className="bg-gray-900 border border-gold-500 rounded-xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl">
+                    <div className="flex justify-between items-center p-6 border-b border-white/10 bg-black/20">
+                        <h3 className="text-xl font-bold text-gold-400">
+                            Szerkesztés: <span className="text-white">{localItem.name || localItem.id}</span>
+                        </h3>
+                        <div className="flex gap-2 bg-black/40 rounded-lg p-1 border border-white/10">
+                            <button
+                                onClick={() => setMode('form')}
+                                className={`px-4 py-1 rounded text-xs font-bold uppercase transition ${mode === 'form' ? 'bg-gold-600 text-black' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                Űrlap
+                            </button>
+                            <button
+                                onClick={() => setMode('json')}
+                                className={`px-4 py-1 rounded text-xs font-bold uppercase transition ${mode === 'json' ? 'bg-gold-600 text-black' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                JSON (Nyers)
+                            </button>
+                        </div>
                     </div>
 
-                    {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-[#1a1a20]">
+                        {mode === 'form' ? (
+                            <div className="space-y-2">
+                                {/* Iterate over keys but sort them to put ID/Name first */}
+                                {Object.keys(localItem)
+                                    .sort((a, b) => {
+                                        const prio = ['id', 'name', 'arcana', 'suit', 'number', 'keywords', 'meaningUpright', 'meaningReversed'];
+                                        const idxA = prio.indexOf(a);
+                                        const idxB = prio.indexOf(b);
+                                        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                                        if (idxA !== -1) return -1;
+                                        if (idxB !== -1) return 1;
+                                        return 0;
+                                    })
+                                    .map(key => (
+                                        <FieldEditor
+                                            key={key}
+                                            label={key}
+                                            value={localItem[key]}
+                                            onChange={(val) => handleFieldChange(key, val)}
+                                        />
+                                    ))
+                                }
+                            </div>
+                        ) : (
+                             <textarea
+                                className="w-full h-full min-h-[400px] bg-black/50 border border-gray-700 rounded p-4 font-mono text-sm text-green-400 focus:outline-none focus:border-gold-500 resize-none"
+                                value={rawJson}
+                                onChange={(e) => setRawJson(e.target.value)}
+                             />
+                        )}
+                        {error && <div className="text-red-500 text-sm mt-4 font-bold bg-red-900/20 p-2 rounded border border-red-500/50">{error}</div>}
+                    </div>
 
-                    <div className="flex justify-end gap-3 mt-4">
-                        <button onClick={onCancel} className="px-4 py-2 rounded border border-gray-600 hover:bg-gray-800 transition">Mégse</button>
-                        <button onClick={handleSave} className="px-4 py-2 rounded bg-gold-600 text-black font-bold hover:bg-gold-500 transition">Rendben</button>
+                    <div className="p-4 border-t border-white/10 bg-black/20 flex justify-end gap-3">
+                        <button onClick={onCancel} className="px-6 py-2 rounded border border-gray-600 text-gray-300 hover:bg-gray-800 transition">Mégse</button>
+                        <button onClick={handleSave} className="px-6 py-2 rounded bg-gold-600 text-black font-bold hover:bg-gold-500 transition shadow-lg hover:scale-105 transform">Mentés</button>
                     </div>
                 </div>
             </div>
