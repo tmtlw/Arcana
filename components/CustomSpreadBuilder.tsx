@@ -124,15 +124,25 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                 if (data.category && CATEGORIES.some(c => c.id === data.category)) setCategory(data.category);
 
                 if (Array.isArray(data.positions)) {
-                    const newPositions = data.positions.map((p: any, index: number) => ({
-                        id: index + 1,
-                        name: p.name || `Pozíció ${index + 1}`,
-                        description: p.description || "",
-                        x: p.x || (index % gridCols) + 1,
-                        y: p.y || Math.floor(index / gridCols) + 1,
-                        rotation: 0,
-                        defaultContext: 'general'
-                    }));
+                    const newPositions = data.positions.map((p: any, index: number) => {
+                        // Correctly map 0-100 coordinates to grid (1-7 X, 1-5 Y)
+                        let x = Math.round((p.x / 100) * (gridCols - 1)) + 1;
+                        let y = Math.round((p.y / 100) * (gridRows - 1)) + 1;
+
+                        // Ensure bounds
+                        x = Math.max(1, Math.min(gridCols, x || (index % gridCols) + 1));
+                        y = Math.max(1, Math.min(gridRows, y || Math.floor(index / gridCols) + 1));
+
+                        return {
+                            id: index + 1,
+                            name: p.name || `Pozíció ${index + 1}`,
+                            description: p.description || "",
+                            x: x,
+                            y: y,
+                            rotation: 0,
+                            defaultContext: 'general'
+                        };
+                    });
                     setPositions(newPositions);
                 }
                 alert("Kirakás sikeresen importálva!");

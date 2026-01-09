@@ -128,6 +128,11 @@ export const ReadingView = ({ spread, deck, onCancel, targetDate }: { spread: Sp
                         )}
                     </div>
                     
+                    <div className="flex flex-col items-center flex-1">
+                        <h2 className="text-2xl font-serif font-bold text-gold-400 text-center uppercase tracking-wider">{spread.name}</h2>
+                        {spread.description && <p className="text-xs text-white/50 italic max-w-lg text-center mt-1">{spread.description}</p>}
+                    </div>
+
                     <div className="flex gap-2 items-center">
                         <button onClick={handleShuffle} className="glass-button px-3 py-2 rounded-full font-bold text-xs hover:text-gold-400" title="Kártyák újrakeverése">🌪️</button>
                         <button onClick={handleSave} disabled={!isComplete} className={`px-6 py-2 rounded-full font-bold text-sm shadow-[0_0_15px_rgba(234,179,8,0.3)] transition-all transform hover:scale-105 disabled:opacity-50 disabled:scale-100 disabled:shadow-none bg-gradient-to-r from-gold-500 to-gold-600 text-black`}>
@@ -238,6 +243,37 @@ export const ReadingView = ({ spread, deck, onCancel, targetDate }: { spread: Sp
                             Válassz ki minden lapot a részletes elemzés megtekintéséhez.
                         </div>
                     )}
+
+                    {/* Spread Position Legend (Requested Feature) */}
+                    <div className="mt-12 border-t border-white/10 pt-8">
+                        <h3 className="text-sm font-bold uppercase text-gold-500 mb-6 tracking-widest text-center">A Lapok Helye & Jelentése</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {spread.positions.sort((a,b) => a.id - b.id).map(pos => {
+                                const drawn = cards.find(c => c.positionId === pos.id);
+                                const card = drawn ? deck.find(d => d.id === drawn.cardId) : null;
+                                return (
+                                    <div key={pos.id} className="bg-white/5 border border-white/10 rounded-xl p-4 flex gap-4 items-start hover:bg-white/10 transition-colors">
+                                        <div className="w-8 h-8 rounded-full bg-gold-500/20 text-gold-400 font-bold flex items-center justify-center border border-gold-500/30 flex-shrink-0">
+                                            {pos.id}
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-white text-sm mb-1">{pos.name}</div>
+                                            <div className="text-xs text-white/50 leading-relaxed mb-2">{pos.description}</div>
+                                            {card && (
+                                                <div className="bg-black/30 p-2 rounded border border-white/5 mt-2 flex items-center gap-2">
+                                                    <span className="text-lg">🎴</span>
+                                                    <div>
+                                                        <div className="font-serif font-bold text-gold-200 text-xs">{card.name}</div>
+                                                        {drawn?.isReversed && <span className="text-[9px] text-red-400 uppercase font-bold">Fordított</span>}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
             </div>
 
