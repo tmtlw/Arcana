@@ -22,8 +22,8 @@ if (strpos($image, 'base64,') !== false) {
     $image = explode('base64,', $image)[1];
 }
 
-// Try gemini-1.5-flash first (most standard stable tag)
-$url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . $apiKey;
+// Try gemini-2.5-flash first (New standard)
+$url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $apiKey;
 
 $prompt = "Analyze this Tarot spread image. Identify the spread positions (numbered 1, 2, etc.) and their descriptions.
 Translate the position names and descriptions to Hungarian.
@@ -65,8 +65,8 @@ curl_close($ch);
 
 // Fallback logic if 404 (Model not found)
 if ($httpCode === 404) {
-    // Try gemini-1.5-pro (Standard)
-    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=" . $apiKey;
+    // Try gemini-2.0-flash
+    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" . $apiKey;
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
@@ -77,9 +77,10 @@ if ($httpCode === 404) {
     curl_close($ch);
 }
 
-// Second Fallback if still 404 - Legacy Vision
+// Second Fallback if still 404
 if ($httpCode === 404) {
-    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=" . $apiKey;
+    // Try gemini-1.5-flash (Legacy fallback)
+    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . $apiKey;
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
