@@ -11,6 +11,7 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
     const [activePosId, setActivePosId] = useState<number | null>(null);
     const [category, setCategory] = useState<SpreadCategory>(initialSpread?.category || 'general');
     const [isUploading, setIsUploading] = useState(false);
+    const [uploadStatus, setUploadStatus] = useState("");
     
     // 7x5 Grid for more flexibility
     const gridCols = 7;
@@ -74,6 +75,8 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
         }
 
         setIsUploading(true);
+        setUploadStatus("Kép feldolgozása...");
+
         try {
             const reader = new FileReader();
             reader.onloadend = async () => {
@@ -82,8 +85,11 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                 if (!base64String) {
                     alert("Hiba a kép feldolgozása közben.");
                     setIsUploading(false);
+                    setUploadStatus("");
                     return;
                 }
+
+                setUploadStatus("Küldés a mesterséges intelligenciának...");
 
                 // Use simple timeout protection or feedback
                 const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Időtúllépés a szerver válaszában")), 30000));
@@ -97,6 +103,7 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                     })
                 });
 
+                setUploadStatus("Elemzés folyamatban (ez eltarthat egy percig)...");
                 const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
 
                 if (!response.ok) {
@@ -104,6 +111,7 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                     throw new Error(`Szerver hiba (${response.status}): ${errText}`);
                 }
 
+                setUploadStatus("Válasz feldolgozása...");
                 const data = await response.json();
 
                 if (data.error) {
@@ -135,6 +143,7 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
             alert(`Hiba történt a feldolgozás során: ${error.message || "Ismeretlen hiba"}`);
         } finally {
             setIsUploading(false);
+            setUploadStatus("");
             if(e.target) e.target.value = "";
         }
     };
@@ -230,7 +239,7 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                                 >
                                     {isUploading ? (
                                         <>
-                                            <span className="animate-spin">⏳</span> Elemzés folyamatban...
+                                        <span className="animate-spin">⏳</span> {uploadStatus || "Folyamatban..."}
                                         </>
                                     ) : (
                                         <>

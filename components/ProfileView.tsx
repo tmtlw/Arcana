@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTarot } from '../context/TarotContext';
-import { THEMES, BADGES, AVATAR_GALLERY, FULL_DECK, getAvatarUrl, CARD_BACKS, ZODIAC_INFO, QUICK_ACTION_OPTIONS } from '../constants';
+import { THEMES, BADGES, AVATAR_GALLERY, FULL_DECK, getAvatarUrl, CARD_BACKS, ZODIAC_INFO, QUICK_ACTION_OPTIONS, MOODS } from '../constants';
 import { CardImage } from './CardImage'; 
 import { ThemeType, CardBackType, Reading, User, DeckMeta } from '../types';
 import { AstroService } from '../services/astroService';

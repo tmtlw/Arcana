@@ -406,8 +406,8 @@ const AppContent = () => {
                                 <div className="flex items-center gap-2 text-[10px] font-bold text-gold-400 tracking-widest uppercase opacity-80">
                                     <span>A Lélek Tükre</span>
                                     <span className="text-white/30">•</span>
-                                    <span className="text-blue-200" title={`Holdfázis: ${headerAstro.moonPhase}`}>
-                                        {headerAstro.icon} {headerAstro.moonPhase}
+                                    <span className="text-blue-200" title={`Holdfázis: ${headerAstro.moonPhase} (${Math.round(headerAstro.illumination * 100)}%)`}>
+                                        {headerAstro.icon} {headerAstro.moonPhase} {Math.round(headerAstro.illumination * 100)}%
                                     </span>
                                 </div>
                             </div>
