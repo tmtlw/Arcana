@@ -5,10 +5,12 @@ import { useTarot } from '../context/TarotContext';
 import { getCardImage } from '../constants';
 import { MarkdownRenderer, MarkdownEditor } from './MarkdownSupport';
 import { CardImage } from './CardImage';
+import { CompareView } from './CompareView';
 
 export const CardDetailView = ({ card, theme, onBack }: { card: Card, theme: any, onBack: () => void }) => {
     const { activeDeck, updateCardData, resetCardData } = useTarot();
     const [isEditing, setIsEditing] = useState(false);
+    const [isDeckCompareMode, setIsDeckCompareMode] = useState(false);
     const [editedCard, setEditedCard] = useState<Card>(card);
 
     useEffect(() => {
@@ -16,6 +18,10 @@ export const CardDetailView = ({ card, theme, onBack }: { card: Card, theme: any
     }, [card]);
 
     if (!card) return null;
+
+    if (isDeckCompareMode) {
+        return <CompareView cardIdToCompare={card.id} onBack={() => setIsDeckCompareMode(false)} />;
+    }
 
     const hasCounselingInfo = card.generalMeaning || card.loveMeaning || card.advice;
 
@@ -110,12 +116,20 @@ export const CardDetailView = ({ card, theme, onBack }: { card: Card, theme: any
                 </button>
                 <div className="flex gap-2">
                     {!isEditing ? (
-                        <button 
-                            onClick={() => setIsEditing(true)} 
-                            className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-bold border border-white/20 transition-colors"
-                        >
-                            ✏️ Szerkesztés
-                        </button>
+                        <>
+                            <button
+                                onClick={() => setIsDeckCompareMode(true)}
+                                className="bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-300 px-4 py-2 rounded-lg text-sm font-bold border border-indigo-500/30 transition-colors"
+                            >
+                                🃏 Paklik Összevetése
+                            </button>
+                            <button
+                                onClick={() => setIsEditing(true)}
+                                className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-bold border border-white/20 transition-colors"
+                            >
+                                ✏️ Szerkesztés
+                            </button>
+                        </>
                     ) : (
                         <>
                             <button 

@@ -6,8 +6,9 @@ import { UpdateService, UpdateResponse } from '../services/UpdateService';
 import { CommunityService } from '../services/communityService';
 import { User, Reading, Spread, DeckMeta, Lesson, TarotNotification } from '../types';
 import { MarkdownEditor, MarkdownRenderer } from './MarkdownSupport';
+import { ContentEditor } from './ContentEditor';
 
-type AdminTab = 'users' | 'readings' | 'spreads' | 'decks' | 'lessons' | 'system';
+type AdminTab = 'users' | 'readings' | 'spreads' | 'decks' | 'lessons' | 'system' | 'content';
 
 export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
     const { currentUser, showToast } = useTarot();
@@ -26,6 +27,11 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
     const [updateCheckResult, setUpdateCheckResult] = useState<UpdateResponse | null>(null);
     const [backups, setBackups] = useState<string[]>([]);
     const [updateLoading, setUpdateLoading] = useState(false);
+
+    // Settings State
+    const [geminiApiKey, setGeminiApiKey] = useState('');
+    const [enableGeminiSpreadImport, setEnableGeminiSpreadImport] = useState(false);
+    const [enableRegistration, setEnableRegistration] = useState(true);
 
     // Detail Modal State
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
@@ -53,6 +59,9 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                 case 'lessons': setLessons(await AdminService.getGlobalLessons()); break;
                 case 'system': await loadSystemData(); break;
             }
+            // Load Settings (simulated fetch from StorageService/Firestore)
+            // In a real implementation, this would fetch from a 'settings' collection
+            // For now, we initialize with defaults or previous values if stored in memory
         } catch (e) {
             alert("Hiba az adatok betöltésekor: " + e);
         } finally {
@@ -70,8 +79,32 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
             if (bRes.status === 'success' && bRes.backups) {
                 setBackups(bRes.backups);
             }
+
+            // Fetch Global Settings
+            // Assuming CommunityService or a new SettingsService handles this
+            // Here we just simulate or use CommunityService if we add a method
+            // For MVP: Fetch from a specific document in Firestore
+            const settings = await CommunityService.getGlobalSettings();
+            if (settings) {
+                setGeminiApiKey(settings.geminiApiKey || '');
+                setEnableGeminiSpreadImport(settings.enableGeminiSpreadImport || false);
+                setEnableRegistration(settings.enableRegistration !== undefined ? settings.enableRegistration : true);
+            }
         } catch (e) {
             console.error(e);
+        }
+    };
+
+    const saveSettings = async () => {
+        try {
+            await CommunityService.saveGlobalSettings({
+                geminiApiKey,
+                enableGeminiSpreadImport,
+                enableRegistration
+            });
+            showToast("Beállítások mentve!", "success");
+        } catch (e) {
+            showToast("Hiba a mentéskor.", "error");
         }
     };
 
@@ -312,6 +345,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                 </div>
                 <nav className="flex-1 py-4">
                     <TabButton id="system" label="Rendszer & Frissítés" icon="🖥️" />
+                    <TabButton id="content" label="Tartalom Szerkesztő" icon="📝" />
                     <div className="my-4 border-t border-white/5"></div>
                     <TabButton id="readings" label="Minden Húzás" icon="📜" />
                     <TabButton id="spreads" label="Minden Kirakás" icon="💠" />
@@ -352,6 +386,10 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                         <div className="text-center py-20 text-white/20">Adatok betöltése az univerzumból...</div>
                     ) : (
                         <div className="w-full">
+                            {activeTab === 'content' && (
+                                <ContentEditor secretKey="admin123" />
+                            )}
+
                             {activeTab === 'system' && (
                                 <div className="space-y-8 max-w-4xl mx-auto">
                                     <div className="bg-[#2a2a3c] rounded-2xl p-6 border border-white/10">
@@ -368,6 +406,56 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                             <div className="bg-black/20 p-4 rounded-xl">
                                                 <div className="text-xs text-gray-500 uppercase tracking-widest">Commit SHA</div>
                                                 <div className="text-xs font-mono text-gray-400 break-all">{systemInfo?.commit_sha || '-'}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-[#2a2a3c] rounded-2xl p-6 border border-white/10 mb-8">
+                                        <h4 className="text-xl font-bold text-white mb-4">Globális Beállítások</h4>
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between bg-black/20 p-4 rounded-xl">
+                                                <div>
+                                                    <div className="font-bold text-white">Regisztráció Engedélyezése</div>
+                                                    <div className="text-xs text-gray-500">Új felhasználók regisztrálhatnak az oldalon.</div>
+                                                </div>
+                                                <button
+                                                    onClick={() => setEnableRegistration(!enableRegistration)}
+                                                    className={`w-12 h-6 rounded-full p-1 transition-colors ${enableRegistration ? 'bg-green-500' : 'bg-gray-600'}`}
+                                                >
+                                                    <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-transform ${enableRegistration ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                                                </button>
+                                            </div>
+
+                                            <div className="flex items-center justify-between bg-black/20 p-4 rounded-xl">
+                                                <div>
+                                                    <div className="font-bold text-white">Gemini AI Kirakás Import</div>
+                                                    <div className="text-xs text-gray-500">Képfelismerés és automatikus kirakás létrehozás engedélyezése.</div>
+                                                </div>
+                                                <button
+                                                    onClick={() => setEnableGeminiSpreadImport(!enableGeminiSpreadImport)}
+                                                    className={`w-12 h-6 rounded-full p-1 transition-colors ${enableGeminiSpreadImport ? 'bg-blue-500' : 'bg-gray-600'}`}
+                                                >
+                                                    <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-transform ${enableGeminiSpreadImport ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                                                </button>
+                                            </div>
+
+                                            {enableGeminiSpreadImport && (
+                                                <div className="bg-black/20 p-4 rounded-xl">
+                                                    <label className="block text-xs font-bold text-gray-500 mb-1">Gemini API Kulcs</label>
+                                                    <input
+                                                        type="password"
+                                                        value={geminiApiKey}
+                                                        onChange={(e) => setGeminiApiKey(e.target.value)}
+                                                        className="w-full bg-black/40 border border-white/10 rounded p-2 text-white font-mono"
+                                                        placeholder="AIza..."
+                                                    />
+                                                </div>
+                                            )}
+
+                                            <div className="flex justify-end">
+                                                <button onClick={saveSettings} className="bg-gold-500 text-black px-6 py-2 rounded-lg font-bold hover:bg-gold-400 transition-colors">
+                                                    Beállítások Mentése
+                                                </button>
                                             </div>
                                         </div>
                                     </div>

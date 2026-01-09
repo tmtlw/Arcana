@@ -69,6 +69,20 @@ export const ReadingAnalysis = ({ reading, onClose, spread }: ReadingAnalysisPro
         }
         const numerologyCard = FULL_DECK.find(c => c.arcana === 'Major' && c.number === reducedNum);
 
+        // 5. Pattern Scanner (New Heuristics)
+        const patterns = [];
+        if (arcanas.Major >= 3) patterns.push("Sorsszerű Változás (3+ Nagy Árkánum)");
+        if (elements['Tűz'] >= 3) patterns.push("Nagy Szenvedély/Konfliktus (Tűz dominancia)");
+        if (elements['Víz'] >= 3) patterns.push("Érzelmi Áradat (Víz dominancia)");
+        if (elements['Levegő'] >= 3) patterns.push("Túlgondolás Veszélye (Levegő dominancia)");
+        if (elements['Föld'] >= 3) patterns.push("Anyagi Fókusz (Föld dominancia)");
+
+        // Check for specific number sequences (e.g. three Aces)
+        const numberCounts: Record<number, number> = {};
+        drawnDetails.forEach(d => { if(d.card?.number) numberCounts[d.card.number] = (numberCounts[d.card.number] || 0) + 1; });
+        if (numberCounts[1] >= 2) patterns.push("Új Kezdetek (Több Ász)");
+        if (numberCounts[10] >= 2) patterns.push("Ciklusok Vége (Több Tízes)");
+
         return { 
             drawnDetails, 
             elements, 
@@ -80,7 +94,8 @@ export const ReadingAnalysis = ({ reading, onClose, spread }: ReadingAnalysisPro
             isKarmic, 
             keywords: [...new Set(keywords)].slice(0, 8),
             numerologySum: totalNumerology,
-            numerologyCard
+            numerologyCard,
+            patterns
         };
     }, [reading, usedSpread]);
 
@@ -90,6 +105,19 @@ export const ReadingAnalysis = ({ reading, onClose, spread }: ReadingAnalysisPro
 
     const StatsTab = () => (
         <div className="animate-fade-in grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Pattern Scanner Alert */}
+            {analysis.patterns.length > 0 && (
+                <div className="col-span-1 md:col-span-2 bg-indigo-500/10 border border-indigo-500/30 p-4 rounded-xl flex items-start gap-4 animate-pulse-slow">
+                    <div className="text-3xl">✨</div>
+                    <div>
+                        <h4 className="font-bold text-indigo-300 text-sm uppercase tracking-wider mb-1">Felismerések (Mintázat Elemző)</h4>
+                        <ul className="list-disc pl-4 text-sm text-gray-300 space-y-1">
+                            {analysis.patterns.map(p => <li key={p}>{p}</li>)}
+                        </ul>
+                    </div>
+                </div>
+            )}
+
             {/* Elemental Chart */}
             <div className="glass-panel p-6 rounded-2xl border border-white/10">
                 <h3 className="font-serif font-bold text-gold-400 mb-4 flex items-center gap-2">🔥 Elemi Egyensúly</h3>

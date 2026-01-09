@@ -16,9 +16,16 @@ import { BADGES, DEFAULT_SPREADS, AVATAR_GALLERY, ADMIN_EMAILS, LESSONS, getAvat
 import { auth } from '../services/firebase'; 
 import { onAuthStateChanged, signOut, deleteUser } from 'firebase/auth';
 
+interface GlobalSettings {
+    geminiApiKey?: string;
+    enableGeminiSpreadImport?: boolean;
+    enableRegistration?: boolean;
+}
+
 interface TarotContextType {
     users: User[];
     currentUser: User | null;
+    globalSettings: GlobalSettings;
     language: Language;
     setLanguage: (l: Language) => void;
     readings: Reading[];
@@ -40,6 +47,8 @@ interface TarotContextType {
     isDay: boolean; // Computed flag for day/night
     notifications: TarotNotification[];
     unreadCount: number;
+    latestBadge: string | null;
+    setLatestBadge: (id: string | null) => void;
     setCurrentUser: (u: User | null) => void;
     updateUser: (u: User) => void;
     addUser: (name: string, theme: ThemeType) => void;
@@ -116,6 +125,8 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
     
     const [notifications, setNotifications] = useState<TarotNotification[]>([]);
     const unreadCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
+    const [latestBadge, setLatestBadge] = useState<string | null>(null);
+    const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({});
 
     // Guest Timer Ref
     const guestTimerRef = useRef<any>(null);
@@ -180,6 +191,11 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
             });
             setSystemLessonOverrides(overrides);
         }).catch(err => console.warn("Could not load lesson overrides", err));
+
+        // Load Global Settings
+        CommunityService.getGlobalSettings().then(settings => {
+            if (settings) setGlobalSettings(settings);
+        });
 
         // Auth Listener - Main Data Loader
         if (auth) {
@@ -550,7 +566,9 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
         const newBadges = earnedBadges.map(b => b.id).filter(bid => !currentUser.badges.includes(bid));
         if (newBadges.length > 0) {
             updateUser({ ...currentUser, badges: [...currentUser.badges, ...newBadges] });
-            showToast(`Új jelvény megszervezve!`, 'success');
+            // Show popup for the first one found (or we could queue them, but simple is better)
+            setLatestBadge(newBadges[0]);
+            // showToast(`Új jelvény megszervezve!`, 'success'); // Removed redundant toast
         }
     };
 
@@ -758,6 +776,8 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
             deck, availableDecks, activeDeck, quizResults, userLocation,
             isCloudAvailable, isSyncing, activeThemeKey, isDay,
             notifications, unreadCount,
+            latestBadge, setLatestBadge,
+            globalSettings,
             setCurrentUser, updateUser, addUser, addReading, updateReading, deleteReading, 
             addCustomSpread, updateCustomSpread, deleteCustomSpread, 
             addCustomLesson, updateCustomLesson, deleteCustomLesson,

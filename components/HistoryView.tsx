@@ -7,6 +7,7 @@ import { CommunityService } from '../services/communityService';
 import { CompareView } from './CompareView';
 import { ReadingAnalysis } from './ReadingAnalysis';
 import { MarkdownRenderer, MarkdownEditor } from './MarkdownSupport';
+import { HistoryHeatmap } from './HistoryHeatmap';
 
 const PROMPTS = [
     "Hogyan éreztem magam a húzáskor?",
@@ -40,7 +41,10 @@ export const HistoryView = ({ deck }: any) => {
     // Comparison State
     const [isCompareMode, setIsCompareMode] = useState(false);
     const [selectedForCompare, setSelectedForCompare] = useState<string[]>([]);
-    const [compareReadings, setCompareReadings] = useState<[Reading, Reading] | null>(null);
+    const [compareReadings, setCompareReadings] = useState<Reading[] | null>(null);
+
+    // View Mode
+    const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
 
     const myReadings = readings.filter(r => r.userId === currentUser?.id);
     const userFolders = currentUser?.folders || [];
@@ -143,27 +147,24 @@ export const HistoryView = ({ deck }: any) => {
         if (selectedForCompare.includes(id)) {
             setSelectedForCompare(prev => prev.filter(sid => sid !== id));
         } else {
-            if (selectedForCompare.length < 2) {
+            if (selectedForCompare.length < 3) {
                 setSelectedForCompare(prev => [...prev, id]);
             } else {
-                showToast("Maximum 2 húzást választhatsz ki.", "info");
+                showToast("Maximum 3 húzást választhatsz ki.", "info");
             }
         }
     };
 
     const launchCompare = () => {
-        if (selectedForCompare.length !== 2) return;
-        const r1 = readings.find(r => r.id === selectedForCompare[0]);
-        const r2 = readings.find(r => r.id === selectedForCompare[1]);
-        if (r1 && r2) {
-            setCompareReadings([r1, r2]);
-        }
+        if (selectedForCompare.length < 2) return;
+        const selectedReadings = selectedForCompare.map(id => readings.find(r => r.id === id)).filter(Boolean) as Reading[];
+        setCompareReadings(selectedReadings);
     };
 
     const activeDeckImageSource = availableDecks.find(d => d.id === currentUser?.deckPreference);
 
     if (compareReadings) {
-        return <CompareView reading1={compareReadings[0]} reading2={compareReadings[1]} onBack={() => { setCompareReadings(null); setSelectedForCompare([]); setIsCompareMode(false); }} />;
+        return <CompareView readings={compareReadings} onBack={() => { setCompareReadings(null); setSelectedForCompare([]); setIsCompareMode(false); }} />;
     }
 
     // IF READING SELECTED FOR ANALYSIS
@@ -177,6 +178,10 @@ export const HistoryView = ({ deck }: any) => {
                 <div className="flex justify-between items-center mb-8">
                     <h2 className="text-3xl font-serif font-bold">Az Idő Fonalai</h2>
                     <div className="flex gap-2">
+                        <div className="bg-black/30 p-1 rounded-lg flex border border-white/10">
+                            <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 rounded text-xs font-bold transition ${viewMode === 'list' ? 'bg-white/20 text-white' : 'text-gray-500'}`}>Lista</button>
+                            <button onClick={() => setViewMode('map')} className={`px-3 py-1.5 rounded text-xs font-bold transition ${viewMode === 'map' ? 'bg-white/20 text-white' : 'text-gray-500'}`}>Térkép</button>
+                        </div>
                         <button 
                             onClick={() => { setIsCompareMode(!isCompareMode); setSelectedForCompare([]); }} 
                             className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors border ${isCompareMode ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-white/10 border-transparent text-white/60 hover:text-white'}`}
@@ -192,10 +197,10 @@ export const HistoryView = ({ deck }: any) => {
                 {/* Compare Mode Header */}
                 {isCompareMode && (
                     <div className="sticky top-20 z-40 bg-indigo-900/90 backdrop-blur-md p-4 rounded-xl border border-indigo-500/50 shadow-2xl flex justify-between items-center mb-6 animate-fade-in">
-                        <div className="text-sm font-bold">Kiválasztva: {selectedForCompare.length} / 2</div>
+                        <div className="text-sm font-bold">Kiválasztva: {selectedForCompare.length} / 3</div>
                         <button 
                             onClick={launchCompare}
-                            disabled={selectedForCompare.length !== 2}
+                            disabled={selectedForCompare.length < 2}
                             className="bg-gold-500 disabled:opacity-50 disabled:cursor-not-allowed text-black px-6 py-2 rounded-lg font-bold shadow-lg hover:scale-105 transition-all"
                         >
                             Elemzés Indítása
@@ -222,6 +227,10 @@ export const HistoryView = ({ deck }: any) => {
                             {userFolders.length === 0 && <span className="text-xs opacity-50">Nincsenek mappák.</span>}
                         </div>
                     </div>
+                )}
+
+                {viewMode === 'map' && (
+                    <HistoryHeatmap readings={myReadings} onSelectReading={(r) => { setViewMode('list'); setSelectedReadingForAnalysis(r); }} />
                 )}
 
                 {/* Filter Panel */}

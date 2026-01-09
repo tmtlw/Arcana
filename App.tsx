@@ -11,6 +11,7 @@ import { AdvancedSpreadBuilder } from './components/AdvancedSpreadBuilder';
 import { StatsView } from './components/StatsView';
 import { QuizView } from './components/QuizView';
 import { CardDetailView } from './components/CardDetailView'; 
+import { AchievementPopup } from './components/AchievementPopup';
 import { ProfileView } from './components/ProfileView';
 import { MultiplayerSession } from './components/MultiplayerSession'; 
 import { EducationView } from './components/EducationView'; 
@@ -367,6 +368,7 @@ const AppContent = () => {
     return (
         <div className={`min-h-screen font-sans transition-colors duration-500 ${theme.bg} ${theme.text} ${fontSizeClass}`}>
             <ToastContainer />
+            <AchievementPopup />
             <MusicPlayer />
             <UpdateNotification />
             
