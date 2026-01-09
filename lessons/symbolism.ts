@@ -125,6 +125,13 @@ A társadalom, a biztonság, a civilizáció. Ha valaki hátat fordít neki (Kel
         xpReward: 50,
         icon: '🪐',
         relatedCards: ['major-19', 'major-18', 'major-17'],
+        quizQuestions: [
+            { statement: "A Kos csillagjegy a Császár (Emperor) kártyához kapcsolódik.", isTrue: true },
+            { statement: "A Vénusz bolygó a Torony kártya uralkodója.", isTrue: false },
+            { statement: "A Halál kártya asztrológiai megfelelője a Skorpió.", isTrue: true },
+            { statement: "A Főpapnő a Nap bolygóhoz tartozik.", isTrue: false },
+            { statement: "A Kis Árkánum lapjai a Zodiákus dekádjait (10 fokos szakaszait) jelölik.", isTrue: true }
+        ],
         content: `A 19. századi Golden Dawn rend összekapcsolta a Tarot-t az asztrológiával és a Kabbalával. Ha ismered az asztrológiát, mélyebb rétegeket fedezhetsz fel.
 
 **Nagy Árkánum és a Zodiákus:**
