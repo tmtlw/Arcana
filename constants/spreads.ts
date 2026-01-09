@@ -373,7 +373,6 @@ export const DEFAULT_SPREADS: Spread[] = [
             { id: 4, name: 'Cél', description: 'Hová vezet a következő lépés?', x: 3, y: 2 }
         ]
     },
-    // --- NEW SPREADS ---
     {
         id: 'horseshoe',
         name: 'A Patkó',
@@ -534,6 +533,130 @@ export const DEFAULT_SPREADS: Spread[] = [
             { id: 2, name: 'Tanulás', description: 'Milyen lehetőség adódik?', x: 1, y: 2, rotation: -15, defaultContext: 'advice' },
             { id: 3, name: 'Akadályok', description: 'Hogyan győzd le őket?', x: 2, y: 2, defaultContext: 'advice' },
             { id: 4, name: 'Támogatás', description: 'Hol találsz segítséget?', x: 3, y: 2, rotation: 15, defaultContext: 'advice' }
+        ]
+    },
+    // --- NEWLY ADDED SPREADS ---
+    {
+        id: 'ex-lover-return',
+        name: 'Visszatér az Ex?',
+        category: 'love',
+        description: 'Elemzés a volt partnerrel való kapcsolat esélyeiről.',
+        positions: [
+            { id: 1, name: 'Ő', description: 'Hol tart most érzelmileg?', x: 1, y: 1, defaultContext: 'love' },
+            { id: 2, name: 'Te', description: 'Mi a te valódi hozzáállásod?', x: 3, y: 1, defaultContext: 'love' },
+            { id: 3, name: 'Múlt', description: 'Mi okozta a szakítást?', x: 2, y: 2 },
+            { id: 4, name: 'Akadály', description: 'Mi áll a visszatérés útjában?', x: 2, y: 3, defaultContext: 'advice' },
+            { id: 5, name: 'Kimenetel', description: 'Mi a legvalószínűbb jövő?', x: 2, y: 4 }
+        ]
+    },
+    {
+        id: 'spiritual-message',
+        name: 'Szellemi Üzenet',
+        category: 'self',
+        description: 'Üzenet a felsőbb énedtől vagy vezetőidtől.',
+        positions: [
+            { id: 1, name: 'Test', description: 'Mit üzen a fizikai valód?', x: 1, y: 2 },
+            { id: 2, name: 'Elme', description: 'Mit kell megértened?', x: 2, y: 1 },
+            { id: 3, name: 'Lélek', description: 'Mi a lelked vágya?', x: 3, y: 2 }
+        ]
+    },
+    {
+        id: 'conflict-resolution',
+        name: 'Konfliktuskezelés',
+        category: 'advice',
+        description: 'Segítség egy vita vagy feszültség feloldásához.',
+        positions: [
+            { id: 1, name: 'Gyökérok', description: 'Honnan ered a probléma?', x: 2, y: 1 },
+            { id: 2, name: 'Te Szereped', description: 'Mit tettél hozzá?', x: 1, y: 2 },
+            { id: 3, name: 'Ő Szerepe', description: 'Mit tett ő?', x: 3, y: 2 },
+            { id: 4, name: 'Megoldás', description: 'Mi hoz békét?', x: 2, y: 3, defaultContext: 'advice' }
+        ]
+    },
+    {
+        id: 'job-interview',
+        name: 'Állásinterjú',
+        category: 'career',
+        description: 'Felkészülés egy fontos megbeszélésre.',
+        positions: [
+            { id: 1, name: 'Erősség', description: 'Mit emelj ki magadból?', x: 1, y: 2, defaultContext: 'career' },
+            { id: 2, name: 'Gyengeség', description: 'Mire figyelj oda?', x: 3, y: 2, defaultContext: 'advice' },
+            { id: 3, name: 'Kimenetel', description: 'Hogyan sikerülhet?', x: 2, y: 1 }
+        ]
+    },
+    {
+        id: 'past-life',
+        name: 'Előző Élet',
+        category: 'self',
+        description: 'Bepillantás egy előző inkarnációba.',
+        positions: [
+            { id: 1, name: 'Ki voltál?', description: 'Személyiség, szerep.', x: 2, y: 1 },
+            { id: 2, name: 'Lecke', description: 'Mit kellett megtanulnod?', x: 1, y: 2 },
+            { id: 3, name: 'Karma', description: 'Mit hoztál át?', x: 3, y: 2 },
+            { id: 4, name: 'Jelen', description: 'Hogyan hat ez most rád?', x: 2, y: 3 }
+        ]
+    },
+    {
+        id: 'soulmate-search',
+        name: 'Lelki Társ Keresése',
+        category: 'love',
+        description: 'Mikor és hogyan találkozol vele?',
+        positions: [
+            { id: 1, name: 'Ki Ő?', description: 'Jellemzői, energiája.', x: 2, y: 1, defaultContext: 'love' },
+            { id: 2, name: 'Mikor?', description: 'Az időzítés körülményei.', x: 1, y: 2 },
+            { id: 3, name: 'Hol?', description: 'A találkozás helyszíne/módja.', x: 3, y: 2 },
+            { id: 4, name: 'Kimenetel', description: 'A kapcsolat jellege.', x: 2, y: 3 }
+        ]
+    },
+    {
+        id: 'abundance-path',
+        name: 'A Bőség Útja',
+        category: 'career',
+        description: 'Anyagi helyzet javítása.',
+        positions: [
+            { id: 1, name: 'Jelen', description: 'Pénzügyi helyzeted most.', x: 2, y: 2 },
+            { id: 2, name: 'Blokk', description: 'Mi akadályozza a pénz áramlását?', x: 1, y: 2 },
+            { id: 3, name: 'Cselekvés', description: 'Mit kell tenned?', x: 3, y: 2, defaultContext: 'advice' },
+            { id: 4, name: 'Segítség', description: 'Honnan várhatsz támogatást?', x: 2, y: 1 },
+            { id: 5, name: 'Eredmény', description: 'Várható gyarapodás.', x: 2, y: 3 }
+        ]
+    },
+    {
+        id: 'pyramid-spread',
+        name: 'A Piramis',
+        category: 'general',
+        description: 'Átfogó elemzés egy adott problémára.',
+        positions: [
+            { id: 1, name: 'Alap', description: 'A probléma gyökere.', x: 2, y: 3 },
+            { id: 2, name: 'Tényező 1', description: 'Érzelmi hatás.', x: 1, y: 3 },
+            { id: 3, name: 'Tényező 2', description: 'Külső körülmények.', x: 3, y: 3 },
+            { id: 4, name: 'Megoldás 1', description: 'Első lépés.', x: 1, y: 2 },
+            { id: 5, name: 'Megoldás 2', description: 'Második lépés.', x: 3, y: 2 },
+            { id: 6, name: 'Csúcs', description: 'A végső megoldás.', x: 2, y: 1 }
+        ]
+    },
+    {
+        id: 'moon-manifest',
+        name: 'Hold Teremtés',
+        category: 'calendar',
+        description: 'A Hold ciklusainak kihasználása.',
+        positions: [
+            { id: 1, name: 'Szándék', description: 'Mit akarsz teremteni?', x: 2, y: 1 },
+            { id: 2, name: 'Elengedés', description: 'Minek kell mennie?', x: 1, y: 2 },
+            { id: 3, name: 'Cselekvés', description: 'Mit kell tenned?', x: 3, y: 2 },
+            { id: 4, name: 'Eredmény', description: 'Mi fog megvalósulni?', x: 2, y: 3 }
+        ]
+    },
+    {
+        id: 'decision-cross',
+        name: 'Döntési Kereszt',
+        category: 'decision',
+        description: 'Segítség nehéz választásban.',
+        positions: [
+            { id: 1, name: 'A Helyzet', description: 'Miről kell dönteni?', x: 2, y: 2 },
+            { id: 2, name: 'Mellette', description: 'Érvek az igen mellett.', x: 1, y: 2 },
+            { id: 3, name: 'Ellene', description: 'Érvek az igen ellen.', x: 3, y: 2 },
+            { id: 4, name: 'Tanács', description: 'Mit súg az intuíció?', x: 2, y: 1, defaultContext: 'advice' },
+            { id: 5, name: 'Következmény', description: 'Mi lesz a döntés eredménye?', x: 2, y: 3 }
         ]
     }
 ];

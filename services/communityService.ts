@@ -641,5 +641,28 @@ export const CommunityService = {
         } catch (e) {
             console.error("Error marking all read:", e);
         }
+    },
+
+    // --- Global Settings (Admin) ---
+    getGlobalSettings: async () => {
+        if (!db) return null;
+        try {
+            const docRef = doc(db, 'settings', 'global');
+            const snap = await getDoc(docRef);
+            return snap.exists() ? snap.data() : null;
+        } catch (e) {
+            console.error("Error fetching settings:", e);
+            return null;
+        }
+    },
+
+    saveGlobalSettings: async (settings: any) => {
+        if (!db) return;
+        try {
+            await setDoc(doc(db, 'settings', 'global'), settings, { merge: true });
+        } catch (e) {
+            console.error("Error saving settings:", e);
+            throw e;
+        }
     }
 };

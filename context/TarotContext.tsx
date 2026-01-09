@@ -16,9 +16,16 @@ import { BADGES, DEFAULT_SPREADS, AVATAR_GALLERY, ADMIN_EMAILS, LESSONS, getAvat
 import { auth } from '../services/firebase'; 
 import { onAuthStateChanged, signOut, deleteUser } from 'firebase/auth';
 
+interface GlobalSettings {
+    geminiApiKey?: string;
+    enableGeminiSpreadImport?: boolean;
+    enableRegistration?: boolean;
+}
+
 interface TarotContextType {
     users: User[];
     currentUser: User | null;
+    globalSettings: GlobalSettings;
     language: Language;
     setLanguage: (l: Language) => void;
     readings: Reading[];
@@ -119,6 +126,7 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
     const [notifications, setNotifications] = useState<TarotNotification[]>([]);
     const unreadCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
     const [latestBadge, setLatestBadge] = useState<string | null>(null);
+    const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({});
 
     // Guest Timer Ref
     const guestTimerRef = useRef<any>(null);
@@ -183,6 +191,11 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
             });
             setSystemLessonOverrides(overrides);
         }).catch(err => console.warn("Could not load lesson overrides", err));
+
+        // Load Global Settings
+        CommunityService.getGlobalSettings().then(settings => {
+            if (settings) setGlobalSettings(settings);
+        });
 
         // Auth Listener - Main Data Loader
         if (auth) {
@@ -764,6 +777,7 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
             isCloudAvailable, isSyncing, activeThemeKey, isDay,
             notifications, unreadCount,
             latestBadge, setLatestBadge,
+            globalSettings,
             setCurrentUser, updateUser, addUser, addReading, updateReading, deleteReading, 
             addCustomSpread, updateCustomSpread, deleteCustomSpread, 
             addCustomLesson, updateCustomLesson, deleteCustomLesson,

@@ -4,12 +4,13 @@ import { useTarot } from '../context/TarotContext';
 import { Spread, SpreadPosition, MeaningContext, SpreadCategory } from '../types';
 
 export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () => void, initialSpread?: Spread }) => {
-    const { addCustomSpread, updateCustomSpread } = useTarot();
+    const { addCustomSpread, updateCustomSpread, globalSettings } = useTarot();
     const [name, setName] = useState(initialSpread?.name || "");
     const [description, setDescription] = useState(initialSpread?.description || "");
     const [positions, setPositions] = useState<SpreadPosition[]>(initialSpread?.positions || []);
     const [activePosId, setActivePosId] = useState<number | null>(null);
     const [category, setCategory] = useState<SpreadCategory>(initialSpread?.category || 'general');
+    const [isUploading, setIsUploading] = useState(false);
     
     // 7x5 Grid for more flexibility
     const gridCols = 7;
@@ -61,6 +62,76 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
 
     const toggleRotation = (id: number) => {
         setPositions(prev => prev.map(p => p.id === id ? { ...p, rotation: p.rotation === 90 ? 0 : 90 } : p));
+    };
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!globalSettings?.geminiApiKey) {
+            alert("A Gemini API kulcs nincs beállítva az Adminisztrációs felületen.");
+            return;
+        }
+
+        setIsUploading(true);
+        try {
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                const base64String = reader.result?.toString().replace(/^data:image\/(png|jpg|jpeg);base64,/, "");
+
+                if (!base64String) {
+                    alert("Hiba a kép feldolgozása közben.");
+                    setIsUploading(false);
+                    return;
+                }
+
+                const response = await fetch('./gemini_proxy.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        image: base64String,
+                        apiKey: globalSettings.geminiApiKey
+                    })
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`Server error: ${errText}`);
+                }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Apply data
+                if (data.name) setName(data.name);
+                if (data.description) setDescription(data.description);
+                if (data.category && CATEGORIES.some(c => c.id === data.category)) setCategory(data.category);
+
+                if (Array.isArray(data.positions)) {
+                    const newPositions = data.positions.map((p: any, index: number) => ({
+                        id: index + 1,
+                        name: p.name || `Pozíció ${index + 1}`,
+                        description: p.description || "",
+                        x: p.x || (index % gridCols) + 1,
+                        y: p.y || Math.floor(index / gridCols) + 1,
+                        rotation: 0,
+                        defaultContext: 'general'
+                    }));
+                    setPositions(newPositions);
+                }
+                alert("Kirakás sikeresen importálva!");
+            };
+            reader.readAsDataURL(file);
+        } catch (error) {
+            console.error("Upload error:", error);
+            alert("Hiba történt a feldolgozás során. Ellenőrizd a konzolt vagy próbáld újra.");
+        } finally {
+            setIsUploading(false);
+            if(e.target) e.target.value = "";
+        }
     };
 
     const handleSave = () => {
@@ -127,6 +198,39 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                         <span>✨</span> {initialSpread ? 'Kirakás Szerkesztése' : 'Kirakás Tervező'}
                     </h2>
                     
+                    {globalSettings?.enableGeminiSpreadImport && (
+                        <div className="mb-4">
+                            <input
+                                type="file"
+                                accept="image/*"
+                                id="spread-upload"
+                                className="hidden"
+                                onChange={handleImageUpload}
+                                disabled={isUploading}
+                            />
+                            <label
+                                htmlFor="spread-upload"
+                                className={`
+                                    flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-dashed border-gold-500/50 bg-gold-500/10 text-gold-400 font-bold cursor-pointer hover:bg-gold-500/20 transition-all
+                                    ${isUploading ? 'opacity-50 cursor-wait' : ''}
+                                `}
+                            >
+                                {isUploading ? (
+                                    <>
+                                        <span className="animate-spin">⏳</span> Elemzés folyamatban...
+                                    </>
+                                ) : (
+                                    <>
+                                        <span>📷</span> Kirakás Importálása Képről (AI)
+                                    </>
+                                )}
+                            </label>
+                            <p className="text-[10px] text-white/40 text-center mt-1">
+                                Tölts fel egy képet a kirakásról, és a mesterséges intelligencia megpróbálja felismerni a pozíciókat.
+                            </p>
+                        </div>
+                    )}
+
                     <div className="space-y-4 mb-6">
                         <div>
                             <label className="block text-xs font-bold uppercase text-white/50 mb-1">Kirakás Neve</label>

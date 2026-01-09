@@ -6,7 +6,7 @@ import { auth, googleProvider } from '../services/firebase';
 import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
 
 export const AuthView = () => {
-    const { users, setCurrentUser, addUser, language, setLanguage } = useTarot();
+    const { users, setCurrentUser, addUser, language, setLanguage, globalSettings } = useTarot();
     const [mode, setMode] = useState<'login' | 'register'>('login');
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -23,6 +23,12 @@ export const AuthView = () => {
             setError("A Firebase nincs beállítva. Kérlek ellenőrizd a services/firebase.ts fájlt.");
             return;
         }
+
+        if (mode === 'register' && globalSettings?.enableRegistration === false) {
+            setError("A regisztráció jelenleg ki van kapcsolva az adminisztrátor által.");
+            return;
+        }
+
         setError("");
         setLoading(true);
         try {
@@ -118,12 +124,14 @@ export const AuthView = () => {
                     >
                         {t('auth.login', language)}
                     </button>
-                    <button 
-                        onClick={() => setMode('register')}
-                        className={`flex-1 py-2 rounded-full text-sm font-bold transition-all ${mode === 'register' ? 'bg-indigo-600 text-white shadow-lg' : 'text-white/50 hover:text-white'}`}
-                    >
-                        {t('auth.register', language)}
-                    </button>
+                    {globalSettings?.enableRegistration !== false && (
+                        <button
+                            onClick={() => setMode('register')}
+                            className={`flex-1 py-2 rounded-full text-sm font-bold transition-all ${mode === 'register' ? 'bg-indigo-600 text-white shadow-lg' : 'text-white/50 hover:text-white'}`}
+                        >
+                            {t('auth.register', language)}
+                        </button>
+                    )}
                 </div>
 
                 <div className="space-y-4 relative z-10">
