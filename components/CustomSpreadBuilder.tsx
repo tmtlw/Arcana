@@ -250,6 +250,18 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                                 <p className="text-[10px] text-white/40 text-center mt-1">
                                     Tölts fel egy képet a kirakásról, és a mesterséges intelligencia megpróbálja felismerni a pozíciókat.
                                 </p>
+                            {isUploading && (
+                                <div className="w-full bg-white/10 rounded-full h-2 mt-3 overflow-hidden border border-white/5 relative">
+                                    <div className="absolute inset-0 bg-gold-500/20 animate-pulse"></div>
+                                    <div className="h-full bg-gold-500 w-1/2" style={{animation: 'indeterminate 1.5s infinite linear'}}></div>
+                                    <style>{`
+                                        @keyframes indeterminate {
+                                            0% { transform: translateX(-100%); }
+                                            100% { transform: translateX(200%); }
+                                        }
+                                    `}</style>
+                                </div>
+                            )}
                             </>
                         ) : (
                              // Fallback / Debug: If user thinks it should be on but it's off

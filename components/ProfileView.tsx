@@ -735,7 +735,11 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
             )}
 
             {selectedReading && (
-                <ReadingAnalysis reading={selectedReading} onClose={() => setSelectedReading(null)} />
+                <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md overflow-y-auto custom-scrollbar animate-fade-in flex flex-col">
+                    <div className="p-4 md:p-8 flex-1">
+                        <ReadingAnalysis reading={selectedReading} onClose={() => setSelectedReading(null)} />
+                    </div>
+                </div>
             )}
         </div>
     );
