@@ -498,13 +498,19 @@ export const CommunityView = ({ onBack, onNavigate }: { onBack: () => void, onNa
                                         {reading.astrology && (
                                             <>
                                                 <span className="flex items-center gap-1 bg-white/5 px-2 py-1 rounded border border-white/5 text-blue-200" title={`Holdfázis: ${reading.astrology.moonPhase}`}>
-                                                    {reading.astrology.icon} {reading.astrology.moonSign}
+                                                    {reading.astrology.icon} {reading.astrology.moonPhase} ({reading.astrology.moonSign})
                                                 </span>
                                                 <span className="flex items-center gap-1 bg-white/5 px-2 py-1 rounded border border-white/5 text-orange-200" title={`Napjegy: ${reading.astrology.sunSign}`}>
                                                     ☀️ {reading.astrology.sunSign}
                                                 </span>
                                             </>
                                         )}
+                                        {/* Show Deck Name if saved (assuming deck metadata might be available in future or extended Reading type, currently we simulate or check if field exists) */}
+                                        {/* Assuming 'deckId' or similar might exist, or we can look up preference if user is known, but better to rely on saved reading data if it had it.
+                                            For now, we can show generic info or if ExtendedReading has it.
+                                            Since Reading type doesn't explicitly store deckName, we'll skip unless we add it,
+                                            but let's display what we have nicely.
+                                        */}
                                     </div>
 
                                     {/* Author & Question */}

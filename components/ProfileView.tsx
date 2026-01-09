@@ -1,15 +1,17 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTarot } from '../context/TarotContext';
-import { THEMES, BADGES, AVATAR_GALLERY, FULL_DECK, getAvatarUrl, CARD_BACKS, ZODIAC_INFO, QUICK_ACTION_OPTIONS } from '../constants';
+import { THEMES, BADGES, AVATAR_GALLERY, FULL_DECK, getAvatarUrl, CARD_BACKS, ZODIAC_INFO, QUICK_ACTION_OPTIONS, MOODS } from '../constants';
 import { CardImage } from './CardImage'; 
 import { ThemeType, CardBackType, Reading, User, DeckMeta } from '../types';
 import { AstroService } from '../services/astroService';
 import { t } from '../services/i18nService';
 import { CommunityService } from '../services/communityService';
+import { ReadingAnalysis } from './ReadingAnalysis';
 
 interface ProfileViewProps {
     onBack: () => void;
-    targetUserId?: string; // Optional: If viewing someone else's profile
+    targetUserId?: string;
+    onNavigate?: (view: string, param?: string) => void;
 }
 
 interface ThemeButtonProps {
@@ -40,6 +42,7 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
     const [viewedUser, setViewedUser] = useState<User | null>(null);
     const [publicReadings, setPublicReadings] = useState<Reading[]>([]);
     const [zodiacModal, setZodiacModal] = useState<{ type: 'Nap'|'Hold'|'Aszcendens', sign: string } | null>(null);
+    const [selectedReading, setSelectedReading] = useState<Reading | null>(null); // For detailed view
     
     // Local Edit States
     const [localName, setLocalName] = useState("");
@@ -84,9 +87,19 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
         }
     };
 
+    const displayReadings = useMemo(() => {
+        if (isOwnProfile) {
+            // For owner, combine local readings (which include private)
+            // We prioritize local 'readings' from context as it has everything for the user
+            return readings.filter(r => r.userId === currentUser?.id).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        } else {
+            return publicReadings;
+        }
+    }, [isOwnProfile, readings, publicReadings, currentUser]);
+
     // Calculate Stats based on available readings (Own -> All, Other -> Public only)
     const statsData = useMemo(() => {
-        const sourceReadings = isOwnProfile ? readings.filter(r => r.userId === currentUser?.id) : publicReadings;
+        const sourceReadings = displayReadings;
         if (sourceReadings.length === 0) return null;
 
         const cardCounts: Record<string, number> = {};
@@ -389,21 +402,25 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                         {/* RIGHT COLUMN: Readings Grid */}
                         <div className="lg:col-span-2">
                             <h3 className="font-serif font-bold text-xl text-white mb-6 flex items-center gap-2">
-                                <span>📜</span> Publikus Húzások
+                                <span>📜</span> {isOwnProfile ? 'Összes Húzás' : 'Publikus Húzások'}
                             </h3>
-                            {publicReadings.length === 0 ? (
+                            {displayReadings.length === 0 ? (
                                 <div className="text-center py-12 opacity-50 bg-white/5 rounded-2xl border border-dashed border-white/10">
                                     <div className="text-5xl mb-4">🎴</div>
-                                    <p className="font-serif text-lg">Nincsenek publikus bejegyzések.</p>
+                                    <p className="font-serif text-lg">Nincsenek megjeleníthető bejegyzések.</p>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {publicReadings.map(reading => {
+                                    {displayReadings.map(reading => {
                                         const spread = allSpreads.find(s => s.id === reading.spreadId);
                                         return (
-                                            <div key={reading.id} className="glass-panel rounded-2xl overflow-hidden border border-white/10 hover:border-gold-500/30 transition-all hover:shadow-xl group flex flex-col">
+                                            <div
+                                                key={reading.id}
+                                                onClick={() => setSelectedReading(reading)}
+                                                className="glass-panel rounded-2xl overflow-hidden border border-white/10 hover:border-gold-500/30 transition-all hover:shadow-xl group flex flex-col cursor-pointer"
+                                            >
                                                 {/* Header */}
-                                                <div className="p-4 bg-black/20 border-b border-white/5">
+                                                <div className="p-4 bg-black/20 border-b border-white/5 relative">
                                                     <div className="flex justify-between items-start mb-2">
                                                         <span className="text-[10px] font-bold uppercase tracking-widest text-gold-500 bg-gold-500/10 px-2 py-1 rounded">
                                                             {spread?.name || 'Ismeretlen Kirakás'}
@@ -413,6 +430,9 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                                                     <h4 className="font-serif font-bold text-white text-lg leading-tight line-clamp-2 italic">
                                                         "{reading.question || 'Csendes húzás...'}"
                                                     </h4>
+                                                    {isOwnProfile && !reading.isPublic && (
+                                                        <div className="absolute top-2 right-2 text-xs" title="Privát">🔒</div>
+                                                    )}
                                                 </div>
 
                                                 {/* Visual Preview of Cards */}
@@ -436,7 +456,11 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                                                 {/* Footer */}
                                                 <div className="p-3 border-t border-white/5 flex justify-between items-center bg-black/40">
                                                     <div className="flex gap-2">
-                                                        {reading.mood && <span className="text-lg">{reading.mood}</span>} 
+                                                        {reading.mood && (
+                                                            <span className="text-lg" title={MOODS.find(m => m.id === reading.mood)?.label}>
+                                                                {MOODS.find(m => m.id === reading.mood)?.icon || reading.mood}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-gold-500 font-bold text-sm">✨ {reading.likes || 0}</span>
@@ -706,6 +730,14 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                         <div className="text-gray-200 leading-relaxed text-sm bg-white/5 p-4 rounded-xl border border-white/5 text-justify mt-4">
                             {ZODIAC_INFO[zodiacModal.sign]?.sun || "Nincs leírás."}
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {selectedReading && (
+                <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md overflow-y-auto custom-scrollbar animate-fade-in flex flex-col">
+                    <div className="p-4 md:p-8 flex-1">
+                        <ReadingAnalysis reading={selectedReading} onClose={() => setSelectedReading(null)} />
                     </div>
                 </div>
             )}

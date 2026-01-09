@@ -53,27 +53,33 @@ export const AstroService = {
         let jd = c + e + day - 694039.09; 
         jd /= 29.5305882; 
         let b = parseInt(jd.toString()); 
-        jd -= b; 
+        jd -= b; // fractional part of cycle (0.0 to 1.0)
+
+        // Accurate Illumination (0-100%)
+        // Illumination is roughly (1 - cos(angle))/2. Angle ranges 0 to 2PI over the cycle.
+        const angle = jd * 2 * Math.PI;
+        const illumination = (1 - Math.cos(angle)) / 2;
+
         b = Math.round(jd * 8); 
         const age = jd * 29.53;
 
         if (b >= 8 ) b = 0; 
         
         const phases = [
-            { id: 0, name: "Újhold", icon: "🌑", illum: 0 },
-            { id: 1, name: "Növekvő Holdsarló", icon: "🌒", illum: 0.25 },
-            { id: 2, name: "Első Negyed", icon: "🌓", illum: 0.5 },
-            { id: 3, name: "Növekvő Hold", icon: "🌔", illum: 0.75 },
-            { id: 4, name: "Telihold", icon: "🌕", illum: 1 },
-            { id: 5, name: "Fogyó Hold", icon: "🌖", illum: 0.75 },
-            { id: 6, name: "Utolsó Negyed", icon: "🌗", illum: 0.5 },
-            { id: 7, name: "Fogyó Holdsarló", icon: "🌘", illum: 0.25 }
+            { id: 0, name: "Újhold", icon: "🌑" },
+            { id: 1, name: "Növekvő Holdsarló", icon: "🌒" },
+            { id: 2, name: "Első Negyed", icon: "🌓" },
+            { id: 3, name: "Növekvő Hold", icon: "🌔" },
+            { id: 4, name: "Telihold", icon: "🌕" },
+            { id: 5, name: "Fogyó Hold", icon: "🌖" },
+            { id: 6, name: "Utolsó Negyed", icon: "🌗" },
+            { id: 7, name: "Fogyó Holdsarló", icon: "🌘" }
         ];
 
         return {
             phase: phases[b].name,
             icon: phases[b].icon,
-            illumination: phases[b].illum,
+            illumination: illumination, // Now a precise float 0..1
             age: age
         };
     },

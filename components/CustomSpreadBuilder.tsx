@@ -11,6 +11,7 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
     const [activePosId, setActivePosId] = useState<number | null>(null);
     const [category, setCategory] = useState<SpreadCategory>(initialSpread?.category || 'general');
     const [isUploading, setIsUploading] = useState(false);
+    const [uploadStatus, setUploadStatus] = useState("");
     
     // 7x5 Grid for more flexibility
     const gridCols = 7;
@@ -74,6 +75,8 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
         }
 
         setIsUploading(true);
+        setUploadStatus("Kép feldolgozása...");
+
         try {
             const reader = new FileReader();
             reader.onloadend = async () => {
@@ -82,10 +85,16 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                 if (!base64String) {
                     alert("Hiba a kép feldolgozása közben.");
                     setIsUploading(false);
+                    setUploadStatus("");
                     return;
                 }
 
-                const response = await fetch('./gemini_proxy.php', {
+                setUploadStatus("Küldés a mesterséges intelligenciának...");
+
+                // Use simple timeout protection or feedback
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Időtúllépés a szerver válaszában")), 30000));
+
+                const fetchPromise = fetch('./gemini_proxy.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -94,15 +103,19 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                     })
                 });
 
+                setUploadStatus("Elemzés folyamatban (ez eltarthat egy percig)...");
+                const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
+
                 if (!response.ok) {
                     const errText = await response.text();
-                    throw new Error(`Server error: ${errText}`);
+                    throw new Error(`Szerver hiba (${response.status}): ${errText}`);
                 }
 
+                setUploadStatus("Válasz feldolgozása...");
                 const data = await response.json();
 
                 if (data.error) {
-                    throw new Error(data.error);
+                    throw new Error(`API hiba: ${data.error}`);
                 }
 
                 // Apply data
@@ -111,25 +124,36 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                 if (data.category && CATEGORIES.some(c => c.id === data.category)) setCategory(data.category);
 
                 if (Array.isArray(data.positions)) {
-                    const newPositions = data.positions.map((p: any, index: number) => ({
-                        id: index + 1,
-                        name: p.name || `Pozíció ${index + 1}`,
-                        description: p.description || "",
-                        x: p.x || (index % gridCols) + 1,
-                        y: p.y || Math.floor(index / gridCols) + 1,
-                        rotation: 0,
-                        defaultContext: 'general'
-                    }));
+                    const newPositions = data.positions.map((p: any, index: number) => {
+                        // Correctly map 0-100 coordinates to grid (1-7 X, 1-5 Y)
+                        let x = Math.round((p.x / 100) * (gridCols - 1)) + 1;
+                        let y = Math.round((p.y / 100) * (gridRows - 1)) + 1;
+
+                        // Ensure bounds
+                        x = Math.max(1, Math.min(gridCols, x || (index % gridCols) + 1));
+                        y = Math.max(1, Math.min(gridRows, y || Math.floor(index / gridCols) + 1));
+
+                        return {
+                            id: index + 1,
+                            name: p.name || `Pozíció ${index + 1}`,
+                            description: p.description || "",
+                            x: x,
+                            y: y,
+                            rotation: 0,
+                            defaultContext: 'general'
+                        };
+                    });
                     setPositions(newPositions);
                 }
                 alert("Kirakás sikeresen importálva!");
             };
             reader.readAsDataURL(file);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Upload error:", error);
-            alert("Hiba történt a feldolgozás során. Ellenőrizd a konzolt vagy próbáld újra.");
+            alert(`Hiba történt a feldolgozás során: ${error.message || "Ismeretlen hiba"}`);
         } finally {
             setIsUploading(false);
+            setUploadStatus("");
             if(e.target) e.target.value = "";
         }
     };
@@ -184,52 +208,78 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
         { id: 'advice', label: 'Tanács & Útmutatás', icon: '💡' }
     ];
 
+    // Check if AI import is enabled - Force visibility if setting is missing but user claims it's on, or check logic
+    // The previous code had: globalSettings?.enableGeminiSpreadImport
+    // I will verify this and maybe add a fallback or debug info if needed, but primarily ensure it renders.
+    const isAIEnabled = globalSettings?.enableGeminiSpreadImport;
+
     return (
         <div className="flex flex-col lg:flex-row h-full lg:h-[calc(100vh-100px)] gap-6 animate-fade-in pb-24">
             
             {/* LEFT PANEL - Settings (Top on Mobile) */}
-            <div className="lg:w-1/3 flex flex-col gap-4 order-1 lg:order-1">
+            <div className="lg:w-1/3 flex flex-col gap-4 order-1 lg:order-1 min-h-[500px]">
                 <button onClick={onCancel} className="self-start flex items-center gap-2 text-white/50 hover:text-white mb-2 font-bold transition-colors">
                     <span>&larr;</span> Mégse
                 </button>
 
-                <div className="glass-panel p-6 rounded-2xl flex-1 flex flex-col overflow-hidden border border-white/10 max-h-[500px] lg:max-h-none">
+                {/* Removed overflow-hidden to allow scrolling full content if needed on small screens, or set overflow-y-auto */}
+                <div className="glass-panel p-6 rounded-2xl flex-1 flex flex-col border border-white/10 max-h-[85vh] lg:max-h-none overflow-y-auto custom-scrollbar">
                     <h2 className="text-2xl font-serif font-bold text-gold-400 mb-6 flex items-center gap-2">
                         <span>✨</span> {initialSpread ? 'Kirakás Szerkesztése' : 'Kirakás Tervező'}
                     </h2>
                     
-                    {globalSettings?.enableGeminiSpreadImport && (
-                        <div className="mb-4">
-                            <input
-                                type="file"
-                                accept="image/*"
-                                id="spread-upload"
-                                className="hidden"
-                                onChange={handleImageUpload}
-                                disabled={isUploading}
-                            />
-                            <label
-                                htmlFor="spread-upload"
-                                className={`
-                                    flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-dashed border-gold-500/50 bg-gold-500/10 text-gold-400 font-bold cursor-pointer hover:bg-gold-500/20 transition-all
-                                    ${isUploading ? 'opacity-50 cursor-wait' : ''}
-                                `}
-                            >
-                                {isUploading ? (
-                                    <>
-                                        <span className="animate-spin">⏳</span> Elemzés folyamatban...
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>📷</span> Kirakás Importálása Képről (AI)
-                                    </>
-                                )}
-                            </label>
-                            <p className="text-[10px] text-white/40 text-center mt-1">
-                                Tölts fel egy képet a kirakásról, és a mesterséges intelligencia megpróbálja felismerni a pozíciókat.
-                            </p>
-                        </div>
-                    )}
+                    {/* Always show the area, but disable if no key, or provide info */}
+                    <div className="mb-4">
+                        {isAIEnabled ? (
+                            <>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    id="spread-upload"
+                                    className="hidden"
+                                    onChange={handleImageUpload}
+                                    disabled={isUploading}
+                                />
+                                <label
+                                    htmlFor="spread-upload"
+                                    className={`
+                                        flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-dashed border-gold-500/50 bg-gold-500/10 text-gold-400 font-bold cursor-pointer hover:bg-gold-500/20 transition-all
+                                        ${isUploading ? 'opacity-50 cursor-wait' : ''}
+                                    `}
+                                >
+                                    {isUploading ? (
+                                        <>
+                                        <span className="animate-spin">⏳</span> {uploadStatus || "Folyamatban..."}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>📷</span> Kirakás Importálása Képről (AI)
+                                        </>
+                                    )}
+                                </label>
+                                <p className="text-[10px] text-white/40 text-center mt-1">
+                                    Tölts fel egy képet a kirakásról, és a mesterséges intelligencia megpróbálja felismerni a pozíciókat.
+                                </p>
+                            {isUploading && (
+                                <div className="w-full bg-white/10 rounded-full h-2 mt-3 overflow-hidden border border-white/5 relative">
+                                    <div className="absolute inset-0 bg-gold-500/20 animate-pulse"></div>
+                                    <div className="h-full bg-gold-500 w-1/2" style={{animation: 'indeterminate 1.5s infinite linear'}}></div>
+                                    <style>{`
+                                        @keyframes indeterminate {
+                                            0% { transform: translateX(-100%); }
+                                            100% { transform: translateX(200%); }
+                                        }
+                                    `}</style>
+                                </div>
+                            )}
+                            </>
+                        ) : (
+                             // Fallback / Debug: If user thinks it should be on but it's off
+                             <div className="text-[10px] text-white/30 text-center border border-white/5 p-2 rounded bg-white/5">
+                                AI Kirakás importálás inaktív. (Beállítások -> Admin)
+                             </div>
+                        )}
+                    </div>
 
                     <div className="space-y-4 mb-6">
                         <div>

@@ -15,6 +15,7 @@ export const ReadingView = ({ spread, deck, onCancel, targetDate }: { spread: Sp
     // Core State
     const [cards, setCards] = useState<DrawnCard[]>([]);
     const [question, setQuestion] = useState("");
+    const [notes, setNotes] = useState("");
     const [isPublic, setIsPublic] = useState(false);
     const [selectedMood, setSelectedMood] = useState<string>('calm');
     
@@ -85,7 +86,7 @@ export const ReadingView = ({ spread, deck, onCancel, targetDate }: { spread: Sp
         const readingId = Math.random().toString(36).substr(2, 9);
         
         const newReading: Reading = {
-            id: readingId, userId: currentUser.id, date: entryDate, spreadId: spread.id, cards, notes: "",
+            id: readingId, userId: currentUser.id, date: entryDate, spreadId: spread.id, cards, notes: notes,
             question, isFavorite: false, astrology: astroData, isPublic: isPublic, mood: selectedMood,
             authorName: currentUser.name, authorAvatar: getAvatarUrl(currentUser), likes: 0
         };
@@ -127,6 +128,11 @@ export const ReadingView = ({ spread, deck, onCancel, targetDate }: { spread: Sp
                         )}
                     </div>
                     
+                    <div className="flex flex-col items-center flex-1">
+                        <h2 className="text-2xl font-serif font-bold text-gold-400 text-center uppercase tracking-wider">{spread.name}</h2>
+                        {spread.description && <p className="text-xs text-white/50 italic max-w-lg text-center mt-1">{spread.description}</p>}
+                    </div>
+
                     <div className="flex gap-2 items-center">
                         <button onClick={handleShuffle} className="glass-button px-3 py-2 rounded-full font-bold text-xs hover:text-gold-400" title="Kártyák újrakeverése">🌪️</button>
                         <button onClick={handleSave} disabled={!isComplete} className={`px-6 py-2 rounded-full font-bold text-sm shadow-[0_0_15px_rgba(234,179,8,0.3)] transition-all transform hover:scale-105 disabled:opacity-50 disabled:scale-100 disabled:shadow-none bg-gradient-to-r from-gold-500 to-gold-600 text-black`}>
@@ -146,20 +152,21 @@ export const ReadingView = ({ spread, deck, onCancel, targetDate }: { spread: Sp
                                 value={question}
                                 onChange={e => setQuestion(e.target.value)}
                             />
-                        </div>
-                        {/* Astro Info Badge */}
-                        <div className="flex flex-wrap gap-2 text-[10px] uppercase font-bold tracking-widest text-white/60">
-                            <span className="bg-black/30 px-2 py-1 rounded border border-white/10" title="Napjegy">☀️ {astroData.sunSign}</span>
-                            <span className="bg-black/30 px-2 py-1 rounded border border-white/10 text-blue-200" title="Holdfázis">{astroData.icon} {astroData.moonPhase}</span>
+                            {/* Personal Notes (Pre-save) */}
+                            <div className="mt-4">
+                                <label className="block text-[10px] font-bold uppercase tracking-wider opacity-50 mb-1 text-white">Személyes Jegyzet (Opcionális)</label>
+                                <textarea
+                                    className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-gold-500 transition-colors resize-none h-20"
+                                    placeholder="Itt már most elkezdheted az értelmezést..."
+                                    value={notes}
+                                    onChange={e => setNotes(e.target.value)}
+                                />
+                            </div>
                         </div>
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-white/10">
-                        <label className={`flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-lg border transition-all ${isPublic ? 'bg-green-500/20 border-green-500 text-green-200' : 'bg-white/5 border-white/10 text-white/50'}`}>
-                            <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} className="hidden" />
-                            <span className="text-sm font-bold">{isPublic ? '🌐 Publikus' : '🔒 Privát'}</span>
-                        </label>
-                        
+                        {/* Mood Selection First */}
                         <div className="flex items-center gap-2 bg-black/20 p-1 rounded-lg">
                             {MOODS.map(m => (
                                 <button 
@@ -172,6 +179,20 @@ export const ReadingView = ({ spread, deck, onCancel, targetDate }: { spread: Sp
                                 </button>
                             ))}
                         </div>
+
+                        {/* Astro Info Badge (Planetary Hour & Moon Sign added) - Positioned after mood */}
+                        <div className="flex flex-wrap gap-2 text-[10px] uppercase font-bold tracking-widest text-white/60">
+                            <span className="bg-black/30 px-2 py-1 rounded border border-white/10 text-gold-200" title="Planéták Órája">🪐 {astroData.planetHour}</span>
+                            <span className="bg-black/30 px-2 py-1 rounded border border-white/10" title="Napjegy">☀️ {astroData.sunSign}</span>
+                            <span className="bg-black/30 px-2 py-1 rounded border border-white/10 text-blue-200" title={`Hold: ${Math.round(astroData.illumination * 100)}%`}>
+                                {astroData.icon} {astroData.moonSign} ({Math.round(astroData.illumination * 100)}%)
+                            </span>
+                        </div>
+
+                        <label className={`flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-lg border transition-all ml-auto ${isPublic ? 'bg-green-500/20 border-green-500 text-green-200' : 'bg-white/5 border-white/10 text-white/50'}`}>
+                            <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} className="hidden" />
+                            <span className="text-sm font-bold">{isPublic ? '🌐 Publikus' : '🔒 Privát'}</span>
+                        </label>
                     </div>
                 </div>
 
@@ -222,6 +243,37 @@ export const ReadingView = ({ spread, deck, onCancel, targetDate }: { spread: Sp
                             Válassz ki minden lapot a részletes elemzés megtekintéséhez.
                         </div>
                     )}
+
+                    {/* Spread Position Legend (Requested Feature) */}
+                    <div className="mt-12 border-t border-white/10 pt-8">
+                        <h3 className="text-sm font-bold uppercase text-gold-500 mb-6 tracking-widest text-center">A Lapok Helye & Jelentése</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {spread.positions.sort((a,b) => a.id - b.id).map(pos => {
+                                const drawn = cards.find(c => c.positionId === pos.id);
+                                const card = drawn ? deck.find(d => d.id === drawn.cardId) : null;
+                                return (
+                                    <div key={pos.id} className="bg-white/5 border border-white/10 rounded-xl p-4 flex gap-4 items-start hover:bg-white/10 transition-colors">
+                                        <div className="w-8 h-8 rounded-full bg-gold-500/20 text-gold-400 font-bold flex items-center justify-center border border-gold-500/30 flex-shrink-0">
+                                            {pos.id}
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-white text-sm mb-1">{pos.name}</div>
+                                            <div className="text-xs text-white/50 leading-relaxed mb-2">{pos.description}</div>
+                                            {card && (
+                                                <div className="bg-black/30 p-2 rounded border border-white/5 mt-2 flex items-center gap-2">
+                                                    <span className="text-lg">🎴</span>
+                                                    <div>
+                                                        <div className="font-serif font-bold text-gold-200 text-xs">{card.name}</div>
+                                                        {drawn?.isReversed && <span className="text-[9px] text-red-400 uppercase font-bold">Fordított</span>}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
             </div>
 
