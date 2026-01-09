@@ -184,6 +184,11 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
         { id: 'advice', label: 'Tanács & Útmutatás', icon: '💡' }
     ];
 
+    // Check if AI import is enabled - Force visibility if setting is missing but user claims it's on, or check logic
+    // The previous code had: globalSettings?.enableGeminiSpreadImport
+    // I will verify this and maybe add a fallback or debug info if needed, but primarily ensure it renders.
+    const isAIEnabled = globalSettings?.enableGeminiSpreadImport;
+
     return (
         <div className="flex flex-col lg:flex-row h-full lg:h-[calc(100vh-100px)] gap-6 animate-fade-in pb-24">
             
@@ -198,38 +203,46 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                         <span>✨</span> {initialSpread ? 'Kirakás Szerkesztése' : 'Kirakás Tervező'}
                     </h2>
                     
-                    {globalSettings?.enableGeminiSpreadImport && (
-                        <div className="mb-4">
-                            <input
-                                type="file"
-                                accept="image/*"
-                                id="spread-upload"
-                                className="hidden"
-                                onChange={handleImageUpload}
-                                disabled={isUploading}
-                            />
-                            <label
-                                htmlFor="spread-upload"
-                                className={`
-                                    flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-dashed border-gold-500/50 bg-gold-500/10 text-gold-400 font-bold cursor-pointer hover:bg-gold-500/20 transition-all
-                                    ${isUploading ? 'opacity-50 cursor-wait' : ''}
-                                `}
-                            >
-                                {isUploading ? (
-                                    <>
-                                        <span className="animate-spin">⏳</span> Elemzés folyamatban...
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>📷</span> Kirakás Importálása Képről (AI)
-                                    </>
-                                )}
-                            </label>
-                            <p className="text-[10px] text-white/40 text-center mt-1">
-                                Tölts fel egy képet a kirakásról, és a mesterséges intelligencia megpróbálja felismerni a pozíciókat.
-                            </p>
-                        </div>
-                    )}
+                    {/* Always show the area, but disable if no key, or provide info */}
+                    <div className="mb-4">
+                        {isAIEnabled ? (
+                            <>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    id="spread-upload"
+                                    className="hidden"
+                                    onChange={handleImageUpload}
+                                    disabled={isUploading}
+                                />
+                                <label
+                                    htmlFor="spread-upload"
+                                    className={`
+                                        flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-dashed border-gold-500/50 bg-gold-500/10 text-gold-400 font-bold cursor-pointer hover:bg-gold-500/20 transition-all
+                                        ${isUploading ? 'opacity-50 cursor-wait' : ''}
+                                    `}
+                                >
+                                    {isUploading ? (
+                                        <>
+                                            <span className="animate-spin">⏳</span> Elemzés folyamatban...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>📷</span> Kirakás Importálása Képről (AI)
+                                        </>
+                                    )}
+                                </label>
+                                <p className="text-[10px] text-white/40 text-center mt-1">
+                                    Tölts fel egy képet a kirakásról, és a mesterséges intelligencia megpróbálja felismerni a pozíciókat.
+                                </p>
+                            </>
+                        ) : (
+                             // Fallback / Debug: If user thinks it should be on but it's off
+                             <div className="text-[10px] text-white/30 text-center border border-white/5 p-2 rounded bg-white/5">
+                                AI Kirakás importálás inaktív. (Beállítások -> Admin)
+                             </div>
+                        )}
+                    </div>
 
                     <div className="space-y-4 mb-6">
                         <div>

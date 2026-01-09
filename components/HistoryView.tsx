@@ -29,6 +29,7 @@ export const HistoryView = ({ deck }: any) => {
     // Editing State
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editNote, setEditNote] = useState("");
+    const [editQuestion, setEditQuestion] = useState(""); // NEW: Allow editing question
     const [editMood, setEditMood] = useState(""); 
     
     // Detail / Analysis State (NEW)
@@ -68,6 +69,7 @@ export const HistoryView = ({ deck }: any) => {
     const startEdit = (r: any) => {
         setEditingId(r.id);
         setEditNote(r.notes || "");
+        setEditQuestion(r.question || "");
         setEditMood(r.mood || 'calm');
     };
 
@@ -76,7 +78,7 @@ export const HistoryView = ({ deck }: any) => {
     };
 
     const saveEdit = (r: any) => {
-        updateReading({ ...r, notes: editNote, mood: editMood });
+        updateReading({ ...r, notes: editNote, mood: editMood, question: editQuestion });
         setEditingId(null);
     };
 
@@ -404,6 +406,18 @@ export const HistoryView = ({ deck }: any) => {
                                     <div className="text-xs font-bold uppercase text-white/30 mb-3 tracking-widest flex items-center gap-2 print:text-black/50"><span>📝</span> Személyes Jegyzetek</div>
                                     {editingId === r.id ? (
                                         <div className="flex flex-col gap-3 animate-fade-in bg-black/40 p-4 rounded-xl border border-white/10 no-print" onClick={e => e.stopPropagation()}>
+
+                                            {/* Edit Title / Question */}
+                                            <div className="mb-2">
+                                                <label className="text-[10px] uppercase font-bold text-white/50">Jóslat Címe (Kérdés)</label>
+                                                <input
+                                                    value={editQuestion}
+                                                    onChange={e => setEditQuestion(e.target.value)}
+                                                    className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white font-serif italic focus:border-gold-500 outline-none"
+                                                    placeholder="Mi volt a kérdés?"
+                                                />
+                                            </div>
+
                                             <div className="flex gap-2 mb-2 bg-black/20 p-1 rounded-lg w-fit">
                                                 {MOODS.map(m => (
                                                     <button key={m.id} onClick={() => setEditMood(m.id)} className={`w-6 h-6 rounded flex items-center justify-center ${editMood === m.id ? 'bg-white/20' : 'opacity-50'}`}>{m.icon}</button>

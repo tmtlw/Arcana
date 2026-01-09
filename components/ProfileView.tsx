@@ -84,9 +84,19 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
         }
     };
 
+    const displayReadings = useMemo(() => {
+        if (isOwnProfile) {
+            // For owner, combine local readings (which include private)
+            // We prioritize local 'readings' from context as it has everything for the user
+            return readings.filter(r => r.userId === currentUser?.id).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        } else {
+            return publicReadings;
+        }
+    }, [isOwnProfile, readings, publicReadings, currentUser]);
+
     // Calculate Stats based on available readings (Own -> All, Other -> Public only)
     const statsData = useMemo(() => {
-        const sourceReadings = isOwnProfile ? readings.filter(r => r.userId === currentUser?.id) : publicReadings;
+        const sourceReadings = displayReadings;
         if (sourceReadings.length === 0) return null;
 
         const cardCounts: Record<string, number> = {};
@@ -389,21 +399,25 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                         {/* RIGHT COLUMN: Readings Grid */}
                         <div className="lg:col-span-2">
                             <h3 className="font-serif font-bold text-xl text-white mb-6 flex items-center gap-2">
-                                <span>📜</span> Publikus Húzások
+                                <span>📜</span> {isOwnProfile ? 'Összes Húzás' : 'Publikus Húzások'}
                             </h3>
-                            {publicReadings.length === 0 ? (
+                            {displayReadings.length === 0 ? (
                                 <div className="text-center py-12 opacity-50 bg-white/5 rounded-2xl border border-dashed border-white/10">
                                     <div className="text-5xl mb-4">🎴</div>
-                                    <p className="font-serif text-lg">Nincsenek publikus bejegyzések.</p>
+                                    <p className="font-serif text-lg">Nincsenek megjeleníthető bejegyzések.</p>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {publicReadings.map(reading => {
+                                    {displayReadings.map(reading => {
                                         const spread = allSpreads.find(s => s.id === reading.spreadId);
                                         return (
-                                            <div key={reading.id} className="glass-panel rounded-2xl overflow-hidden border border-white/10 hover:border-gold-500/30 transition-all hover:shadow-xl group flex flex-col">
+                                            <div
+                                                key={reading.id}
+                                                onClick={() => window.location.hash = `view=reading&id=${reading.id}`} // Simple navigation hint, ideally use onNavigate
+                                                className="glass-panel rounded-2xl overflow-hidden border border-white/10 hover:border-gold-500/30 transition-all hover:shadow-xl group flex flex-col cursor-pointer"
+                                            >
                                                 {/* Header */}
-                                                <div className="p-4 bg-black/20 border-b border-white/5">
+                                                <div className="p-4 bg-black/20 border-b border-white/5 relative">
                                                     <div className="flex justify-between items-start mb-2">
                                                         <span className="text-[10px] font-bold uppercase tracking-widest text-gold-500 bg-gold-500/10 px-2 py-1 rounded">
                                                             {spread?.name || 'Ismeretlen Kirakás'}
@@ -413,6 +427,9 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                                                     <h4 className="font-serif font-bold text-white text-lg leading-tight line-clamp-2 italic">
                                                         "{reading.question || 'Csendes húzás...'}"
                                                     </h4>
+                                                    {isOwnProfile && !reading.isPublic && (
+                                                        <div className="absolute top-2 right-2 text-xs" title="Privát">🔒</div>
+                                                    )}
                                                 </div>
 
                                                 {/* Visual Preview of Cards */}

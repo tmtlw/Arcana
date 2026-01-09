@@ -15,6 +15,7 @@ export const ReadingView = ({ spread, deck, onCancel, targetDate }: { spread: Sp
     // Core State
     const [cards, setCards] = useState<DrawnCard[]>([]);
     const [question, setQuestion] = useState("");
+    const [notes, setNotes] = useState("");
     const [isPublic, setIsPublic] = useState(false);
     const [selectedMood, setSelectedMood] = useState<string>('calm');
     
@@ -85,7 +86,7 @@ export const ReadingView = ({ spread, deck, onCancel, targetDate }: { spread: Sp
         const readingId = Math.random().toString(36).substr(2, 9);
         
         const newReading: Reading = {
-            id: readingId, userId: currentUser.id, date: entryDate, spreadId: spread.id, cards, notes: "",
+            id: readingId, userId: currentUser.id, date: entryDate, spreadId: spread.id, cards, notes: notes,
             question, isFavorite: false, astrology: astroData, isPublic: isPublic, mood: selectedMood,
             authorName: currentUser.name, authorAvatar: getAvatarUrl(currentUser), likes: 0
         };
@@ -146,6 +147,16 @@ export const ReadingView = ({ spread, deck, onCancel, targetDate }: { spread: Sp
                                 value={question}
                                 onChange={e => setQuestion(e.target.value)}
                             />
+                            {/* Personal Notes (Pre-save) */}
+                            <div className="mt-4">
+                                <label className="block text-[10px] font-bold uppercase tracking-wider opacity-50 mb-1 text-white">Személyes Jegyzet (Opcionális)</label>
+                                <textarea
+                                    className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-gold-500 transition-colors resize-none h-20"
+                                    placeholder="Itt már most elkezdheted az értelmezést..."
+                                    value={notes}
+                                    onChange={e => setNotes(e.target.value)}
+                                />
+                            </div>
                         </div>
                         {/* Astro Info Badge */}
                         <div className="flex flex-wrap gap-2 text-[10px] uppercase font-bold tracking-widest text-white/60">
