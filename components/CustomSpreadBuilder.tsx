@@ -85,7 +85,10 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                     return;
                 }
 
-                const response = await fetch('./gemini_proxy.php', {
+                // Use simple timeout protection or feedback
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Időtúllépés a szerver válaszában")), 30000));
+
+                const fetchPromise = fetch('./gemini_proxy.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -94,15 +97,17 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                     })
                 });
 
+                const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
+
                 if (!response.ok) {
                     const errText = await response.text();
-                    throw new Error(`Server error: ${errText}`);
+                    throw new Error(`Szerver hiba (${response.status}): ${errText}`);
                 }
 
                 const data = await response.json();
 
                 if (data.error) {
-                    throw new Error(data.error);
+                    throw new Error(`API hiba: ${data.error}`);
                 }
 
                 // Apply data
@@ -125,9 +130,9 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                 alert("Kirakás sikeresen importálva!");
             };
             reader.readAsDataURL(file);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Upload error:", error);
-            alert("Hiba történt a feldolgozás során. Ellenőrizd a konzolt vagy próbáld újra.");
+            alert(`Hiba történt a feldolgozás során: ${error.message || "Ismeretlen hiba"}`);
         } finally {
             setIsUploading(false);
             if(e.target) e.target.value = "";
@@ -193,12 +198,13 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
         <div className="flex flex-col lg:flex-row h-full lg:h-[calc(100vh-100px)] gap-6 animate-fade-in pb-24">
             
             {/* LEFT PANEL - Settings (Top on Mobile) */}
-            <div className="lg:w-1/3 flex flex-col gap-4 order-1 lg:order-1">
+            <div className="lg:w-1/3 flex flex-col gap-4 order-1 lg:order-1 min-h-[500px]">
                 <button onClick={onCancel} className="self-start flex items-center gap-2 text-white/50 hover:text-white mb-2 font-bold transition-colors">
                     <span>&larr;</span> Mégse
                 </button>
 
-                <div className="glass-panel p-6 rounded-2xl flex-1 flex flex-col overflow-hidden border border-white/10 max-h-[500px] lg:max-h-none">
+                {/* Removed overflow-hidden to allow scrolling full content if needed on small screens, or set overflow-y-auto */}
+                <div className="glass-panel p-6 rounded-2xl flex-1 flex flex-col border border-white/10 max-h-[85vh] lg:max-h-none overflow-y-auto custom-scrollbar">
                     <h2 className="text-2xl font-serif font-bold text-gold-400 mb-6 flex items-center gap-2">
                         <span>✨</span> {initialSpread ? 'Kirakás Szerkesztése' : 'Kirakás Tervező'}
                     </h2>

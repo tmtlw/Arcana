@@ -313,6 +313,20 @@ const AppContent = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
+    const handleOpenReading = (readingId: string) => {
+        const reading = currentUser?.id
+            ? JSON.parse(localStorage.getItem('tarot_readings') || '[]').find((r:any) => r.id === readingId) // Fallback fetch, usually context has it
+            : null;
+
+        // However, we can simply rely on Dashboard or History to show it, or switch to 'reading' view if we support loading one.
+        // But the prompt implies navigation from Profile.
+        // Let's implement a 'viewReading' mode or use History view with a selected ID.
+        // Wait, ReadingAnalysis component is used for detailed view.
+        // We can add a state for 'viewReadingId' and if set, show Analysis.
+        // But for now, let's just use the existing 'history' view and maybe auto-select it?
+        // Actually, cleaner is to add a `viewReadingId` state in App and render Analysis if present.
+    };
+
     const handleEditSpread = (spread: Spread) => {
         setSpreadToEdit(spread);
         setView('customSpread');
@@ -501,7 +515,7 @@ const AppContent = () => {
                 {view === 'deckBuilder' && <DeckBuilder onBack={() => setView('dashboard')} />}
                 {view === 'stats' && <StatsView onBack={() => setView('dashboard')} />}
                 {view === 'quiz' && <QuizView onBack={() => setView('dashboard')} />}
-                {view === 'profile' && <ProfileView onBack={() => setView('dashboard')} targetUserId={viewProfileId} />}
+                {view === 'profile' && <ProfileView onBack={() => setView('dashboard')} targetUserId={viewProfileId} onNavigate={navigateTo} />}
                 {view === 'live' && <MultiplayerSession onBack={() => setView('dashboard')} />}
                 {view === 'install' && <InstallView onBack={() => setView('dashboard')} />}
                 {view === 'numerology' && <NumerologyView onBack={() => setView('dashboard')} />}

@@ -158,19 +158,10 @@ export const ReadingView = ({ spread, deck, onCancel, targetDate }: { spread: Sp
                                 />
                             </div>
                         </div>
-                        {/* Astro Info Badge */}
-                        <div className="flex flex-wrap gap-2 text-[10px] uppercase font-bold tracking-widest text-white/60">
-                            <span className="bg-black/30 px-2 py-1 rounded border border-white/10" title="Napjegy">☀️ {astroData.sunSign}</span>
-                            <span className="bg-black/30 px-2 py-1 rounded border border-white/10 text-blue-200" title="Holdfázis">{astroData.icon} {astroData.moonPhase}</span>
-                        </div>
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-white/10">
-                        <label className={`flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-lg border transition-all ${isPublic ? 'bg-green-500/20 border-green-500 text-green-200' : 'bg-white/5 border-white/10 text-white/50'}`}>
-                            <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} className="hidden" />
-                            <span className="text-sm font-bold">{isPublic ? '🌐 Publikus' : '🔒 Privát'}</span>
-                        </label>
-                        
+                        {/* Mood Selection First */}
                         <div className="flex items-center gap-2 bg-black/20 p-1 rounded-lg">
                             {MOODS.map(m => (
                                 <button 
@@ -183,6 +174,20 @@ export const ReadingView = ({ spread, deck, onCancel, targetDate }: { spread: Sp
                                 </button>
                             ))}
                         </div>
+
+                        {/* Astro Info Badge (Planetary Hour & Moon Sign added) - Positioned after mood */}
+                        <div className="flex flex-wrap gap-2 text-[10px] uppercase font-bold tracking-widest text-white/60">
+                            <span className="bg-black/30 px-2 py-1 rounded border border-white/10 text-gold-200" title="Planéták Órája">🪐 {astroData.planetHour}</span>
+                            <span className="bg-black/30 px-2 py-1 rounded border border-white/10" title="Napjegy">☀️ {astroData.sunSign}</span>
+                            <span className="bg-black/30 px-2 py-1 rounded border border-white/10 text-blue-200" title={`Hold: ${Math.round(astroData.illumination * 100)}%`}>
+                                {astroData.icon} {astroData.moonSign} ({Math.round(astroData.illumination * 100)}%)
+                            </span>
+                        </div>
+
+                        <label className={`flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-lg border transition-all ml-auto ${isPublic ? 'bg-green-500/20 border-green-500 text-green-200' : 'bg-white/5 border-white/10 text-white/50'}`}>
+                            <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} className="hidden" />
+                            <span className="text-sm font-bold">{isPublic ? '🌐 Publikus' : '🔒 Privát'}</span>
+                        </label>
                     </div>
                 </div>
 

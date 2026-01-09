@@ -6,10 +6,12 @@ import { ThemeType, CardBackType, Reading, User, DeckMeta } from '../types';
 import { AstroService } from '../services/astroService';
 import { t } from '../services/i18nService';
 import { CommunityService } from '../services/communityService';
+import { ReadingAnalysis } from './ReadingAnalysis';
 
 interface ProfileViewProps {
     onBack: () => void;
-    targetUserId?: string; // Optional: If viewing someone else's profile
+    targetUserId?: string;
+    onNavigate?: (view: string, param?: string) => void;
 }
 
 interface ThemeButtonProps {
@@ -40,6 +42,7 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
     const [viewedUser, setViewedUser] = useState<User | null>(null);
     const [publicReadings, setPublicReadings] = useState<Reading[]>([]);
     const [zodiacModal, setZodiacModal] = useState<{ type: 'Nap'|'Hold'|'Aszcendens', sign: string } | null>(null);
+    const [selectedReading, setSelectedReading] = useState<Reading | null>(null); // For detailed view
     
     // Local Edit States
     const [localName, setLocalName] = useState("");
@@ -413,7 +416,7 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                                         return (
                                             <div
                                                 key={reading.id}
-                                                onClick={() => window.location.hash = `view=reading&id=${reading.id}`} // Simple navigation hint, ideally use onNavigate
+                                                onClick={() => setSelectedReading(reading)}
                                                 className="glass-panel rounded-2xl overflow-hidden border border-white/10 hover:border-gold-500/30 transition-all hover:shadow-xl group flex flex-col cursor-pointer"
                                             >
                                                 {/* Header */}
@@ -453,7 +456,11 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                                                 {/* Footer */}
                                                 <div className="p-3 border-t border-white/5 flex justify-between items-center bg-black/40">
                                                     <div className="flex gap-2">
-                                                        {reading.mood && <span className="text-lg">{reading.mood}</span>} 
+                                                        {reading.mood && (
+                                                            <span className="text-lg" title={MOODS.find(m => m.id === reading.mood)?.label}>
+                                                                {MOODS.find(m => m.id === reading.mood)?.icon || reading.mood}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-gold-500 font-bold text-sm">✨ {reading.likes || 0}</span>
@@ -725,6 +732,10 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {selectedReading && (
+                <ReadingAnalysis reading={selectedReading} onClose={() => setSelectedReading(null)} />
             )}
         </div>
     );
