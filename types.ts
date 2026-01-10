@@ -271,6 +271,9 @@ export interface User {
   isAdmin?: boolean; 
   bio?: string; 
 
+  createdAt?: string;
+  lastLogin?: string;
+
   lessonCollection?: string[];
   deckCollection?: string[];
 }
