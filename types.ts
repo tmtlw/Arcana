@@ -34,6 +34,11 @@ export interface Card {
     text: string;
     relatedCardId: string;
   };
+  extendedData?: {
+    id: string;
+    label: string;
+    value: string;
+  }[];
 }
 
 export type MeaningContext = 'general' | 'love' | 'career' | 'advice' | 'daily' | 'yearly';

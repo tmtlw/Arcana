@@ -469,6 +469,84 @@ export const CardDetailView = ({ card, theme, onBack }: { card: Card, theme: any
                         </div>
                     )}
 
+                    {/* Extended Data Section (Dynamic 3-col grid) */}
+                    {(card.extendedData?.length > 0 || isEditing) && (
+                        <div className="bg-black/20 p-8 rounded-3xl border border-white/10 mt-10 mb-10">
+                            <h3 className="text-xl font-serif font-bold text-white mb-6 flex items-center gap-3">
+                                <span>🧬</span> További Adatok
+                            </h3>
+                            {isEditing ? (
+                                <div className="space-y-4">
+                                    {(editedCard.extendedData || []).map((item, idx) => (
+                                        <div key={item.id || idx} className="flex gap-2 items-center bg-white/5 p-2 rounded">
+                                            <input
+                                                value={item.label}
+                                                onChange={e => {
+                                                    const newData = [...(editedCard.extendedData || [])];
+                                                    newData[idx].label = e.target.value;
+                                                    setEditedCard({...editedCard, extendedData: newData});
+                                                }}
+                                                className="bg-black/30 border border-white/10 rounded p-2 text-gold-400 font-bold text-xs w-1/3"
+                                                placeholder="Címke"
+                                            />
+                                            <input
+                                                value={item.value}
+                                                onChange={e => {
+                                                    const newData = [...(editedCard.extendedData || [])];
+                                                    newData[idx].value = e.target.value;
+                                                    setEditedCard({...editedCard, extendedData: newData});
+                                                }}
+                                                className="bg-black/30 border border-white/10 rounded p-2 text-white text-sm flex-1"
+                                                placeholder="Érték"
+                                            />
+                                            <button
+                                                onClick={() => {
+                                                    const newData = [...(editedCard.extendedData || [])];
+                                                    newData.splice(idx, 1);
+                                                    setEditedCard({...editedCard, extendedData: newData});
+                                                }}
+                                                className="text-red-400 hover:text-red-500 px-2"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <button
+                                        onClick={() => setEditedCard({
+                                            ...editedCard,
+                                            extendedData: [...(editedCard.extendedData || []), { id: Date.now().toString(), label: '', value: '' }]
+                                        })}
+                                        className="text-xs font-bold uppercase tracking-widest text-gold-400 border border-gold-500/30 px-4 py-2 rounded-full hover:bg-gold-500/10"
+                                    >
+                                        + Új Adatmező
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className={`grid gap-6 grid-cols-1 ${card.extendedData!.length >= 2 ? 'md:grid-cols-2' : ''} ${card.extendedData!.length >= 3 ? 'lg:grid-cols-3' : ''}`}>
+                                    {card.extendedData!.map((item, idx) => {
+                                        // Logic: If total % 3 == 1 and this is the last item, span full width.
+                                        const total = card.extendedData!.length;
+                                        const isLast = idx === total - 1;
+                                        const remainder = total % 3;
+                                        // If we have 4 items: first 3 are cols, 4th is full width (remainder 1).
+                                        // If we have 1 item: full width.
+                                        const isFullWidth = (total === 1) || (total > 3 && remainder === 1 && isLast);
+
+                                        return (
+                                            <div
+                                                key={item.id}
+                                                className={`bg-white/5 border border-white/5 rounded-xl p-4 hover:bg-white/10 transition-colors ${isFullWidth ? 'lg:col-span-3' : ''}`}
+                                            >
+                                                <div className="text-[10px] uppercase font-bold text-gold-500 tracking-widest mb-1 opacity-70">{item.label}</div>
+                                                <div className="text-white text-sm font-serif leading-relaxed">{item.value}</div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Questions Section */}
                     {(card.questions?.length > 0 || isEditing) && (
                         <div className="bg-black/20 p-8 rounded-3xl border border-white/10 mt-10">
