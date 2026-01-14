@@ -456,88 +456,92 @@ export const CardDetailView = ({ card, theme, onBack }: { card: Card, theme: any
                         </div>
                     </div>
 
-                    {/* History Section (Now Full Width if Symbolism moved or separate) */}
-                    {(card.history || isEditing) && (
-                        <div className="mb-10">
-                            <h3 className="text-sm font-bold uppercase tracking-widest text-white/60 mb-3 flex items-center gap-2">
-                                <span>📜</span> Történet & Eredet
-                            </h3>
-                            {isEditing ? (
-                                <MarkdownEditor
-                                    value={editedCard.history || ''}
-                                    onChange={(val) => handleInputChange('history', val)}
-                                    height="h-32"
-                                />
-                            ) : (
-                                <MarkdownRenderer content={card.history} className="text-sm text-gray-400 leading-relaxed text-justify" />
-                            )}
-                        </div>
-                    )}
+                    {/* New Layout: 2 Cols for Colors + History, then 1 Full Width for Symbolism */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
 
-                    {/* Colors Section (New, requested place of Symbolism, above extra data, below History) */}
-                    {(card.colors?.length > 0 || isEditing) && (
-                        <div className="mb-10 p-6 bg-black/20 rounded-2xl border border-white/5">
-                            <h3 className="text-sm font-bold uppercase tracking-widest text-white/60 mb-4 flex items-center gap-2">
-                                <span>🎨</span> Színek & Hangulat
-                            </h3>
-                            {isEditing ? (
-                                <div className="space-y-2">
-                                    {(editedCard.colors || []).map((col, idx) => (
-                                        <div key={col.id} className="flex gap-3 items-center">
-                                            <input
-                                                type="color"
-                                                value={col.colorCode}
-                                                onChange={e => {
-                                                    const newCols = [...(editedCard.colors || [])];
-                                                    newCols[idx].colorCode = e.target.value;
-                                                    setEditedCard({...editedCard, colors: newCols});
-                                                }}
-                                                className="w-8 h-8 rounded cursor-pointer border-none bg-transparent"
-                                            />
-                                            <input
-                                                value={col.description}
-                                                onChange={e => {
-                                                    const newCols = [...(editedCard.colors || [])];
-                                                    newCols[idx].description = e.target.value;
-                                                    setEditedCard({...editedCard, colors: newCols});
-                                                }}
-                                                className="flex-1 bg-white/5 border border-white/10 rounded p-2 text-sm text-white"
-                                                placeholder="Szín jelentése..."
-                                            />
-                                            <button
-                                                onClick={() => {
-                                                    const newCols = [...(editedCard.colors || [])];
-                                                    newCols.splice(idx, 1);
-                                                    setEditedCard({...editedCard, colors: newCols});
-                                                }}
-                                                className="text-red-400 px-2"
-                                            >✕</button>
-                                        </div>
-                                    ))}
-                                    <button
-                                        onClick={() => setEditedCard({
-                                            ...editedCard,
-                                            colors: [...(editedCard.colors || []), { id: Date.now().toString(), colorCode: '#ffffff', description: '' }]
-                                        })}
-                                        className="text-xs font-bold uppercase text-gold-400 border border-gold-500/30 px-3 py-1 rounded"
-                                    >
-                                        + Új Szín
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="flex flex-wrap gap-4">
-                                    {card.colors!.map(col => (
-                                        <div key={col.id} className="flex items-center gap-3 bg-white/5 pr-4 rounded-full border border-white/5">
-                                            <div className="w-8 h-8 rounded-full border border-white/20 shadow-lg" style={{backgroundColor: col.colorCode}}></div>
-                                            <span className="text-sm text-gray-300">{col.description}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
+                        {/* Colors Section */}
+                        {(card.colors?.length > 0 || isEditing) && (
+                            <div className="p-6 bg-black/20 rounded-2xl border border-white/5 h-full">
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-white/60 mb-4 flex items-center gap-2">
+                                    <span>🎨</span> Színek & Hangulat
+                                </h3>
+                                {isEditing ? (
+                                    <div className="space-y-2">
+                                        {(editedCard.colors || []).map((col, idx) => (
+                                            <div key={col.id} className="flex gap-3 items-center">
+                                                <input
+                                                    type="color"
+                                                    value={col.colorCode}
+                                                    onChange={e => {
+                                                        const newCols = [...(editedCard.colors || [])];
+                                                        newCols[idx].colorCode = e.target.value;
+                                                        setEditedCard({...editedCard, colors: newCols});
+                                                    }}
+                                                    className="w-8 h-8 rounded cursor-pointer border-none bg-transparent"
+                                                />
+                                                <input
+                                                    value={col.description}
+                                                    onChange={e => {
+                                                        const newCols = [...(editedCard.colors || [])];
+                                                        newCols[idx].description = e.target.value;
+                                                        setEditedCard({...editedCard, colors: newCols});
+                                                    }}
+                                                    className="flex-1 bg-white/5 border border-white/10 rounded p-2 text-sm text-white"
+                                                    placeholder="Szín jelentése..."
+                                                />
+                                                <button
+                                                    onClick={() => {
+                                                        const newCols = [...(editedCard.colors || [])];
+                                                        newCols.splice(idx, 1);
+                                                        setEditedCard({...editedCard, colors: newCols});
+                                                    }}
+                                                    className="text-red-400 px-2"
+                                                >✕</button>
+                                            </div>
+                                        ))}
+                                        <button
+                                            onClick={() => setEditedCard({
+                                                ...editedCard,
+                                                colors: [...(editedCard.colors || []), { id: Date.now().toString(), colorCode: '#ffffff', description: '' }]
+                                            })}
+                                            className="text-xs font-bold uppercase text-gold-400 border border-gold-500/30 px-3 py-1 rounded"
+                                        >
+                                            + Új Szín
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-wrap gap-4">
+                                        {card.colors!.map(col => (
+                                            <div key={col.id} className="flex items-center gap-3 bg-white/5 pr-4 rounded-full border border-white/5">
+                                                <div className="w-8 h-8 rounded-full border border-white/20 shadow-lg" style={{backgroundColor: col.colorCode}}></div>
+                                                <span className="text-sm text-gray-300">{col.description}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
-                    {/* Symbolism Section (Now Full Width in New Row) */}
+                        {/* History Section */}
+                        {(card.history || isEditing) && (
+                            <div className="p-6 bg-black/20 rounded-2xl border border-white/5 h-full">
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-white/60 mb-3 flex items-center gap-2">
+                                    <span>📜</span> Történet & Eredet
+                                </h3>
+                                {isEditing ? (
+                                    <MarkdownEditor
+                                        value={editedCard.history || ''}
+                                        onChange={(val) => handleInputChange('history', val)}
+                                        height="h-32"
+                                    />
+                                ) : (
+                                    <MarkdownRenderer content={card.history} className="text-sm text-gray-400 leading-relaxed text-justify" />
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Symbolism Section (Full Width) */}
                     {(card.symbolism || isEditing) && (
                         <div className="mb-10">
                             <h3 className="text-sm font-bold uppercase tracking-widest text-white/60 mb-3 flex items-center gap-2">

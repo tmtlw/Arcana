@@ -43,3 +43,12 @@ export const GAME_ICONS: Record<string, string> = {
     "ankh": "M12 2C10 2 8 4 8 6C8 8 10 10 12 10C14 10 16 8 16 6C16 4 14 2 12 2Z M10 10H4V12H10V22H14V12H20V10H14",
     "infinity": "M8 4C5 4 2 6 2 9C2 12 5 14 8 14C10 14 12 13 14 11C16 13 18 14 20 14C23 14 26 12 26 9C26 6 23 4 20 4C18 4 16 5 14 7C12 5 10 4 8 4Z"
 };
+
+export const GAME_ICONS_CATEGORIES: Record<string, string[]> = {
+    "Égitestek": ["sun", "moon", "star", "comet"],
+    "Színek/Elemek": ["cup", "sword", "wand", "coin", "fire", "water", "mountain"],
+    "Állatok": ["lion", "wolf", "snake", "bird", "fish"],
+    "Tárgyak": ["crown", "scales", "lantern", "scroll", "key"],
+    "Természet": ["tree", "flower", "mountain", "fire", "water"],
+    "Misztikum": ["eye", "skull", "heart", "ankh", "infinity"]
+};
