@@ -18,6 +18,11 @@ export const MAJOR_ARCANA: Card[] = [
         affirmation: "Felébresztem a lelkem ösvényét, és készen állok a kalandra.",
         imageUrl: 'https://myralog.hu/tarot/major-0.jpg',
         shortDesc: 'A Tiszta Kezdet',
+        decision: 'Igen',
+        colors: [
+            { id: 'c1', colorCode: '#FFFF00', description: 'Fény, vidámság' },
+            { id: 'c2', colorCode: '#FFFFFF', description: 'Tisztaság, ártatlanság' }
+        ],
         comparison: {
             title: 'Bolond vs. Mágus',
             text: 'Míg a Bolond a terv nélküli, tiszta potenciál és a hit útján jár, a Mágus már tudatosan használja az eszközeit a manifesztációhoz. A Bolondnál az ösztön vezérel, a Mágusnál az akarat.',
@@ -38,7 +43,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'Ebben az évben a kezedbe veheted a sorsodat. Aktív, teremtő év vár rád.',
         questions: ['Milyen eszközök állnak rendelkezésére, amelyeket nem használ ki maradéktalanul?'],
         affirmation: "Kinyilvánítom az általam kívánt életet az energia és a szándék révén.",
-        imageUrl: 'https://myralog.hu/tarot/major-1.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-1.jpg',
+        decision: 'Igen',
+        colors: [
+            { id: 'c1', colorCode: '#FF0000', description: 'Akarat, cselekvés' },
+            { id: 'c2', colorCode: '#FFFFFF', description: 'Szellemi tisztaság' }
+        ]
     },
     {
         id: 'major-2', name: 'A Főpapnő', nameEn: 'The High Priestess', arcana: 'Major', number: 2,
@@ -54,7 +64,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'Ez az év a belső utazás éve. Fontos felismerésekre juthatsz.',
         questions: ['Hogyan lépsz kapcsolatba intuitív szíveddel?'],
         affirmation: "A hit az intuitív szívemben van.",
-        imageUrl: 'https://myralog.hu/tarot/major-2.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-2.jpg',
+        decision: 'Talán (Passzivitás)',
+        colors: [
+            { id: 'c1', colorCode: '#00008B', description: 'Tudatalatti, mélység' },
+            { id: 'c2', colorCode: '#C0C0C0', description: 'Holdfény, intuíció' }
+        ]
     },
     {
         id: 'major-3', name: 'Az Uralkodónő', nameEn: 'The Empress', arcana: 'Major', number: 3,
@@ -70,7 +85,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'Termékeny év vár rád. Amit most elvetsz, az bőségesen fog teremni.',
         questions: ['Készen állok megszülni __________.'],
         affirmation: "Megszülöm bőségesen gazdag jövőmet.",
-        imageUrl: 'https://myralog.hu/tarot/major-3.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-3.jpg',
+        decision: 'Igen',
+        colors: [
+            { id: 'c1', colorCode: '#008000', description: 'Termékenység, természet' },
+            { id: 'c2', colorCode: '#FFC0CB', description: 'Szeretet, gondoskodás' }
+        ]
     },
     {
         id: 'major-4', name: 'Az Uralkodó', nameEn: 'The Emperor', arcana: 'Major', number: 4,
@@ -86,7 +106,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'Az építkezés és a stabilizáció éve. Most alapozhatod meg a jövődet.',
         questions: ['Mit építesz, és hogyan fog kinézni, ha elkészültél?'],
         affirmation: "Magabiztossággal és tekintéllyel vezetem az életemet.",
-        imageUrl: 'https://myralog.hu/tarot/major-4.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-4.jpg',
+        decision: 'Igen (Struktúrált)',
+        colors: [
+            { id: 'c1', colorCode: '#8B0000', description: 'Hatalom, stabilitás' },
+            { id: 'c2', colorCode: '#FF0000', description: 'Energia, tűz' }
+        ]
     },
     {
         id: 'major-5', name: 'A Főpap', nameEn: 'The Hierophant', arcana: 'Major', number: 5,
@@ -102,7 +127,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'Ez az év a bizalom és az értelemkeresés jegyében telik.',
         questions: ['Milyen hiedelem áll az álmaid útjában?'],
         affirmation: "Én vagyok a saját gurum, de tisztelem a hagyomány bölcsességét.",
-        imageUrl: 'https://myralog.hu/tarot/major-5.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-5.jpg',
+        decision: 'Igen (Ha etikus)',
+        colors: [
+            { id: 'c1', colorCode: '#808080', description: 'Bölcsesség, semlegesség' },
+            { id: 'c2', colorCode: '#FFD700', description: 'Isteni tudás' }
+        ]
     },
     {
         id: 'major-6', name: 'A Szeretők', nameEn: 'The Lovers', arcana: 'Major', number: 6,
@@ -118,7 +148,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'A szív döntéseinek éve. Elköteleződés egy fontos ügy mellett.',
         questions: ['Képes vagy ebben az időben teljesen beleállni egy partnerségbe?'],
         affirmation: "A szívem nyitott a mélyen értelmes kapcsolatra.",
-        imageUrl: 'https://myralog.hu/tarot/major-6.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-6.jpg',
+        decision: 'Igen',
+        colors: [
+            { id: 'c1', colorCode: '#FFC0CB', description: 'Szerelem' },
+            { id: 'c2', colorCode: '#FFFF00', description: 'Tudatosság a döntésben' }
+        ]
     },
     {
         id: 'major-7', name: 'A Diadalszekér', nameEn: 'The Chariot', arcana: 'Major', number: 7,
@@ -134,7 +169,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'Az áttörés éve. Ha eddig toporogtál, most végre elindulnak a dolgok.',
         questions: ['Merre tartasz? Ön átvette a kormányt?'],
         affirmation: "Én választom ki, hogy kivé válok, és meggyőződéssel futok felé.",
-        imageUrl: 'https://myralog.hu/tarot/major-7.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-7.jpg',
+        decision: 'Igen (De cselekedni kell)',
+        colors: [
+            { id: 'c1', colorCode: '#FFD700', description: 'Győzelem, fény' },
+            { id: 'c2', colorCode: '#000000', description: 'Titok, erő' }
+        ]
     },
     {
         id: 'major-8', name: 'Az Erő', nameEn: 'Strength', arcana: 'Major', number: 8,
@@ -150,7 +190,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'Szenvedélyes és energikus év. Megoldod a nehéz feladatokat.',
         questions: ['Hogyan találhatsz bátorságot a gyengédségben?'],
         affirmation: "Szándékosan ragyogtatom együttérzésem és erőm.",
-        imageUrl: 'https://myralog.hu/tarot/major-8.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-8.jpg',
+        decision: 'Igen',
+        colors: [
+            { id: 'c1', colorCode: '#FFA500', description: 'Tűz, erő' },
+            { id: 'c2', colorCode: '#FFFFFF', description: 'Tisztaság, szellem' }
+        ]
     },
     {
         id: 'major-9', name: 'A Remete', nameEn: 'The Hermit', arcana: 'Major', number: 9,
@@ -166,7 +211,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'Az önismeret éve. Fontos döntéseket hozhatsz meg.',
         questions: ['Mit szólna a belső bölcsed, ha megkérdeznéd tőle, mit kell tenned?'],
         affirmation: "Békében vagyok a csenddel, és figyelek a belső hangomra.",
-        imageUrl: 'https://myralog.hu/tarot/major-9.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-9.jpg',
+        decision: 'Talán (Türelem kell)',
+        colors: [
+            { id: 'c1', colorCode: '#808080', description: 'Elvonulás' },
+            { id: 'c2', colorCode: '#0000FF', description: 'Bölcsesség' }
+        ]
     },
     {
         id: 'major-10', name: 'Szerencsekerék', nameEn: 'Wheel of Fortune', arcana: 'Major', number: 10,
@@ -182,7 +232,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'A sorsfordító változások éve. Új irányt vehet az életed.',
         questions: ['Hiszel abban, hogy a sorsod elkerülhetetlen, vagy te alakítod azt?'],
         affirmation: "Elfogadom az élet körforgását és bízom a sorsomban.",
-        imageUrl: 'https://myralog.hu/tarot/major-10.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-10.jpg',
+        decision: 'Igen (Szerencsés fordulat)',
+        colors: [
+            { id: 'c1', colorCode: '#FFA500', description: 'Változás' },
+            { id: 'c2', colorCode: '#0000FF', description: 'Bölcsesség' }
+        ]
     },
     {
         id: 'major-11', name: 'Az Igazságosság', nameEn: 'Justice', arcana: 'Major', number: 11,
@@ -198,7 +253,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'A felelősségvállalás éve. Most aratod le, amit vetettél.',
         questions: ['Hol vagy kiegyensúlyozatlan az életedben?'],
         affirmation: "Vállalom a felelősséget tetteimért and az igazságot keresem.",
-        imageUrl: 'https://myralog.hu/tarot/major-11.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-11.jpg',
+        decision: 'Attól függ (Karma)',
+        colors: [
+            { id: 'c1', colorCode: '#FF0000', description: 'Cselekvés' },
+            { id: 'c2', colorCode: '#008000', description: 'Egyensúly' }
+        ]
     },
     {
         id: 'major-12', name: 'Az Akasztott Ember', nameEn: 'The Hanged Man', arcana: 'Major', number: 12,
@@ -214,7 +274,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'A fordulópont éve. Mély belső átalakulás várható.',
         questions: ['Mi az, amihez túl erősen ragaszkodsz?'],
         affirmation: "Elengedem az irányítást és bízom a folyamatban.",
-        imageUrl: 'https://myralog.hu/tarot/major-12.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-12.jpg',
+        decision: 'Nem (Most még nem)',
+        colors: [
+            { id: 'c1', colorCode: '#0000FF', description: 'Nyugalom, víz' },
+            { id: 'c2', colorCode: '#FFFF00', description: 'Megvilágosodás' }
+        ]
     },
     {
         id: 'major-13', name: 'A Halál', nameEn: 'Death', arcana: 'Major', number: 13,
@@ -230,7 +295,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'A nagy átalakulás éve. Fontos dolgokat fogsz lezárni.',
         questions: ['Mi az, aminek meg kell halnia az életedben, hogy te élhess?'],
         affirmation: "Elengedem a régit, és bizalommal nyitok az új felé.",
-        imageUrl: 'https://myralog.hu/tarot/major-13.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-13.jpg',
+        decision: 'Nem (Vége)',
+        colors: [
+            { id: 'c1', colorCode: '#000000', description: 'Vég' },
+            { id: 'c2', colorCode: '#FFFFFF', description: 'Új kezdet' }
+        ]
     },
     {
         id: 'major-14', name: 'A Mértékletesség', nameEn: 'Temperance', arcana: 'Major', number: 14,
@@ -246,7 +316,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'A gyógyulás éve. Most megtalálhatod a belső békédet.',
         questions: ['Életed mely területén van szükség több egyensúlyra?'],
         affirmation: "Harmóniát teremtek testemben, lelkemben és szellememben.",
-        imageUrl: 'https://myralog.hu/tarot/major-14.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-14.jpg',
+        decision: 'Igen (Lassan)',
+        colors: [
+            { id: 'c1', colorCode: '#ADD8E6', description: 'Gyógyulás' },
+            { id: 'c2', colorCode: '#FFA500', description: 'Energia' }
+        ]
     },
     {
         id: 'major-15', name: 'Az Ördög', nameEn: 'The Devil', arcana: 'Major', number: 15,
@@ -262,7 +337,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'Az árnyékmunka éve. Szembesülsz a sötét oldaladdal.',
         questions: ['Mi az, ami rabságban tart?'],
         affirmation: "Felismerem árnyékomat és a fény felé fordulok.",
-        imageUrl: 'https://myralog.hu/tarot/major-15.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-15.jpg',
+        decision: 'Nem (Kötöttség)',
+        colors: [
+            { id: 'c1', colorCode: '#000000', description: 'Sötétség' },
+            { id: 'c2', colorCode: '#FFA500', description: 'Tűz' }
+        ]
     },
     {
         id: 'major-16', name: 'A Torony', nameEn: 'The Tower', arcana: 'Major', number: 16,
@@ -278,7 +358,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'A felszabadulás éve. Ami ingatag volt, most ledől.',
         questions: ['Mi az a hamis biztonság, amihez ragaszkodsz?'],
         affirmation: "Bátran fogadom a változást, amely felszabadít.",
-        imageUrl: 'https://myralog.hu/tarot/major-16.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-16.jpg',
+        decision: 'Nem (Hirtelen változás)',
+        colors: [
+            { id: 'c1', colorCode: '#FF0000', description: 'Katasztrófa, tűz' },
+            { id: 'c2', colorCode: '#000000', description: 'Sötétség' }
+        ]
     },
     {
         id: 'major-17', name: 'A Csillag', nameEn: 'The Star', arcana: 'Major', number: 17,
@@ -294,7 +379,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'A remény és a tervezés éve. Most vetehetsz el magokat.',
         questions: ['Mi a legmerészebb álmod a jövőre nézve?'],
         affirmation: "Bízom az Univerzumban és követem a belső fényemet.",
-        imageUrl: 'https://myralog.hu/tarot/major-17.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-17.jpg',
+        decision: 'Igen (Reményteljes)',
+        colors: [
+            { id: 'c1', colorCode: '#ADD8E6', description: 'Remény' },
+            { id: 'c2', colorCode: '#FFFF00', description: 'Csillagfény' }
+        ]
     },
     {
         id: 'major-18', name: 'A Hold', nameEn: 'The Moon', arcana: 'Major', number: 18,
@@ -310,7 +400,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'A próbatétel éve. Szembe kell nézned a félelmeiddel.',
         questions: ['Milyen félelmek tartanak vissza az igazságtól?'],
         affirmation: "Bátran szembenézek a félelmeimmel és bízom a megérzéseimben.",
-        imageUrl: 'https://myralog.hu/tarot/major-18.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-18.jpg',
+        decision: 'Talán (Bizonytalan)',
+        colors: [
+            { id: 'c1', colorCode: '#C0C0C0', description: 'Holdfény' },
+            { id: 'c2', colorCode: '#00008B', description: 'Éjszaka' }
+        ]
     },
     {
         id: 'major-19', name: 'A Nap', nameEn: 'The Sun', arcana: 'Major', number: 19,
@@ -326,7 +421,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'A napfény éve. Sikeres és energikus időszak vár rád.',
         questions: ['Mi okoz neked tiszta, gyermeki örömöt?'],
         affirmation: "Élvezem az életet és sugárzom a boldogságot.",
-        imageUrl: 'https://myralog.hu/tarot/major-19.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-19.jpg',
+        decision: 'Igen (Egyértelmű)',
+        colors: [
+            { id: 'c1', colorCode: '#FFFF00', description: 'Napfény' },
+            { id: 'c2', colorCode: '#FFA500', description: 'Melegség' }
+        ]
     },
     {
         id: 'major-20', name: 'A Feltámadás', nameEn: 'Judgement', arcana: 'Major', number: 20,
@@ -342,7 +442,12 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'A kincskeresés éve. Megtalálod, amit régóta kerestél.',
         questions: ['Mire hív most az élet?'],
         affirmation: "Megbocsátok magamnak és másoknak, és szabadon élek.",
-        imageUrl: 'https://myralog.hu/tarot/major-20.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-20.jpg',
+        decision: 'Igen (Megújulás)',
+        colors: [
+            { id: 'c1', colorCode: '#FF4500', description: 'Tűz' },
+            { id: 'c2', colorCode: '#ADD8E6', description: 'Szellem' }
+        ]
     },
     {
         id: 'major-21', name: 'A Világ', nameEn: 'The World', arcana: 'Major', number: 21,
@@ -358,6 +463,11 @@ export const MAJOR_ARCANA: Card[] = [
         yearlyMeaning: 'A beteljesülés éve. Boldogság és elégedettség vár.',
         questions: ['Mi az, ami teljessé teszi az életedet?'],
         affirmation: "Egy vagyok a világgal, és a világ egy velem.",
-        imageUrl: 'https://myralog.hu/tarot/major-21.jpg'
+        imageUrl: 'https://myralog.hu/tarot/major-21.jpg',
+        decision: 'Igen (Beteljesülés)',
+        colors: [
+            { id: 'c1', colorCode: '#008000', description: 'Föld, élet' },
+            { id: 'c2', colorCode: '#0000FF', description: 'Kozmosz' }
+        ]
     }
 ];

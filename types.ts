@@ -44,6 +44,12 @@ export interface Card {
     icon: string;
     description: string;
   }[];
+  decision?: string; // Igen, Nem, Talán
+  colors?: {
+    id: string;
+    colorCode: string;
+    description: string;
+  }[];
 }
 
 export type MeaningContext = 'general' | 'love' | 'career' | 'advice' | 'daily' | 'yearly';

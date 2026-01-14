@@ -270,18 +270,38 @@ export const CardDetailView = ({ card, theme, onBack }: { card: Card, theme: any
                     </div>
 
                     {/* Metadata Grid */}
-                    <div className="grid grid-cols-3 gap-4 mb-10 border-y border-white/10 py-6 opacity-60">
+                    <div className="grid grid-cols-4 gap-4 mb-10 border-y border-white/10 py-6 opacity-60">
                         <div className="text-center p-2">
                             <div className="text-[10px] uppercase text-gold-400 font-bold tracking-widest mb-1">Elem</div>
-                            <div className="font-serif text-lg">{card.element || '-'}</div>
+                            {isEditing ? (
+                                <input value={editedCard.element || ''} onChange={e => handleInputChange('element', e.target.value)} className="w-full bg-transparent border-b text-center font-serif" />
+                            ) : (
+                                <div className="font-serif text-lg">{card.element || '-'}</div>
+                            )}
                         </div>
-                        <div className="text-center p-2 border-l border-r border-white/5">
+                        <div className="text-center p-2 border-l border-white/5">
                             <div className="text-[10px] uppercase text-gold-400 font-bold tracking-widest mb-1">Asztrológia</div>
-                            <div className="font-serif text-lg">{card.astrology || '-'}</div>
+                            {isEditing ? (
+                                <input value={editedCard.astrology || ''} onChange={e => handleInputChange('astrology', e.target.value)} className="w-full bg-transparent border-b text-center font-serif" />
+                            ) : (
+                                <div className="font-serif text-lg">{card.astrology || '-'}</div>
+                            )}
                         </div>
-                        <div className="text-center p-2">
+                        <div className="text-center p-2 border-l border-white/5">
                             <div className="text-[10px] uppercase text-gold-400 font-bold tracking-widest mb-1">Numerológia</div>
-                            <div className="font-serif text-lg">{card.numerology || '-'}</div>
+                            {isEditing ? (
+                                <input value={editedCard.numerology || ''} onChange={e => handleInputChange('numerology', e.target.value)} className="w-full bg-transparent border-b text-center font-serif" />
+                            ) : (
+                                <div className="font-serif text-lg">{card.numerology || '-'}</div>
+                            )}
+                        </div>
+                        <div className="text-center p-2 border-l border-white/5">
+                            <div className="text-[10px] uppercase text-gold-400 font-bold tracking-widest mb-1">Döntés</div>
+                            {isEditing ? (
+                                <input value={editedCard.decision || ''} onChange={e => handleInputChange('decision', e.target.value)} className="w-full bg-transparent border-b text-center font-serif" />
+                            ) : (
+                                <div className="font-serif text-lg">{card.decision || '-'}</div>
+                            )}
                         </div>
                     </div>
 
@@ -436,99 +456,160 @@ export const CardDetailView = ({ card, theme, onBack }: { card: Card, theme: any
                         </div>
                     </div>
 
-                    {/* History & Symbolism */}
-                    {(card.history || card.symbolism || isEditing) && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-                            {(card.history || isEditing) && (
-                                <div>
-                                    <h3 className="text-sm font-bold uppercase tracking-widest text-white/60 mb-3 flex items-center gap-2">
-                                        <span>📜</span> Történet & Eredet
-                                    </h3>
-                                    {isEditing ? (
-                                        <MarkdownEditor 
-                                            value={editedCard.history || ''}
-                                            onChange={(val) => handleInputChange('history', val)}
-                                            height="h-32"
-                                        />
-                                    ) : (
-                                        <MarkdownRenderer content={card.history} className="text-sm text-gray-400 leading-relaxed text-justify" />
-                                    )}
+                    {/* History Section (Now Full Width if Symbolism moved or separate) */}
+                    {(card.history || isEditing) && (
+                        <div className="mb-10">
+                            <h3 className="text-sm font-bold uppercase tracking-widest text-white/60 mb-3 flex items-center gap-2">
+                                <span>📜</span> Történet & Eredet
+                            </h3>
+                            {isEditing ? (
+                                <MarkdownEditor
+                                    value={editedCard.history || ''}
+                                    onChange={(val) => handleInputChange('history', val)}
+                                    height="h-32"
+                                />
+                            ) : (
+                                <MarkdownRenderer content={card.history} className="text-sm text-gray-400 leading-relaxed text-justify" />
+                            )}
+                        </div>
+                    )}
+
+                    {/* Colors Section (New, requested place of Symbolism, above extra data, below History) */}
+                    {(card.colors?.length > 0 || isEditing) && (
+                        <div className="mb-10 p-6 bg-black/20 rounded-2xl border border-white/5">
+                            <h3 className="text-sm font-bold uppercase tracking-widest text-white/60 mb-4 flex items-center gap-2">
+                                <span>🎨</span> Színek & Hangulat
+                            </h3>
+                            {isEditing ? (
+                                <div className="space-y-2">
+                                    {(editedCard.colors || []).map((col, idx) => (
+                                        <div key={col.id} className="flex gap-3 items-center">
+                                            <input
+                                                type="color"
+                                                value={col.colorCode}
+                                                onChange={e => {
+                                                    const newCols = [...(editedCard.colors || [])];
+                                                    newCols[idx].colorCode = e.target.value;
+                                                    setEditedCard({...editedCard, colors: newCols});
+                                                }}
+                                                className="w-8 h-8 rounded cursor-pointer border-none bg-transparent"
+                                            />
+                                            <input
+                                                value={col.description}
+                                                onChange={e => {
+                                                    const newCols = [...(editedCard.colors || [])];
+                                                    newCols[idx].description = e.target.value;
+                                                    setEditedCard({...editedCard, colors: newCols});
+                                                }}
+                                                className="flex-1 bg-white/5 border border-white/10 rounded p-2 text-sm text-white"
+                                                placeholder="Szín jelentése..."
+                                            />
+                                            <button
+                                                onClick={() => {
+                                                    const newCols = [...(editedCard.colors || [])];
+                                                    newCols.splice(idx, 1);
+                                                    setEditedCard({...editedCard, colors: newCols});
+                                                }}
+                                                className="text-red-400 px-2"
+                                            >✕</button>
+                                        </div>
+                                    ))}
+                                    <button
+                                        onClick={() => setEditedCard({
+                                            ...editedCard,
+                                            colors: [...(editedCard.colors || []), { id: Date.now().toString(), colorCode: '#ffffff', description: '' }]
+                                        })}
+                                        className="text-xs font-bold uppercase text-gold-400 border border-gold-500/30 px-3 py-1 rounded"
+                                    >
+                                        + Új Szín
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex flex-wrap gap-4">
+                                    {card.colors!.map(col => (
+                                        <div key={col.id} className="flex items-center gap-3 bg-white/5 pr-4 rounded-full border border-white/5">
+                                            <div className="w-8 h-8 rounded-full border border-white/20 shadow-lg" style={{backgroundColor: col.colorCode}}></div>
+                                            <span className="text-sm text-gray-300">{col.description}</span>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
-                            {(card.symbolism || isEditing) && (
-                                <div>
-                                    <h3 className="text-sm font-bold uppercase tracking-widest text-white/60 mb-3 flex items-center gap-2">
-                                        <span>👁️</span> Szimbolika
-                                    </h3>
-                                    {isEditing ? (
-                                        <div className="space-y-4">
-                                            <MarkdownEditor
-                                                value={editedCard.symbolism || ''}
-                                                onChange={(val) => handleInputChange('symbolism', val)}
-                                                height="h-32"
-                                            />
-                                            <div className="border-t border-white/10 pt-4">
-                                                <label className="block text-[10px] uppercase font-bold text-white/40 mb-2">Szimbólum Lista</label>
-                                                {(editedCard.symbols || []).map((sym, idx) => (
-                                                    <div key={sym.id} className="flex gap-2 items-center bg-black/20 p-2 rounded mb-2">
-                                                        <button
-                                                            onClick={() => setShowIconPicker(idx)}
-                                                            className="w-10 h-10 bg-white/5 border border-white/10 rounded flex items-center justify-center hover:bg-gold-500/20 hover:border-gold-500 transition-colors"
-                                                        >
-                                                            {sym.icon && GAME_ICONS[sym.icon] ? (
-                                                                <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current text-gold-400"><path d={GAME_ICONS[sym.icon]} /></svg>
-                                                            ) : (
-                                                                <span className="text-xs text-white/30">?</span>
-                                                            )}
-                                                        </button>
-                                                        <input
-                                                            value={sym.description}
-                                                            onChange={e => {
-                                                                const newSyms = [...(editedCard.symbols || [])];
-                                                                newSyms[idx].description = e.target.value;
-                                                                setEditedCard({...editedCard, symbols: newSyms});
-                                                            }}
-                                                            className="flex-1 bg-transparent border-b border-white/10 p-2 text-sm text-white focus:border-gold-500 outline-none"
-                                                            placeholder="Mit jelent ez a szimbólum?"
-                                                        />
-                                                        <button
-                                                            onClick={() => {
-                                                                const newSyms = [...(editedCard.symbols || [])];
-                                                                newSyms.splice(idx, 1);
-                                                                setEditedCard({...editedCard, symbols: newSyms});
-                                                            }}
-                                                            className="text-red-400 hover:text-red-500 px-2"
-                                                        >✕</button>
-                                                    </div>
-                                                ))}
+                        </div>
+                    )}
+
+                    {/* Symbolism Section (Now Full Width in New Row) */}
+                    {(card.symbolism || isEditing) && (
+                        <div className="mb-10">
+                            <h3 className="text-sm font-bold uppercase tracking-widest text-white/60 mb-3 flex items-center gap-2">
+                                <span>👁️</span> Szimbolika
+                            </h3>
+                            {isEditing ? (
+                                <div className="space-y-4">
+                                    <MarkdownEditor
+                                        value={editedCard.symbolism || ''}
+                                        onChange={(val) => handleInputChange('symbolism', val)}
+                                        height="h-32"
+                                    />
+                                    <div className="border-t border-white/10 pt-4">
+                                        <label className="block text-[10px] uppercase font-bold text-white/40 mb-2">Szimbólum Lista</label>
+                                        {(editedCard.symbols || []).map((sym, idx) => (
+                                            <div key={sym.id} className="flex gap-2 items-center bg-black/20 p-2 rounded mb-2">
                                                 <button
-                                                    onClick={() => setEditedCard({
-                                                        ...editedCard,
-                                                        symbols: [...(editedCard.symbols || []), { id: Date.now().toString(), icon: '', description: '' }]
-                                                    })}
-                                                    className="text-xs font-bold uppercase tracking-widest text-gold-400 border border-gold-500/30 px-3 py-1.5 rounded hover:bg-gold-500/10"
+                                                    onClick={() => setShowIconPicker(idx)}
+                                                    className="w-10 h-10 bg-white/5 border border-white/10 rounded flex items-center justify-center hover:bg-gold-500/20 hover:border-gold-500 transition-colors"
                                                 >
-                                                    + Szimbólum
+                                                    {sym.icon && GAME_ICONS[sym.icon] ? (
+                                                        <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current text-gold-400"><path d={GAME_ICONS[sym.icon]} /></svg>
+                                                    ) : (
+                                                        <span className="text-xs text-white/30">?</span>
+                                                    )}
                                                 </button>
+                                                <input
+                                                    value={sym.description}
+                                                    onChange={e => {
+                                                        const newSyms = [...(editedCard.symbols || [])];
+                                                        newSyms[idx].description = e.target.value;
+                                                        setEditedCard({...editedCard, symbols: newSyms});
+                                                    }}
+                                                    className="flex-1 bg-transparent border-b border-white/10 p-2 text-sm text-white focus:border-gold-500 outline-none"
+                                                    placeholder="Mit jelent ez a szimbólum?"
+                                                />
+                                                <button
+                                                    onClick={() => {
+                                                        const newSyms = [...(editedCard.symbols || [])];
+                                                        newSyms.splice(idx, 1);
+                                                        setEditedCard({...editedCard, symbols: newSyms});
+                                                    }}
+                                                    className="text-red-400 hover:text-red-500 px-2"
+                                                >✕</button>
                                             </div>
-                                        </div>
-                                    ) : (
-                                        <div>
-                                            <MarkdownRenderer content={card.symbolism} className="text-sm text-gray-400 leading-relaxed text-justify mb-4" />
-                                            {card.symbols && card.symbols.length > 0 && (
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                                    {card.symbols.map(sym => (
-                                                        <div key={sym.id} className="flex gap-3 items-center bg-white/5 p-2 rounded-lg border border-white/5 hover:border-gold-500/30 transition-colors">
-                                                            <div className="w-8 h-8 flex-shrink-0 bg-black/40 rounded-full flex items-center justify-center">
-                                                                {sym.icon && GAME_ICONS[sym.icon] && (
-                                                                    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current text-gold-400"><path d={GAME_ICONS[sym.icon]} /></svg>
-                                                                )}
-                                                            </div>
-                                                            <span className="text-xs text-gray-300 font-serif leading-tight">{sym.description}</span>
-                                                        </div>
-                                                    ))}
+                                        ))}
+                                        <button
+                                            onClick={() => setEditedCard({
+                                                ...editedCard,
+                                                symbols: [...(editedCard.symbols || []), { id: Date.now().toString(), icon: '', description: '' }]
+                                            })}
+                                            className="text-xs font-bold uppercase tracking-widest text-gold-400 border border-gold-500/30 px-3 py-1.5 rounded hover:bg-gold-500/10"
+                                        >
+                                            + Szimbólum
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div>
+                                    <MarkdownRenderer content={card.symbolism} className="text-sm text-gray-400 leading-relaxed text-justify mb-4" />
+                                    {card.symbols && card.symbols.length > 0 && (
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                            {card.symbols.map(sym => (
+                                                <div key={sym.id} className="flex gap-3 items-center bg-white/5 p-2 rounded-lg border border-white/5 hover:border-gold-500/30 transition-colors">
+                                                    <div className="w-8 h-8 flex-shrink-0 bg-black/40 rounded-full flex items-center justify-center">
+                                                        {sym.icon && GAME_ICONS[sym.icon] && (
+                                                            <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current text-gold-400"><path d={GAME_ICONS[sym.icon]} /></svg>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-xs text-gray-300 font-serif leading-tight">{sym.description}</span>
                                                 </div>
-                                            )}
+                                            ))}
                                         </div>
                                     )}
                                 </div>
