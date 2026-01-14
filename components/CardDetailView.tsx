@@ -6,12 +6,17 @@ import { getCardImage } from '../constants';
 import { MarkdownRenderer, MarkdownEditor } from './MarkdownSupport';
 import { CardImage } from './CardImage';
 import { CompareView } from './CompareView';
+import { IconPicker } from './IconPicker';
+import { GAME_ICONS } from '../constants/gameIcons';
 
 export const CardDetailView = ({ card, theme, onBack }: { card: Card, theme: any, onBack: () => void }) => {
     const { activeDeck, updateCardData, resetCardData } = useTarot();
     const [isEditing, setIsEditing] = useState(false);
     const [isDeckCompareMode, setIsDeckCompareMode] = useState(false);
     const [editedCard, setEditedCard] = useState<Card>(card);
+
+    // Symbolism Editor State
+    const [showIconPicker, setShowIconPicker] = useState<number | null>(null); // Index of symbol being edited
 
     useEffect(() => {
         setEditedCard(card);
@@ -456,17 +461,93 @@ export const CardDetailView = ({ card, theme, onBack }: { card: Card, theme: any
                                         <span>👁️</span> Szimbolika
                                     </h3>
                                     {isEditing ? (
-                                        <MarkdownEditor 
-                                            value={editedCard.symbolism || ''}
-                                            onChange={(val) => handleInputChange('symbolism', val)}
-                                            height="h-32"
-                                        />
+                                        <div className="space-y-4">
+                                            <MarkdownEditor
+                                                value={editedCard.symbolism || ''}
+                                                onChange={(val) => handleInputChange('symbolism', val)}
+                                                height="h-32"
+                                            />
+                                            <div className="border-t border-white/10 pt-4">
+                                                <label className="block text-[10px] uppercase font-bold text-white/40 mb-2">Szimbólum Lista</label>
+                                                {(editedCard.symbols || []).map((sym, idx) => (
+                                                    <div key={sym.id} className="flex gap-2 items-center bg-black/20 p-2 rounded mb-2">
+                                                        <button
+                                                            onClick={() => setShowIconPicker(idx)}
+                                                            className="w-10 h-10 bg-white/5 border border-white/10 rounded flex items-center justify-center hover:bg-gold-500/20 hover:border-gold-500 transition-colors"
+                                                        >
+                                                            {sym.icon && GAME_ICONS[sym.icon] ? (
+                                                                <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current text-gold-400"><path d={GAME_ICONS[sym.icon]} /></svg>
+                                                            ) : (
+                                                                <span className="text-xs text-white/30">?</span>
+                                                            )}
+                                                        </button>
+                                                        <input
+                                                            value={sym.description}
+                                                            onChange={e => {
+                                                                const newSyms = [...(editedCard.symbols || [])];
+                                                                newSyms[idx].description = e.target.value;
+                                                                setEditedCard({...editedCard, symbols: newSyms});
+                                                            }}
+                                                            className="flex-1 bg-transparent border-b border-white/10 p-2 text-sm text-white focus:border-gold-500 outline-none"
+                                                            placeholder="Mit jelent ez a szimbólum?"
+                                                        />
+                                                        <button
+                                                            onClick={() => {
+                                                                const newSyms = [...(editedCard.symbols || [])];
+                                                                newSyms.splice(idx, 1);
+                                                                setEditedCard({...editedCard, symbols: newSyms});
+                                                            }}
+                                                            className="text-red-400 hover:text-red-500 px-2"
+                                                        >✕</button>
+                                                    </div>
+                                                ))}
+                                                <button
+                                                    onClick={() => setEditedCard({
+                                                        ...editedCard,
+                                                        symbols: [...(editedCard.symbols || []), { id: Date.now().toString(), icon: '', description: '' }]
+                                                    })}
+                                                    className="text-xs font-bold uppercase tracking-widest text-gold-400 border border-gold-500/30 px-3 py-1.5 rounded hover:bg-gold-500/10"
+                                                >
+                                                    + Szimbólum
+                                                </button>
+                                            </div>
+                                        </div>
                                     ) : (
-                                        <MarkdownRenderer content={card.symbolism} className="text-sm text-gray-400 leading-relaxed text-justify" />
+                                        <div>
+                                            <MarkdownRenderer content={card.symbolism} className="text-sm text-gray-400 leading-relaxed text-justify mb-4" />
+                                            {card.symbols && card.symbols.length > 0 && (
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                                    {card.symbols.map(sym => (
+                                                        <div key={sym.id} className="flex gap-3 items-center bg-white/5 p-2 rounded-lg border border-white/5 hover:border-gold-500/30 transition-colors">
+                                                            <div className="w-8 h-8 flex-shrink-0 bg-black/40 rounded-full flex items-center justify-center">
+                                                                {sym.icon && GAME_ICONS[sym.icon] && (
+                                                                    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current text-gold-400"><path d={GAME_ICONS[sym.icon]} /></svg>
+                                                                )}
+                                                            </div>
+                                                            <span className="text-xs text-gray-300 font-serif leading-tight">{sym.description}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             )}
                         </div>
+                    )}
+
+                    {showIconPicker !== null && (
+                        <IconPicker
+                            onSelect={(iconKey) => {
+                                const newSyms = [...(editedCard.symbols || [])];
+                                if (showIconPicker !== null && newSyms[showIconPicker]) {
+                                    newSyms[showIconPicker].icon = iconKey;
+                                    setEditedCard({...editedCard, symbols: newSyms});
+                                }
+                                setShowIconPicker(null);
+                            }}
+                            onClose={() => setShowIconPicker(null)}
+                        />
                     )}
 
                     {/* Extended Data Section (Dynamic 3-col grid) */}

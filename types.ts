@@ -39,6 +39,11 @@ export interface Card {
     label: string;
     value: string;
   }[];
+  symbols?: {
+    id: string;
+    icon: string;
+    description: string;
+  }[];
 }
 
 export type MeaningContext = 'general' | 'love' | 'career' | 'advice' | 'daily' | 'yearly';
