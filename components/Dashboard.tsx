@@ -2,6 +2,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useTarot } from '../context/TarotContext';
 import { THEMES, BADGES, getAvatarUrl, ZODIAC_INFO, QUICK_ACTION_OPTIONS } from '../constants';
+import { WESTERN_HOROSCOPES } from '../constants/horoscopes_western';
+import { CHINESE_HOROSCOPES, getChineseZodiac } from '../constants/horoscopes_chinese';
 import { Spread, SpreadPosition, SpreadCategory } from '../types';
 import { CardImage } from './CardImage';
 import { CommunityService } from '../services/communityService';
@@ -24,7 +26,7 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
     // Real-time clock for Ascendant update
     const [now, setNow] = useState(new Date());
     // Zodiac Modal State
-    const [zodiacModal, setZodiacModal] = useState<{ type: 'Nap'|'Hold'|'Aszcendens', sign: string } | null>(null);
+    const [zodiacModal, setZodiacModal] = useState<{ type: 'Nap'|'Hold'|'Aszcendens'|'Kínai', sign: string, detail?: any } | null>(null);
     
     // Spread Category Tab State
     const [activeCategory, setActiveCategory] = useState<SpreadCategory | 'all' | 'favorites'>('favorites');
@@ -40,7 +42,11 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
     const xpProgress = (currentUser.xp || 0) % 100;
 
     // --- Precise Astro Data for NOW using LOCATION ---
-    const astroData = useMemo(() => AstroService.getAstroData(now, userLocation || undefined) as any, [now, userLocation]);
+    const astroData = useMemo(() => {
+        const data = AstroService.getAstroData(now, userLocation || undefined) as any;
+        const chinese = getChineseZodiac(now.getFullYear());
+        return { ...data, chinese };
+    }, [now, userLocation]);
 
     const handleDeleteSpread = (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
@@ -122,12 +128,17 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
 
     const monthNames = ["Január", "Február", "Március", "Április", "Május", "Június", "Július", "Augusztus", "Szeptember", "Október", "November", "December"];
 
-    const getZodiacDescription = (type: 'Nap'|'Hold'|'Aszcendens', sign: string) => {
-        const info = ZODIAC_INFO[sign];
-        if (!info) return "Nincs leírás.";
-        if (type === 'Nap') return info.sun;
-        if (type === 'Hold') return info.moon;
-        return info.ascendant;
+    const openZodiacModal = (type: 'Nap'|'Hold'|'Aszcendens'|'Kínai', sign: string) => {
+        let detail = null;
+        if (type === 'Kínai') {
+            detail = CHINESE_HOROSCOPES.find(c => c.name === sign);
+        } else {
+            // Mapping for Western names if needed, usually they match
+            // ZODIAC_INFO keys are Hungarian: "Kos", "Bika", etc.
+            // WESTERN_HOROSCOPES names are also Hungarian.
+            detail = WESTERN_HOROSCOPES.find(h => h.name === sign);
+        }
+        setZodiacModal({ type, sign, detail });
     };
 
     // Calculate daily readings once for selected day to avoid re-renders inside modal
@@ -216,18 +227,26 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
 
                             {/* COSMIC DATA GRID */}
                             <div className="bg-black/30 rounded-2xl border border-white/5 overflow-hidden backdrop-blur-sm">
-                                <div className="grid grid-cols-3 divide-x divide-white/5 border-b border-white/5">
-                                    <button onClick={() => setZodiacModal({type: 'Nap', sign: astroData.sunSign})} className="p-3 text-center hover:bg-white/5 transition-colors">
-                                        <div className="text-[10px] uppercase text-gold-500 font-bold tracking-widest mb-1">{t('dashboard.sun', language)}</div>
-                                        <div className="text-xl">☀️ {astroData.sunSign}</div>
+                                <div className="grid grid-cols-4 divide-x divide-white/5 border-b border-white/5">
+                                    <button onClick={() => openZodiacModal('Nap', astroData.sunSign)} className="p-3 text-center hover:bg-white/5 transition-colors">
+                                        <div className="text-[10px] uppercase text-gold-500 font-bold tracking-widest mb-1 truncate">{t('dashboard.sun', language)}</div>
+                                        <div className="text-xl">☀️</div>
+                                        <div className="text-xs font-bold mt-1 truncate">{astroData.sunSign}</div>
                                     </button>
-                                    <button onClick={() => setZodiacModal({type: 'Hold', sign: astroData.moonSign})} className="p-3 text-center hover:bg-white/5 transition-colors">
-                                        <div className="text-[10px] uppercase text-blue-300 font-bold tracking-widest mb-1">{t('dashboard.moon', language)}</div>
-                                        <div className="text-xl">{astroData.icon} {astroData.moonSign}</div>
+                                    <button onClick={() => openZodiacModal('Hold', astroData.moonSign)} className="p-3 text-center hover:bg-white/5 transition-colors">
+                                        <div className="text-[10px] uppercase text-blue-300 font-bold tracking-widest mb-1 truncate">{t('dashboard.moon', language)}</div>
+                                        <div className="text-xl">{astroData.icon}</div>
+                                        <div className="text-xs font-bold mt-1 truncate">{astroData.moonSign}</div>
                                     </button>
-                                    <button onClick={() => setZodiacModal({type: 'Aszcendens', sign: astroData.ascendant})} className="p-3 text-center hover:bg-white/5 transition-colors">
-                                        <div className="text-[10px] uppercase text-purple-400 font-bold tracking-widest mb-1">{t('dashboard.ascendant', language)}</div>
-                                        <div className="text-xl">🏹 {astroData.ascendant}</div>
+                                    <button onClick={() => openZodiacModal('Aszcendens', astroData.ascendant)} className="p-3 text-center hover:bg-white/5 transition-colors">
+                                        <div className="text-[10px] uppercase text-purple-400 font-bold tracking-widest mb-1 truncate">{t('dashboard.ascendant', language)}</div>
+                                        <div className="text-xl">🏹</div>
+                                        <div className="text-xs font-bold mt-1 truncate">{astroData.ascendant}</div>
+                                    </button>
+                                    <button onClick={() => openZodiacModal('Kínai', astroData.chinese.sign)} className="p-3 text-center hover:bg-white/5 transition-colors">
+                                        <div className="text-[10px] uppercase text-red-400 font-bold tracking-widest mb-1 truncate">Kínai</div>
+                                        <div className="text-xl">🧧</div>
+                                        <div className="text-xs font-bold mt-1 truncate">{astroData.chinese.sign}</div>
                                     </button>
                                 </div>
                                 <div className="grid grid-cols-4 divide-x divide-white/5 bg-white/5">
@@ -537,15 +556,103 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                 </div>
             )}
 
-            {/* Zodiac Info Modal - Fixed Center Z-100 */}
+            {/* Zodiac Info Modal - Detailed - Fixed Center Z-100 */}
             {zodiacModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={() => setZodiacModal(null)}>
-                    <div className="glass-panel-dark w-full max-w-md rounded-2xl p-6 border border-white/20 text-center relative shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => setZodiacModal(null)} className="absolute top-4 right-4 text-white/50 hover:text-white text-xl">✕</button>
-                        <div className="text-4xl mb-4">{zodiacModal.type === 'Nap' ? '☀️' : zodiacModal.type === 'Hold' ? '🌕' : '🏹'}</div>
-                        <h3 className="text-2xl font-serif font-bold text-gold-400 mb-1">{zodiacModal.sign}</h3>
-                        <div className="text-xs uppercase font-bold tracking-widest opacity-60 mb-6">{zodiacModal.type}</div>
-                        <div className="text-gray-200 leading-relaxed text-sm bg-white/5 p-4 rounded-xl border border-white/5 text-justify">{getZodiacDescription(zodiacModal.type, zodiacModal.sign)}</div>
+                    <div className="glass-panel-dark w-full max-w-2xl rounded-2xl border border-white/20 relative shadow-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+
+                        {/* Header */}
+                        <div className="p-6 border-b border-white/10 flex justify-between items-start bg-white/5 relative overflow-hidden rounded-t-2xl">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-gold-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                            <div>
+                                <div className="text-xs font-bold uppercase tracking-widest text-white/50 mb-1">{zodiacModal.type}</div>
+                                <h3 className="text-3xl font-serif font-bold text-gold-400 flex items-center gap-3">
+                                    {zodiacModal.type === 'Nap' ? '☀️' : zodiacModal.type === 'Hold' ? '🌕' : zodiacModal.type === 'Aszcendens' ? '🏹' : '🧧'}
+                                    {zodiacModal.sign}
+                                </h3>
+                            </div>
+                            <button onClick={() => setZodiacModal(null)} className="text-white/50 hover:text-white text-xl z-10 p-2">✕</button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6 overflow-y-auto custom-scrollbar">
+                            {zodiacModal.detail ? (
+                                <div className="space-y-6">
+                                    <p className="text-gray-200 leading-relaxed italic border-l-2 border-gold-500/50 pl-4 bg-white/5 p-3 rounded-r-lg">
+                                        "{zodiacModal.detail.description}"
+                                    </p>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Box 1: Keywords/Strength */}
+                                        {(zodiacModal.detail.strengths || zodiacModal.detail.career) && (
+                                            <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                                <h4 className="text-xs font-bold uppercase tracking-widest text-green-400 mb-3">
+                                                    {zodiacModal.type === 'Kínai' ? 'Karrier' : 'Erősségek'}
+                                                </h4>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {zodiacModal.type === 'Kínai' ? (
+                                                        <div className="text-sm text-gray-300">{zodiacModal.detail.career}</div>
+                                                    ) : (
+                                                        zodiacModal.detail.strengths?.map((s: string) => (
+                                                            <span key={s} className="bg-green-500/10 text-green-300 text-xs px-2 py-1 rounded border border-green-500/20">{s}</span>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Box 2: Weakness/Compatibility */}
+                                        {(zodiacModal.detail.weaknesses || zodiacModal.detail.loveCompatibility) && (
+                                            <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                                <h4 className="text-xs font-bold uppercase tracking-widest text-red-400 mb-3">
+                                                    {zodiacModal.type === 'Kínai' ? 'Szerelem' : 'Gyengeségek'}
+                                                </h4>
+                                                {zodiacModal.type === 'Kínai' ? (
+                                                    <div className="text-sm">
+                                                        <div className="mb-1"><span className="text-green-400">Jó:</span> {zodiacModal.detail.loveCompatibility?.best}</div>
+                                                        <div><span className="text-red-400">Kerülni:</span> {zodiacModal.detail.loveCompatibility?.worst}</div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {zodiacModal.detail.weaknesses?.map((w: string) => (
+                                                            <span key={w} className="bg-red-500/10 text-red-300 text-xs px-2 py-1 rounded border border-red-500/20">{w}</span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Box 3: Favorites/Lucky */}
+                                        <div className="bg-white/5 p-4 rounded-xl border border-white/5 md:col-span-2">
+                                            <h4 className="text-xs font-bold uppercase tracking-widest text-gold-400 mb-3">Szerencse & Jellemzők</h4>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                                <div>
+                                                    <div className="opacity-50 text-[10px] uppercase">Számok</div>
+                                                    <div className="font-mono text-gold-200">{zodiacModal.detail.luckyNumbers || zodiacModal.detail.numbers}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="opacity-50 text-[10px] uppercase">Szín</div>
+                                                    <div className="text-white">{zodiacModal.detail.luckyColors || zodiacModal.detail.color}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="opacity-50 text-[10px] uppercase">Virág</div>
+                                                    <div className="text-pink-300">{zodiacModal.detail.luckyFlowers || zodiacModal.detail.flower}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="opacity-50 text-[10px] uppercase">Irányl / Bolygó</div>
+                                                    <div className="text-blue-300">{zodiacModal.detail.luckyDirections || zodiacModal.detail.rulingPlanet}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center py-10 opacity-50 italic">
+                                    Részletes leírás nem található.
+                                    <br/><span className="text-xs">(Ellenőrizd az admin panelen a feltöltött adatokat)</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

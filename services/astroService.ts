@@ -59,26 +59,48 @@ export const AstroService = {
         // Illumination is roughly (1 - cos(angle))/2. Angle ranges 0 to 2PI over the cycle.
         const angle = jd * 2 * Math.PI;
         const illumination = (1 - Math.cos(angle)) / 2;
-
-        b = Math.round(jd * 8); 
         const age = jd * 29.53;
 
-        if (b >= 8 ) b = 0; 
+        // Custom phase boundaries to ensure Full/New Moon are ~3 days
+        // Cycle is 0.0 to 1.0.
+        // 3 days / 29.53 days approx 0.10.
+        // New Moon: [0.95, 1.0) U [0.0, 0.05) -> Center 0.0
+        // Full Moon: [0.45, 0.55] -> Center 0.5
+        // First Quarter: Around 0.25
+        // Last Quarter: Around 0.75
+
+        let phase = "";
+        let icon = "";
         
-        const phases = [
-            { id: 0, name: "Újhold", icon: "🌑" },
-            { id: 1, name: "Növekvő Holdsarló", icon: "🌒" },
-            { id: 2, name: "Első Negyed", icon: "🌓" },
-            { id: 3, name: "Növekvő Hold", icon: "🌔" },
-            { id: 4, name: "Telihold", icon: "🌕" },
-            { id: 5, name: "Fogyó Hold", icon: "🌖" },
-            { id: 6, name: "Utolsó Negyed", icon: "🌗" },
-            { id: 7, name: "Fogyó Holdsarló", icon: "🌘" }
-        ];
+        if (jd < 0.05 || jd >= 0.95) {
+            phase = "Újhold";
+            icon = "🌑";
+        } else if (jd >= 0.05 && jd < 0.20) {
+            phase = "Növekvő Holdsarló";
+            icon = "🌒";
+        } else if (jd >= 0.20 && jd < 0.30) {
+            phase = "Első Negyed";
+            icon = "🌓";
+        } else if (jd >= 0.30 && jd < 0.45) {
+            phase = "Növekvő Hold";
+            icon = "🌔";
+        } else if (jd >= 0.45 && jd <= 0.55) {
+            phase = "Telihold";
+            icon = "🌕";
+        } else if (jd > 0.55 && jd <= 0.70) {
+            phase = "Fogyó Hold";
+            icon = "🌖";
+        } else if (jd > 0.70 && jd <= 0.80) {
+            phase = "Utolsó Negyed";
+            icon = "🌗";
+        } else {
+            phase = "Fogyó Holdsarló";
+            icon = "🌘";
+        }
 
         return {
-            phase: phases[b].name,
-            icon: phases[b].icon,
+            phase: phase,
+            icon: icon,
             illumination: illumination, // Now a precise float 0..1
             age: age
         };

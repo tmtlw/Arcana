@@ -207,7 +207,12 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({ secretKey }) => {
                 setData([]);
             } else {
                 const content = result.content;
-                const match = content.match(/=\s*(\[[\s\S]*\]);/);
+                // Specific regex to match the variable export to avoid false positives
+                // Matches: export const VARIABLE_NAME : Type = [ ... ];
+                // We use the variable name from config to be precise.
+                const regex = new RegExp(`export const ${config.variable}[\\s\\S]*?=\\s*(\\[[\\s\\S]*\\]);`);
+                const match = content.match(regex) || content.match(/=\s*(\[[\s\S]*\]);/); // Fallback to simple match if strict fails (backward comp)
+
                 if (match && match[1]) {
                     try {
                         const parsed = new Function(`return ${match[1]}`)();
