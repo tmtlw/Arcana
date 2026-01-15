@@ -307,3 +307,46 @@ export interface ToastMessage {
     text: string;
     type: 'success' | 'info';
 }
+
+export interface WesternHoroscope {
+    id: string;
+    name: string;
+    dates: string;
+    symbol: string;
+    rulingPlanet: string;
+    houseRuled: string;
+    element: string;
+    mode: string;
+    keyword: string;
+    description: string;
+    strengths: string[];
+    weaknesses: string[];
+    likes: string[];
+    dislikes: string[];
+    color: string;
+    luckyGem: string;
+    flower: string;
+    day: string;
+    numbers: string;
+    mostCompatible: string;
+    leastCompatible: string;
+}
+
+export interface ChineseHoroscope {
+    id: string;
+    name: string;
+    luckyNumbers: string;
+    unluckyNumbers: string;
+    luckyFlowers: string;
+    luckyColors: string;
+    unluckyColors: string;
+    luckyDirections: string;
+    unluckyDirections: string;
+    loveCompatibility: {
+        best: string;
+        worst: string;
+    };
+    career: string;
+    description: string;
+    famousPeople: string;
+}

@@ -15,7 +15,9 @@ const FILES = {
     'Lessons - Major': { path: 'lessons/major.ts', variable: 'MAJOR_LESSONS', type: 'Lesson[]', importType: 'Lesson' },
     'Lessons - Minor': { path: 'lessons/minor.ts', variable: 'MINOR_LESSONS', type: 'Lesson[]', importType: 'Lesson' },
     'Lessons - Reading': { path: 'lessons/reading.ts', variable: 'READING_LESSONS', type: 'Lesson[]', importType: 'Lesson' },
-    'Lessons - Symbolism': { path: 'lessons/symbolism.ts', variable: 'SYMBOLISM_LESSONS', type: 'Lesson[]', importType: 'Lesson' }
+    'Lessons - Symbolism': { path: 'lessons/symbolism.ts', variable: 'SYMBOLISM_LESSONS', type: 'Lesson[]', importType: 'Lesson' },
+    'Horoscopes - Western': { path: 'constants/horoscopes_western.ts', variable: 'WESTERN_HOROSCOPES', type: 'WesternHoroscope[]', importType: 'WesternHoroscope' },
+    'Horoscopes - Chinese': { path: 'constants/horoscopes_chinese.ts', variable: 'CHINESE_HOROSCOPES', type: 'ChineseHoroscope[]', importType: 'ChineseHoroscope' }
 };
 
 interface ContentEditorProps {
