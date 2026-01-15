@@ -34,6 +34,22 @@ export interface Card {
     text: string;
     relatedCardId: string;
   };
+  extendedData?: {
+    id: string;
+    label: string;
+    value: string;
+  }[];
+  symbols?: {
+    id: string;
+    icon: string;
+    description: string;
+  }[];
+  decision?: string; // Igen, Nem, Talán
+  colors?: {
+    id: string;
+    colorCode: string;
+    description: string;
+  }[];
 }
 
 export type MeaningContext = 'general' | 'love' | 'career' | 'advice' | 'daily' | 'yearly';
@@ -270,6 +286,9 @@ export interface User {
   folders?: string[]; 
   isAdmin?: boolean; 
   bio?: string; 
+
+  createdAt?: string;
+  lastLogin?: string;
 
   lessonCollection?: string[];
   deckCollection?: string[];

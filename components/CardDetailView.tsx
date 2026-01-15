@@ -6,12 +6,17 @@ import { getCardImage } from '../constants';
 import { MarkdownRenderer, MarkdownEditor } from './MarkdownSupport';
 import { CardImage } from './CardImage';
 import { CompareView } from './CompareView';
+import { IconPicker } from './IconPicker';
+import { GAME_ICONS } from '../constants/gameIcons';
 
 export const CardDetailView = ({ card, theme, onBack }: { card: Card, theme: any, onBack: () => void }) => {
     const { activeDeck, updateCardData, resetCardData } = useTarot();
     const [isEditing, setIsEditing] = useState(false);
     const [isDeckCompareMode, setIsDeckCompareMode] = useState(false);
     const [editedCard, setEditedCard] = useState<Card>(card);
+
+    // Symbolism Editor State
+    const [showIconPicker, setShowIconPicker] = useState<number | null>(null); // Index of symbol being edited
 
     useEffect(() => {
         setEditedCard(card);
@@ -265,18 +270,38 @@ export const CardDetailView = ({ card, theme, onBack }: { card: Card, theme: any
                     </div>
 
                     {/* Metadata Grid */}
-                    <div className="grid grid-cols-3 gap-4 mb-10 border-y border-white/10 py-6 opacity-60">
+                    <div className="grid grid-cols-4 gap-4 mb-10 border-y border-white/10 py-6 opacity-60">
                         <div className="text-center p-2">
                             <div className="text-[10px] uppercase text-gold-400 font-bold tracking-widest mb-1">Elem</div>
-                            <div className="font-serif text-lg">{card.element || '-'}</div>
+                            {isEditing ? (
+                                <input value={editedCard.element || ''} onChange={e => handleInputChange('element', e.target.value)} className="w-full bg-transparent border-b text-center font-serif" />
+                            ) : (
+                                <div className="font-serif text-lg">{card.element || '-'}</div>
+                            )}
                         </div>
-                        <div className="text-center p-2 border-l border-r border-white/5">
+                        <div className="text-center p-2 border-l border-white/5">
                             <div className="text-[10px] uppercase text-gold-400 font-bold tracking-widest mb-1">Asztrológia</div>
-                            <div className="font-serif text-lg">{card.astrology || '-'}</div>
+                            {isEditing ? (
+                                <input value={editedCard.astrology || ''} onChange={e => handleInputChange('astrology', e.target.value)} className="w-full bg-transparent border-b text-center font-serif" />
+                            ) : (
+                                <div className="font-serif text-lg">{card.astrology || '-'}</div>
+                            )}
                         </div>
-                        <div className="text-center p-2">
+                        <div className="text-center p-2 border-l border-white/5">
                             <div className="text-[10px] uppercase text-gold-400 font-bold tracking-widest mb-1">Numerológia</div>
-                            <div className="font-serif text-lg">{card.numerology || '-'}</div>
+                            {isEditing ? (
+                                <input value={editedCard.numerology || ''} onChange={e => handleInputChange('numerology', e.target.value)} className="w-full bg-transparent border-b text-center font-serif" />
+                            ) : (
+                                <div className="font-serif text-lg">{card.numerology || '-'}</div>
+                            )}
+                        </div>
+                        <div className="text-center p-2 border-l border-white/5">
+                            <div className="text-[10px] uppercase text-gold-400 font-bold tracking-widest mb-1">Döntés</div>
+                            {isEditing ? (
+                                <input value={editedCard.decision || ''} onChange={e => handleInputChange('decision', e.target.value)} className="w-full bg-transparent border-b text-center font-serif" />
+                            ) : (
+                                <div className="font-serif text-lg">{card.decision || '-'}</div>
+                            )}
                         </div>
                     </div>
 
@@ -431,39 +456,258 @@ export const CardDetailView = ({ card, theme, onBack }: { card: Card, theme: any
                         </div>
                     </div>
 
-                    {/* History & Symbolism */}
-                    {(card.history || card.symbolism || isEditing) && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-                            {(card.history || isEditing) && (
+                    {/* New Layout: 2 Cols for Colors + History, then 1 Full Width for Symbolism */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+
+                        {/* Colors Section */}
+                        {(card.colors?.length > 0 || isEditing) && (
+                            <div className="p-6 bg-black/20 rounded-2xl border border-white/5 h-full">
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-white/60 mb-4 flex items-center gap-2">
+                                    <span>🎨</span> Színek & Hangulat
+                                </h3>
+                                {isEditing ? (
+                                    <div className="space-y-2">
+                                        {(editedCard.colors || []).map((col, idx) => (
+                                            <div key={col.id} className="flex gap-3 items-center">
+                                                <input
+                                                    type="color"
+                                                    value={col.colorCode}
+                                                    onChange={e => {
+                                                        const newCols = [...(editedCard.colors || [])];
+                                                        newCols[idx].colorCode = e.target.value;
+                                                        setEditedCard({...editedCard, colors: newCols});
+                                                    }}
+                                                    className="w-8 h-8 rounded cursor-pointer border-none bg-transparent"
+                                                />
+                                                <input
+                                                    value={col.description}
+                                                    onChange={e => {
+                                                        const newCols = [...(editedCard.colors || [])];
+                                                        newCols[idx].description = e.target.value;
+                                                        setEditedCard({...editedCard, colors: newCols});
+                                                    }}
+                                                    className="flex-1 bg-white/5 border border-white/10 rounded p-2 text-sm text-white"
+                                                    placeholder="Szín jelentése..."
+                                                />
+                                                <button
+                                                    onClick={() => {
+                                                        const newCols = [...(editedCard.colors || [])];
+                                                        newCols.splice(idx, 1);
+                                                        setEditedCard({...editedCard, colors: newCols});
+                                                    }}
+                                                    className="text-red-400 px-2"
+                                                >✕</button>
+                                            </div>
+                                        ))}
+                                        <button
+                                            onClick={() => setEditedCard({
+                                                ...editedCard,
+                                                colors: [...(editedCard.colors || []), { id: Date.now().toString(), colorCode: '#ffffff', description: '' }]
+                                            })}
+                                            className="text-xs font-bold uppercase text-gold-400 border border-gold-500/30 px-3 py-1 rounded"
+                                        >
+                                            + Új Szín
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-wrap gap-4">
+                                        {card.colors!.map(col => (
+                                            <div key={col.id} className="flex items-center gap-3 bg-white/5 pr-4 rounded-full border border-white/5">
+                                                <div className="w-8 h-8 rounded-full border border-white/20 shadow-lg" style={{backgroundColor: col.colorCode}}></div>
+                                                <span className="text-sm text-gray-300">{col.description}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* History Section */}
+                        {(card.history || isEditing) && (
+                            <div className="p-6 bg-black/20 rounded-2xl border border-white/5 h-full">
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-white/60 mb-3 flex items-center gap-2">
+                                    <span>📜</span> Történet & Eredet
+                                </h3>
+                                {isEditing ? (
+                                    <MarkdownEditor
+                                        value={editedCard.history || ''}
+                                        onChange={(val) => handleInputChange('history', val)}
+                                        height="h-32"
+                                    />
+                                ) : (
+                                    <MarkdownRenderer content={card.history} className="text-sm text-gray-400 leading-relaxed text-justify" />
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Symbolism Section (Full Width) */}
+                    {(card.symbolism || isEditing) && (
+                        <div className="mb-10">
+                            <h3 className="text-sm font-bold uppercase tracking-widest text-white/60 mb-3 flex items-center gap-2">
+                                <span>👁️</span> Szimbolika
+                            </h3>
+                            {isEditing ? (
+                                <div className="space-y-4">
+                                    <MarkdownEditor
+                                        value={editedCard.symbolism || ''}
+                                        onChange={(val) => handleInputChange('symbolism', val)}
+                                        height="h-32"
+                                    />
+                                    <div className="border-t border-white/10 pt-4">
+                                        <label className="block text-[10px] uppercase font-bold text-white/40 mb-2">Szimbólum Lista</label>
+                                        {(editedCard.symbols || []).map((sym, idx) => (
+                                            <div key={sym.id} className="flex gap-2 items-center bg-black/20 p-2 rounded mb-2">
+                                                <button
+                                                    onClick={() => setShowIconPicker(idx)}
+                                                    className="w-10 h-10 bg-white/5 border border-white/10 rounded flex items-center justify-center hover:bg-gold-500/20 hover:border-gold-500 transition-colors"
+                                                >
+                                                    {sym.icon && GAME_ICONS[sym.icon] ? (
+                                                        <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current text-gold-400"><path d={GAME_ICONS[sym.icon]} /></svg>
+                                                    ) : (
+                                                        <span className="text-xs text-white/30">?</span>
+                                                    )}
+                                                </button>
+                                                <input
+                                                    value={sym.description}
+                                                    onChange={e => {
+                                                        const newSyms = [...(editedCard.symbols || [])];
+                                                        newSyms[idx].description = e.target.value;
+                                                        setEditedCard({...editedCard, symbols: newSyms});
+                                                    }}
+                                                    className="flex-1 bg-transparent border-b border-white/10 p-2 text-sm text-white focus:border-gold-500 outline-none"
+                                                    placeholder="Mit jelent ez a szimbólum?"
+                                                />
+                                                <button
+                                                    onClick={() => {
+                                                        const newSyms = [...(editedCard.symbols || [])];
+                                                        newSyms.splice(idx, 1);
+                                                        setEditedCard({...editedCard, symbols: newSyms});
+                                                    }}
+                                                    className="text-red-400 hover:text-red-500 px-2"
+                                                >✕</button>
+                                            </div>
+                                        ))}
+                                        <button
+                                            onClick={() => setEditedCard({
+                                                ...editedCard,
+                                                symbols: [...(editedCard.symbols || []), { id: Date.now().toString(), icon: '', description: '' }]
+                                            })}
+                                            className="text-xs font-bold uppercase tracking-widest text-gold-400 border border-gold-500/30 px-3 py-1.5 rounded hover:bg-gold-500/10"
+                                        >
+                                            + Szimbólum
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
                                 <div>
-                                    <h3 className="text-sm font-bold uppercase tracking-widest text-white/60 mb-3 flex items-center gap-2">
-                                        <span>📜</span> Történet & Eredet
-                                    </h3>
-                                    {isEditing ? (
-                                        <MarkdownEditor 
-                                            value={editedCard.history || ''}
-                                            onChange={(val) => handleInputChange('history', val)}
-                                            height="h-32"
-                                        />
-                                    ) : (
-                                        <MarkdownRenderer content={card.history} className="text-sm text-gray-400 leading-relaxed text-justify" />
+                                    <MarkdownRenderer content={card.symbolism} className="text-sm text-gray-400 leading-relaxed text-justify mb-4" />
+                                    {card.symbols && card.symbols.length > 0 && (
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                            {card.symbols.map(sym => (
+                                                <div key={sym.id} className="flex gap-3 items-center bg-white/5 p-2 rounded-lg border border-white/5 hover:border-gold-500/30 transition-colors">
+                                                    <div className="w-8 h-8 flex-shrink-0 bg-black/40 rounded-full flex items-center justify-center">
+                                                        {sym.icon && GAME_ICONS[sym.icon] && (
+                                                            <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current text-gold-400"><path d={GAME_ICONS[sym.icon]} /></svg>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-xs text-gray-300 font-serif leading-tight">{sym.description}</span>
+                                                </div>
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
                             )}
-                            {(card.symbolism || isEditing) && (
-                                <div>
-                                    <h3 className="text-sm font-bold uppercase tracking-widest text-white/60 mb-3 flex items-center gap-2">
-                                        <span>👁️</span> Szimbolika
-                                    </h3>
-                                    {isEditing ? (
-                                        <MarkdownEditor 
-                                            value={editedCard.symbolism || ''}
-                                            onChange={(val) => handleInputChange('symbolism', val)}
-                                            height="h-32"
-                                        />
-                                    ) : (
-                                        <MarkdownRenderer content={card.symbolism} className="text-sm text-gray-400 leading-relaxed text-justify" />
-                                    )}
+                        </div>
+                    )}
+
+                    {showIconPicker !== null && (
+                        <IconPicker
+                            onSelect={(iconKey) => {
+                                const newSyms = [...(editedCard.symbols || [])];
+                                if (showIconPicker !== null && newSyms[showIconPicker]) {
+                                    newSyms[showIconPicker].icon = iconKey;
+                                    setEditedCard({...editedCard, symbols: newSyms});
+                                }
+                                setShowIconPicker(null);
+                            }}
+                            onClose={() => setShowIconPicker(null)}
+                        />
+                    )}
+
+                    {/* Extended Data Section (Dynamic 3-col grid) */}
+                    {(card.extendedData?.length > 0 || isEditing) && (
+                        <div className="bg-black/20 p-8 rounded-3xl border border-white/10 mt-10 mb-10">
+                            <h3 className="text-xl font-serif font-bold text-white mb-6 flex items-center gap-3">
+                                <span>🧬</span> További Adatok
+                            </h3>
+                            {isEditing ? (
+                                <div className="space-y-4">
+                                    {(editedCard.extendedData || []).map((item, idx) => (
+                                        <div key={item.id || idx} className="flex gap-2 items-center bg-white/5 p-2 rounded">
+                                            <input
+                                                value={item.label}
+                                                onChange={e => {
+                                                    const newData = [...(editedCard.extendedData || [])];
+                                                    newData[idx].label = e.target.value;
+                                                    setEditedCard({...editedCard, extendedData: newData});
+                                                }}
+                                                className="bg-black/30 border border-white/10 rounded p-2 text-gold-400 font-bold text-xs w-1/3"
+                                                placeholder="Címke"
+                                            />
+                                            <input
+                                                value={item.value}
+                                                onChange={e => {
+                                                    const newData = [...(editedCard.extendedData || [])];
+                                                    newData[idx].value = e.target.value;
+                                                    setEditedCard({...editedCard, extendedData: newData});
+                                                }}
+                                                className="bg-black/30 border border-white/10 rounded p-2 text-white text-sm flex-1"
+                                                placeholder="Érték"
+                                            />
+                                            <button
+                                                onClick={() => {
+                                                    const newData = [...(editedCard.extendedData || [])];
+                                                    newData.splice(idx, 1);
+                                                    setEditedCard({...editedCard, extendedData: newData});
+                                                }}
+                                                className="text-red-400 hover:text-red-500 px-2"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <button
+                                        onClick={() => setEditedCard({
+                                            ...editedCard,
+                                            extendedData: [...(editedCard.extendedData || []), { id: Date.now().toString(), label: '', value: '' }]
+                                        })}
+                                        className="text-xs font-bold uppercase tracking-widest text-gold-400 border border-gold-500/30 px-4 py-2 rounded-full hover:bg-gold-500/10"
+                                    >
+                                        + Új Adatmező
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className={`grid gap-6 grid-cols-1 ${card.extendedData!.length >= 2 ? 'md:grid-cols-2' : ''} ${card.extendedData!.length >= 3 ? 'lg:grid-cols-3' : ''}`}>
+                                    {card.extendedData!.map((item, idx) => {
+                                        // Logic: If total % 3 == 1 and this is the last item, span full width.
+                                        const total = card.extendedData!.length;
+                                        const isLast = idx === total - 1;
+                                        const remainder = total % 3;
+                                        // If we have 4 items: first 3 are cols, 4th is full width (remainder 1).
+                                        // If we have 1 item: full width.
+                                        const isFullWidth = (total === 1) || (total > 3 && remainder === 1 && isLast);
+
+                                        return (
+                                            <div
+                                                key={item.id}
+                                                className={`bg-white/5 border border-white/5 rounded-xl p-4 hover:bg-white/10 transition-colors ${isFullWidth ? 'lg:col-span-3' : ''}`}
+                                            >
+                                                <div className="text-[10px] uppercase font-bold text-gold-500 tracking-widest mb-1 opacity-70">{item.label}</div>
+                                                <div className="text-white text-sm font-serif leading-relaxed">{item.value}</div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>

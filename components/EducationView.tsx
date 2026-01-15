@@ -25,6 +25,7 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
     
     // Learn Mode State
     const [selectedCategory, setSelectedCategory] = useState<LessonCategory | 'all'>('all');
+    const [selectedDifficulty, setSelectedDifficulty] = useState<LessonDifficulty | 'all'>('all');
     const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
     const [viewingCard, setViewingCard] = useState<Card | null>(null);
 
@@ -48,6 +49,7 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
     
     const [isCardSelectorOpen, setIsCardSelectorOpen] = useState(false);
     const [isIconSelectorOpen, setIsIconSelectorOpen] = useState(false);
+    const [newLessonIsPublic, setNewLessonIsPublic] = useState(false);
 
     // Market Mode State
     const [marketLessons, setMarketLessons] = useState<Lesson[]>([]);
@@ -55,7 +57,14 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
 
     const completedIds = currentUser?.completedLessons || [];
     const collectedIds = currentUser?.lessonCollection || [];
-    const filteredLessons = allLessons.filter(l => selectedCategory === 'all' || l.category === selectedCategory);
+
+    const filteredLessons = allLessons.filter(l => {
+        const catMatch = selectedCategory === 'all' || l.category === selectedCategory;
+        const diffMatch = selectedDifficulty === 'all' || l.difficulty === selectedDifficulty;
+        // Visibility: System lessons (no userId), Public custom lessons, or Own lessons
+        const visibilityMatch = !l.userId || l.isPublic || l.userId === currentUser?.id || currentUser?.isAdmin;
+        return catMatch && diffMatch && visibilityMatch;
+    });
 
     // --- LOGIC ---
 
@@ -142,6 +151,7 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
             setNewLessonIcon(lesson.icon || "📝");
             setNewLessonXp(lesson.xpReward || 20);
             setNewLessonQuiz(lesson.quizQuestions || []);
+            setNewLessonIsPublic(!!lesson.isPublic);
         } else {
             setEditingId(null);
             setNewLessonTitle("");
@@ -154,6 +164,7 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
             setNewLessonIcon("📝");
             setNewLessonXp(20);
             setNewLessonQuiz([]);
+            setNewLessonIsPublic(false);
         }
         setViewMode('build');
     };
@@ -178,7 +189,8 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
             quizQuestions: newLessonQuiz,
             isCustom: true,
             author: currentUser?.name || 'Ismeretlen',
-            userId: currentUser?.id
+            userId: currentUser?.id,
+            isPublic: newLessonIsPublic
         };
 
         if (editingId) {
@@ -567,6 +579,11 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
                             </div>
                         </div>
 
+                        <label className={`flex items-center gap-2 cursor-pointer p-3 rounded-xl border transition-all ${newLessonIsPublic ? 'bg-green-500/20 border-green-500' : 'bg-white/5 border-white/10'}`}>
+                            <input type="checkbox" checked={newLessonIsPublic} onChange={e => setNewLessonIsPublic(e.target.checked)} className="hidden" />
+                            <span className="text-sm font-bold text-white">{newLessonIsPublic ? '🌐 Publikus (Mások is láthatják)' : '🔒 Privát (Csak én látom)'}</span>
+                        </label>
+
                         <textarea value={newLessonDesc} onChange={e => setNewLessonDesc(e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white h-20 resize-none" placeholder="Rövid leírás..." />
                         <MarkdownEditor value={newLessonContent} onChange={setNewLessonContent} height="h-80" placeholder="Lecke tartalma..." />
 
@@ -661,11 +678,23 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
                 </div>
             </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-6 mb-4 custom-scrollbar justify-start md:justify-center">
-                <button onClick={() => setSelectedCategory('all')} className={`px-6 py-3 rounded-xl font-bold text-sm border ${selectedCategory === 'all' ? 'bg-white text-black border-white' : 'bg-white/5 text-white/50 border-white/10'}`}>Összes</button>
-                {CATEGORIES.map(cat => (
-                    <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className={`px-6 py-3 rounded-xl font-bold text-sm border transition-all whitespace-nowrap ${selectedCategory === cat.id ? `bg-gradient-to-r ${cat.color} text-white border-transparent shadow-lg` : 'bg-white/5 text-white/50 border-white/10'}`}>{cat.label}</button>
-                ))}
+            {/* Filters */}
+            <div className="space-y-4 mb-8">
+                {/* Category Filter */}
+                <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar justify-start md:justify-center">
+                    <button onClick={() => setSelectedCategory('all')} className={`px-4 py-2 rounded-lg font-bold text-xs border ${selectedCategory === 'all' ? 'bg-white text-black border-white' : 'bg-white/5 text-white/50 border-white/10'}`}>Minden Téma</button>
+                    {CATEGORIES.map(cat => (
+                        <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className={`px-4 py-2 rounded-lg font-bold text-xs border transition-all whitespace-nowrap ${selectedCategory === cat.id ? `bg-gradient-to-r ${cat.color} text-white border-transparent shadow-lg` : 'bg-white/5 text-white/50 border-white/10'}`}>{cat.label}</button>
+                    ))}
+                </div>
+
+                {/* Difficulty Filter */}
+                <div className="flex gap-2 justify-center flex-wrap">
+                    <button onClick={() => setSelectedDifficulty('all')} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${selectedDifficulty === 'all' ? 'bg-white/20 text-white border-white/30' : 'bg-transparent text-white/30 border-white/10'}`}>Minden Szint</button>
+                    <button onClick={() => setSelectedDifficulty('beginner')} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${selectedDifficulty === 'beginner' ? 'bg-green-500/20 text-green-300 border-green-500/50' : 'bg-transparent text-white/30 border-white/10'}`}>Kezdő</button>
+                    <button onClick={() => setSelectedDifficulty('intermediate')} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${selectedDifficulty === 'intermediate' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50' : 'bg-transparent text-white/30 border-white/10'}`}>Haladó</button>
+                    <button onClick={() => setSelectedDifficulty('advanced')} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${selectedDifficulty === 'advanced' ? 'bg-red-500/20 text-red-300 border-red-500/50' : 'bg-transparent text-white/30 border-white/10'}`}>Mester</button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -676,6 +705,7 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
                     const isCustom = lesson.isCustom;
                     const canEdit = lesson.userId === currentUser?.id || currentUser?.isAdmin;
                     const displayColor = lesson.color || catTheme?.color || 'from-gray-700 to-gray-800';
+                    const diffLabel = lesson.difficulty === 'beginner' ? 'Kezdő' : lesson.difficulty === 'intermediate' ? 'Haladó' : 'Mester';
                     
                     return (
                         <div 
@@ -689,11 +719,13 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
                                     <div className="flex gap-2">
                                         {done && <div className="bg-green-500/20 text-green-400 p-1 rounded-full border border-green-500/50">✓</div>}
                                         {isCustom && <div className="bg-blue-500/20 text-blue-300 px-2 py-1 rounded text-[10px] font-bold border border-blue-500/50">EGYÉNI</div>}
+                                        {lesson.isPublic && <div className="bg-purple-500/20 text-purple-300 px-2 py-1 rounded text-[10px] font-bold border border-purple-500/50">PUBLIKUS</div>}
+                                        {isCustom && !lesson.isPublic && <div className="bg-white/10 text-white/50 px-2 py-1 rounded text-[10px] font-bold border border-white/20">PRIVÁT</div>}
                                     </div>
                                 </div>
                                 <div className="mb-1 flex items-center gap-2">
                                     <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">{catTheme?.label}</span>
-                                    <span className={`text-[9px] px-1.5 py-0.5 rounded border ${lesson.difficulty === 'beginner' ? 'border-green-500/30 text-green-300' : lesson.difficulty === 'intermediate' ? 'border-yellow-500/30 text-yellow-300' : 'border-red-500/30 text-red-300'}`}>{lesson.difficulty}</span>
+                                    <span className={`text-[9px] px-1.5 py-0.5 rounded border ${lesson.difficulty === 'beginner' ? 'border-green-500/30 text-green-300' : lesson.difficulty === 'intermediate' ? 'border-yellow-500/30 text-yellow-300' : 'border-red-500/30 text-red-300'}`}>{diffLabel}</span>
                                 </div>
                                 <h3 className="text-xl font-serif font-bold text-white mb-2 group-hover:text-gold-400 transition-colors">{lesson.title}</h3>
                                 <p className="text-sm text-gray-400 mb-6 line-clamp-3 leading-relaxed flex-1">{lesson.description}</p>

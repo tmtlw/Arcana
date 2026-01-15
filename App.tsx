@@ -461,12 +461,21 @@ const AppContent = () => {
                                         </button>
                                     )}
                                 </div>
-                                <button 
-                                    onClick={handleLogout}
-                                    className="px-6 py-2 rounded-lg bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:text-red-200 text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-2"
-                                >
-                                    <span>🚪</span> Kijelentkezés
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => window.location.href = window.location.pathname + '?force=true'}
+                                        className="px-4 py-2 rounded-lg bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 hover:text-blue-200 text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-2"
+                                        title="Kényszerített frissítés (Cache törlése)"
+                                    >
+                                        <span>🔄</span> Frissítés
+                                    </button>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="px-6 py-2 rounded-lg bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:text-red-200 text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-2"
+                                    >
+                                        <span>🚪</span> Kijelentkezés
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

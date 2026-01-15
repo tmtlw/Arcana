@@ -517,22 +517,33 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                     <thead className="bg-[#2a2a3c] text-white/50 text-xs uppercase sticky top-0">
                                         <tr>
                                             <th className="p-4">Megjelenített Név / ID</th>
-                                            <th className="p-4">Személyes Adatok</th>
+                                            <th className="p-4">Aktivitás</th>
                                             <th className="p-4">Státusz</th>
                                             <th className="p-4 text-right">Művelet</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/5">
-                                        {users.map(u => (
+                                        {users.map(u => {
+                                            // Mock timestamps if not available in current interface
+                                            // Ideally these come from the backend/firestore metadata
+                                            // Since we are mocking or using simple interface, we'll try to show what we have or placeholder
+                                            // In a real Firebase setup, these would be user.metadata.creationTime / lastSignInTime
+                                            // Assuming we might have them or will treat them as 'N/A' for now if not in types.ts
+                                            // But the user requested them, so let's check types.ts
+                                            // types.ts User interface doesn't have createdAt/lastLogin.
+                                            // We will display placeholders or infer if possible, but request says "látszódjon".
+                                            // I will modify the display to include columns for them, even if data is N/A for now.
+                                            // And remove the "Personal Data" column.
+
+                                            return (
                                             <tr key={u.id} className="hover:bg-[#1e1e2e] transition-colors cursor-pointer" onClick={() => setSelectedItem(u)}>
                                                 <td className="p-4">
                                                     <div className="font-bold text-white">{u.name}</div>
                                                     <div className="text-xs text-gray-500 font-mono">{u.id}</div>
                                                 </td>
                                                 <td className="p-4 text-gray-400 font-mono text-xs">
-                                                    <div>Valódi Név: {maskData(u.realName)}</div>
-                                                    <div>Születési idő: {maskData(u.birthTime)}</div>
-                                                    <div>Születési dátum: {u.birthDate || '-'}</div>
+                                                    <div>Reg: {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'}</div>
+                                                    <div>Login: {u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : 'N/A'}</div>
                                                 </td>
                                                 <td className="p-4 text-gray-400">
                                                     {u.isAdmin ? <span className="text-red-400 font-bold">ADMIN</span> : (u.isAnonymous ? 'Vendég' : 'Regisztrált')}
@@ -543,7 +554,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                                     {!u.isAdmin && <DeleteButton onClick={() => handleDelete(u.id, u.id, 'user', u.name)} />}
                                                 </td>
                                             </tr>
-                                        ))}
+                                        )})}
                                     </tbody>
                                 </table>
                             )}
