@@ -30,6 +30,7 @@ import { Spread, Card } from './types';
 import { t } from './services/i18nService';
 import { AstroService } from './services/astroService'; // Import AstroService
 import { UpdateService, UpdateResponse } from './services/UpdateService'; // Import UpdateService Logic
+import { TutorialOverlay, TutorialStep } from './components/TutorialOverlay'; // Import Tutorial
 
 // Inline UpdateNotification to avoid module loading errors in copy-and-run environment
 const UpdateNotification: React.FC = () => {
@@ -276,6 +277,16 @@ const AppContent = () => {
     const [viewProfileId, setViewProfileId] = useState<string | undefined>(undefined);
     const [spreadBuilderMode, setSpreadBuilderMode] = useState<'simple'|'advanced'>('simple');
     
+    // Tutorial State
+    const [isTutorialActive, setIsTutorialActive] = useState(false);
+    const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
+
+    const TUTORIAL_STEPS: TutorialStep[] = [
+        { targetId: 'app-header-logo', title: 'Üdvözöllek az Arkánumban!', content: 'Ez a te spirituális útitársad. Kezdjük egy rövid bemutatóval!', position: 'bottom' },
+        { targetId: 'spread-selector-container', title: 'Válassz Kirakást', content: 'Itt találod a különböző élethelyzetekre szóló kártyavetéseket. Válassz egyet a kezdéshez!', position: 'top' },
+        // Future steps would require logic to wait for view change
+    ];
+
     // Header Astro Info
     const today = useMemo(() => new Date(), []);
     const headerAstro = useMemo(() => AstroService.getAstroData(today, userLocation || undefined), [today, userLocation]);
@@ -297,6 +308,15 @@ const AppContent = () => {
         setReadingDate(date);
         setView('reading');
         setIsMenuOpen(false);
+        // If tutorial active, maybe advance step?
+        // For now, simpler implementation.
+    };
+
+    const startTutorial = () => {
+        setIsTutorialActive(true);
+        setTutorialStepIndex(0);
+        setIsMenuOpen(false);
+        setView('dashboard');
     };
 
     const handleSelectCard = (card: Card) => {
@@ -378,7 +398,7 @@ const AppContent = () => {
                     <div className="flex justify-between items-center px-4 py-3">
                         
                         {/* Logo & Title Area - UPDATED */}
-                        <div className="flex items-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => navigateTo('dashboard')}>
+                        <div id="app-header-logo" className="flex items-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => navigateTo('dashboard')}>
                             <span className="text-3xl filter drop-shadow-[0_0_10px_rgba(251,191,36,0.6)] mr-3">🔮</span>
                             
                             {/* Vertical Divider */}
@@ -428,6 +448,19 @@ const AppContent = () => {
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                                <div className="space-y-3">
+                                    <h3 className="text-xs font-bold uppercase text-gold-500 tracking-widest mb-2 border-b border-white/5 pb-2">
+                                        Kezdés
+                                    </h3>
+                                    <button
+                                        onClick={startTutorial}
+                                        className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition-colors group text-gray-400 hover:text-white hover:bg-white/5"
+                                    >
+                                        <span className="text-lg">🎓</span>
+                                        <span className="text-sm font-bold">Kezdő Utazás (Tutorial)</span>
+                                    </button>
+                                </div>
+
                                 {menuGroups.map((group, idx) => (
                                     <div key={idx} className="space-y-3">
                                         <h3 className="text-xs font-bold uppercase text-gold-500 tracking-widest mb-2 border-b border-white/5 pb-2">
@@ -516,6 +549,14 @@ const AppContent = () => {
                 {view === 'numerology' && <NumerologyView onBack={() => setView('dashboard')} />}
                 {view === 'astro' && <AstroCalendarView onBack={() => setView('dashboard')} onStartReading={startReading} />}
                 {view === 'badges' && <BadgesView onBack={() => setView('dashboard')} />}
+                {isTutorialActive && (
+                    <TutorialOverlay
+                        steps={TUTORIAL_STEPS}
+                        currentStepIndex={tutorialStepIndex}
+                        onNextStep={() => setTutorialStepIndex(prev => prev + 1)}
+                        onComplete={() => { setIsTutorialActive(false); alert("Gratulálok, kész az alapozó!"); }}
+                    />
+                )}
             </main>
         </div>
     );

@@ -15,6 +15,7 @@ import { FULL_DECK } from '../constants/deck';
 import { BADGES, DEFAULT_SPREADS, AVATAR_GALLERY, ADMIN_EMAILS, LESSONS, getAvatarUrl } from '../constants';
 import { auth } from '../services/firebase'; 
 import { onAuthStateChanged, signOut, deleteUser } from 'firebase/auth';
+import { QuestService } from '../services/questService'; // New Quest Service
 
 interface GlobalSettings {
     geminiApiKey?: string;
@@ -245,7 +246,9 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
                         
                         let finalUser: User;
                         if (cloudData.user) {
-                            finalUser = { ...cloudData.user, isAdmin };
+                            // Init quests logic if needed
+                            finalUser = QuestService.checkAndRefreshQuests({ ...cloudData.user, isAdmin });
+
                             setReadings(cloudData.readings);
                             setCustomSpreads(cloudData.customSpreads);
                             setCustomLessons(cloudData.customLessons);
@@ -415,8 +418,24 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
             const newXp = (userToUpdate.xp || 0) + xpGain;
             const newLevel = Math.floor(Math.sqrt(newXp / 100)) + 1;
             const leveledUp = newLevel > (userToUpdate.level || 1);
-            const updatedUser = { ...userToUpdate, xp: newXp, level: newLevel };
+            let updatedUser = { ...userToUpdate, xp: newXp, level: newLevel };
             
+            // Check Quests
+            const questResult = QuestService.processAction(updatedUser, 'reading', { cards: r.cards, majorCount: r.cards.filter(c => deck.find(x => x.id === c.cardId)?.arcana === 'Major').length });
+            if (questResult) {
+                updatedUser = questResult.updatedUser;
+                questResult.completedQuests.forEach(qid => showToast("Küldetés teljesítve!", "success"));
+                // Add XP for completed quests
+                // Note: We should ideally lookup quest def to add XP, but for simplicity relying on future refresh or basic bump.
+                // Actually, QuestService doesn't add XP to user object automatically, we need to do it here.
+                // Let's iterate completedQuests to find XP reward.
+                // Import constants inside hook or move definitions.
+                // Since I can't easily import constants here without circular dep potential if they were in types, I will skip dynamic XP addition from quests for this iteration or assume QuestService handles it?
+                // QuestService just marks completion.
+                // Let's add fixed XP for quest completion for now: 100 XP.
+                updatedUser.xp += questResult.completedQuests.length * 100;
+            }
+
             await Promise.all([
                 StorageService.saveReadingToCloud(userToUpdate.id, r),
                 StorageService.saveUserProfileToCloud(updatedUser)

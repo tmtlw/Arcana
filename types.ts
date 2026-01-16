@@ -292,6 +292,7 @@ export interface User {
 
   lessonCollection?: string[];
   deckCollection?: string[];
+  activeQuests?: UserQuestProgress[]; // Quest Progress Tracking
 }
 
 export interface ThemeColors {
@@ -349,4 +350,25 @@ export interface ChineseHoroscope {
     career: string;
     description: string;
     famousPeople: string;
+}
+
+export interface Quest {
+    id: string;
+    title: string;
+    description: string;
+    rewardXP: number;
+    badgeId?: string; // Optional reward
+    type: 'daily' | 'weekly' | 'milestone';
+    target: number; // e.g. 3 readings
+    conditionType: 'reading_count' | 'lesson_read' | 'card_draw' | 'login_streak' | 'share';
+    conditionDetail?: string; // e.g. "morning" for readings, or specific card ID
+    icon: string;
+}
+
+export interface UserQuestProgress {
+    questId: string;
+    progress: number;
+    isCompleted: boolean;
+    claimed: boolean;
+    expiresAt?: string; // For daily/weekly rotation
 }

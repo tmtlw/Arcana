@@ -9,6 +9,7 @@ import { CardImage } from './CardImage';
 import { CommunityService } from '../services/communityService';
 import { AstroService } from '../services/astroService';
 import { t } from '../services/i18nService';
+import { QuestLog } from './QuestLog'; // Import QuestLog
 
 export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => {
     const { currentUser, readings, allSpreads, deleteCustomSpread, deck, activeDeck, showToast, userLocation, language, activeThemeKey, toggleFavoriteSpread, communityEvents } = useTarot();
@@ -274,106 +275,114 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                             </div>
                         </div>
 
-                        {/* RIGHT SIDE: Compact Calendar */}
-                        <div className="w-full lg:w-72 glass-panel p-3 rounded-xl bg-black/20 border border-white/10 flex-shrink-0 self-start">
-                            <div className="flex justify-between items-center mb-2 pb-2 border-b border-white/5">
-                                <button onClick={() => changeMonth(-1)} className="hover:bg-white/10 rounded px-2 text-xs">◄</button>
-                                <span className="font-bold uppercase tracking-widest text-gold-500 text-xs">
-                                    {calDate.getFullYear()} {monthNames[calDate.getMonth()]}
-                                </span>
-                                <button onClick={() => changeMonth(1)} className="hover:bg-white/10 rounded px-2 text-xs">►</button>
+                        {/* RIGHT SIDE: Compact Calendar & Quests */}
+                        <div className="w-full lg:w-72 flex-shrink-0 self-start space-y-4">
+                            {/* Calendar */}
+                            <div className="glass-panel p-3 rounded-xl bg-black/20 border border-white/10">
+                                <div className="flex justify-between items-center mb-2 pb-2 border-b border-white/5">
+                                    <button onClick={() => changeMonth(-1)} className="hover:bg-white/10 rounded px-2 text-xs">◄</button>
+                                    <span className="font-bold uppercase tracking-widest text-gold-500 text-xs">
+                                        {calDate.getFullYear()} {monthNames[calDate.getMonth()]}
+                                    </span>
+                                    <button onClick={() => changeMonth(1)} className="hover:bg-white/10 rounded px-2 text-xs">►</button>
+                                </div>
+                                <div className="grid grid-cols-7 gap-1 text-center text-[9px] mb-1 font-bold opacity-40">
+                                    <div>H</div><div>K</div><div>S</div><div>C</div><div>P</div><div>S</div><div>V</div>
+                                </div>
+                                <div className="grid grid-cols-7 gap-1">
+                                    {getCalendarDays().map((d, i) => {
+                                        if (d === null) return <div key={`empty-${i}`} className="aspect-square"></div>;
+
+                                        const dayDate = new Date(calDate.getFullYear(), calDate.getMonth(), d);
+                                        const dayReadings = getReadingsForDay(d);
+                                        const dayEvents = getEventsForDay(d);
+
+                                        const astroDay = AstroService.getAstroData(dayDate, userLocation || undefined);
+                                        const wiccanDay = AstroService.getWiccanHoliday(dayDate);
+
+                                        const isCurrentDay = isToday(d);
+                                        const hasReading = dayReadings.length > 0;
+
+                                        const currentPhase = astroDay.moonPhase;
+                                        let moonClass = "";
+                                        if (currentPhase === 'Telihold' || currentPhase === 'Újhold') {
+                                            // Streak logic for mini-calendar with unique 1-2-3 rule
+                                            let streakBefore = 0;
+                                            let streakAfter = 0;
+                                            for (let offset = 1; offset <= 5; offset++) {
+                                                const checkD = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate() - offset);
+                                                const checkA = AstroService.getAstroData(checkD, userLocation || undefined);
+                                                if (checkA.moonPhase === currentPhase) streakBefore++;
+                                                else break;
+                                            }
+                                            for (let offset = 1; offset <= 5; offset++) {
+                                                const checkD = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate() + offset);
+                                                const checkA = AstroService.getAstroData(checkD, userLocation || undefined);
+                                                if (checkA.moonPhase === currentPhase) streakAfter++;
+                                                else break;
+                                            }
+
+                                            const streakLength = streakBefore + streakAfter + 1;
+                                            const midIndex = Math.floor(streakLength / 2);
+                                            const currentIndexInStreak = streakBefore;
+
+                                            if (currentIndexInStreak === midIndex) {
+                                                // Peak
+                                                moonClass = "ring-1 ring-white/30 bg-white/5";
+                                            } else if (currentIndexInStreak === midIndex - 1) {
+                                                // Glowing
+                                                moonClass = currentPhase === 'Telihold'
+                                                    ? "animate-pulse-slow shadow-[0_0_15px_rgba(251,191,36,0.6)] ring-1 ring-gold-500/50"
+                                                    : "animate-pulse-slow shadow-[0_0_15px_rgba(59,130,246,0.5)] ring-1 ring-blue-500/50";
+                                            } else if (currentIndexInStreak === midIndex + 1) {
+                                                // Faded
+                                                moonClass = "opacity-40 grayscale-[0.7]";
+                                            }
+                                        }
+
+                                        const hasEvent = dayEvents.length > 0 || wiccanDay || currentPhase === 'Telihold' || currentPhase === 'Újhold';
+
+                                        let iconContent: React.ReactNode = d;
+                                        let tooltip = `${d}.`;
+
+                                        // PRIORITÁS: Húzás > Sabbat > Hold > Közösségi Esemény > Szám
+                                        if (hasReading) {
+                                            iconContent = <span className="text-lg filter drop-shadow-md">🎴</span>;
+                                            tooltip += " - Húzás elvégezve";
+                                        } else if (wiccanDay) {
+                                            iconContent = <span className="text-lg filter drop-shadow-md">{wiccanDay.icon}</span>;
+                                            tooltip += ` - ${wiccanDay.name}`;
+                                        } else if (currentPhase === 'Telihold') {
+                                            iconContent = <span className={`text-lg filter drop-shadow-md ${moonClass}`}>🌕</span>;
+                                            tooltip += " - Telihold";
+                                        } else if (currentPhase === 'Újhold') {
+                                            iconContent = <span className={`text-lg filter drop-shadow-md ${moonClass}`}>🌑</span>;
+                                            tooltip += " - Újhold";
+                                        } else if (dayEvents.length > 0) {
+                                            iconContent = <span className="text-lg filter drop-shadow-md">✨</span>;
+                                            tooltip += " - Közösségi szeánsz";
+                                        }
+
+                                        return (
+                                            <div
+                                                key={d}
+                                                onClick={() => handleDayClick(d)}
+                                                title={tooltip}
+                                                className={`aspect-square flex items-center justify-center rounded cursor-pointer text-xs relative transition-all duration-300 ${isCurrentDay ? 'bg-gold-500 text-black font-bold ring-2 ring-gold-400/50' : 'hover:bg-white/10 bg-white/5'} ${hasReading && !isCurrentDay ? 'bg-indigo-500/20 border border-indigo-500/50' : ''} ${(hasEvent && !hasReading) ? 'ring-1 ring-white/10' : ''} ${moonClass}`}
+                                            >
+                                                {iconContent}
+                                                {dayEvents.length > 0 && !hasReading && !wiccanDay && currentPhase !== 'Telihold' && currentPhase !== 'Újhold' && (
+                                                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full border border-black"></div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                            <div className="grid grid-cols-7 gap-1 text-center text-[9px] mb-1 font-bold opacity-40">
-                                <div>H</div><div>K</div><div>S</div><div>C</div><div>P</div><div>S</div><div>V</div>
-                            </div>
-                            <div className="grid grid-cols-7 gap-1">
-                                {getCalendarDays().map((d, i) => {
-                                    if (d === null) return <div key={`empty-${i}`} className="aspect-square"></div>;
-                                    
-                                    const dayDate = new Date(calDate.getFullYear(), calDate.getMonth(), d);
-                                    const dayReadings = getReadingsForDay(d);
-                                    const dayEvents = getEventsForDay(d);
-                                    
-                                    const astroDay = AstroService.getAstroData(dayDate, userLocation || undefined);
-                                    const wiccanDay = AstroService.getWiccanHoliday(dayDate);
-                                    
-                                    const isCurrentDay = isToday(d);
-                                    const hasReading = dayReadings.length > 0;
-                                    
-                                    const currentPhase = astroDay.moonPhase;
-                                    let moonClass = "";
-                                    if (currentPhase === 'Telihold' || currentPhase === 'Újhold') {
-                                        // Streak logic for mini-calendar with unique 1-2-3 rule
-                                        let streakBefore = 0;
-                                        let streakAfter = 0;
-                                        for (let offset = 1; offset <= 5; offset++) {
-                                            const checkD = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate() - offset);
-                                            const checkA = AstroService.getAstroData(checkD, userLocation || undefined);
-                                            if (checkA.moonPhase === currentPhase) streakBefore++;
-                                            else break;
-                                        }
-                                        for (let offset = 1; offset <= 5; offset++) {
-                                            const checkD = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate() + offset);
-                                            const checkA = AstroService.getAstroData(checkD, userLocation || undefined);
-                                            if (checkA.moonPhase === currentPhase) streakAfter++;
-                                            else break;
-                                        }
 
-                                        const streakLength = streakBefore + streakAfter + 1;
-                                        const midIndex = Math.floor(streakLength / 2);
-                                        const currentIndexInStreak = streakBefore;
-
-                                        if (currentIndexInStreak === midIndex) {
-                                            // Peak
-                                            moonClass = "ring-1 ring-white/30 bg-white/5";
-                                        } else if (currentIndexInStreak === midIndex - 1) {
-                                            // Glowing
-                                            moonClass = currentPhase === 'Telihold' 
-                                                ? "animate-pulse-slow shadow-[0_0_15px_rgba(251,191,36,0.6)] ring-1 ring-gold-500/50" 
-                                                : "animate-pulse-slow shadow-[0_0_15px_rgba(59,130,246,0.5)] ring-1 ring-blue-500/50";
-                                        } else if (currentIndexInStreak === midIndex + 1) {
-                                            // Faded
-                                            moonClass = "opacity-40 grayscale-[0.7]";
-                                        }
-                                    }
-
-                                    const hasEvent = dayEvents.length > 0 || wiccanDay || currentPhase === 'Telihold' || currentPhase === 'Újhold';
-
-                                    let iconContent: React.ReactNode = d;
-                                    let tooltip = `${d}.`;
-
-                                    // PRIORITÁS: Húzás > Sabbat > Hold > Közösségi Esemény > Szám
-                                    if (hasReading) {
-                                        iconContent = <span className="text-lg filter drop-shadow-md">🎴</span>;
-                                        tooltip += " - Húzás elvégezve";
-                                    } else if (wiccanDay) {
-                                        iconContent = <span className="text-lg filter drop-shadow-md">{wiccanDay.icon}</span>;
-                                        tooltip += ` - ${wiccanDay.name}`;
-                                    } else if (currentPhase === 'Telihold') {
-                                        iconContent = <span className={`text-lg filter drop-shadow-md ${moonClass}`}>🌕</span>;
-                                        tooltip += " - Telihold";
-                                    } else if (currentPhase === 'Újhold') {
-                                        iconContent = <span className={`text-lg filter drop-shadow-md ${moonClass}`}>🌑</span>;
-                                        tooltip += " - Újhold";
-                                    } else if (dayEvents.length > 0) {
-                                        iconContent = <span className="text-lg filter drop-shadow-md">✨</span>;
-                                        tooltip += " - Közösségi szeánsz";
-                                    }
-
-                                    return (
-                                        <div 
-                                            key={d} 
-                                            onClick={() => handleDayClick(d)} 
-                                            title={tooltip}
-                                            className={`aspect-square flex items-center justify-center rounded cursor-pointer text-xs relative transition-all duration-300 ${isCurrentDay ? 'bg-gold-500 text-black font-bold ring-2 ring-gold-400/50' : 'hover:bg-white/10 bg-white/5'} ${hasReading && !isCurrentDay ? 'bg-indigo-500/20 border border-indigo-500/50' : ''} ${(hasEvent && !hasReading) ? 'ring-1 ring-white/10' : ''} ${moonClass}`}
-                                        >
-                                            {iconContent}
-                                            {dayEvents.length > 0 && !hasReading && !wiccanDay && currentPhase !== 'Telihold' && currentPhase !== 'Újhold' && (
-                                                <div className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full border border-black"></div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                            {/* Quest Log Widget */}
+                            <div className="glass-panel p-4 rounded-xl bg-black/20 border border-white/10">
+                                <QuestLog />
                             </div>
                         </div>
                     </div>
@@ -394,7 +403,7 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                 </div>
 
                 {/* Spreads Horizontal Scroll */}
-                <div id="spread-selector">
+                <div id="spread-selector-container">
                     <div className="flex items-center gap-4 mb-4">
                         <div className="h-px bg-white/10 flex-1"></div>
                         <h3 className="text-xl font-serif font-bold text-gold-400 uppercase tracking-widest flex items-center gap-2">
@@ -548,7 +557,7 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                             )}
                         </div>
                         <div className="p-6 bg-black/40 border-t border-white/10">
-                            <button onClick={handleAddReadingForDate} className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl font-bold text-white shadow-lg hover:shadow-indigo-500/50 transition-all flex items-center justify-center gap-3 transform hover:-translate-y-1">
+                            <button id="btn-daily-reading" onClick={handleAddReadingForDate} className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl font-bold text-white shadow-lg hover:shadow-indigo-500/50 transition-all flex items-center justify-center gap-3 transform hover:-translate-y-1">
                                 <span className="text-xl">✨</span> {t('dashboard.day_reading', language)}
                             </button>
                         </div>
