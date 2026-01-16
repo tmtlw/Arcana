@@ -492,7 +492,7 @@ const AppContent = () => {
                 {view === 'communityDecks' && <CommunityDecksView onBack={() => setView('dashboard')} />}
                 {view === 'communitySpreads' && <CommunitySpreadsView onBack={() => setView('dashboard')} />}
                 {view === 'library' && <LibraryView deck={deck} theme={theme} onSelectCard={handleSelectCard} />}
-                {view === 'cardDetail' && selectedCard && <CardDetailView card={deck.find(c => c.id === selectedCard.id) || selectedCard} theme={theme} onBack={() => setView('library')} />}
+                {view === 'cardDetail' && selectedCard && <CardDetailView card={deck.find(c => c.id === selectedCard.id) || selectedCard} theme={theme} onBack={() => setView('library')} onNavigate={setSelectedCard} />}
                 {view === 'customSpread' && (
                     <div className="relative">
                         <div className="absolute top-0 right-0 z-10 p-2">

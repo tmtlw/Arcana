@@ -101,6 +101,36 @@ export const ReadingAnalysis = ({ reading, onClose, spread }: ReadingAnalysisPro
 
     if (!analysis) return <div className="p-8 text-center text-white/50">Betöltés...</div>;
 
+    // --- ASTRO DYNAMIC CONTEXT HELPER ---
+    const getAstroModifiers = (card: any) => {
+        if (!reading.astrology) return [];
+        const mods = [];
+        const { moonPhase, sunSign, moonSign } = reading.astrology;
+        const suit = card.suit;
+        const isAce = card.name.toLowerCase().includes('ász') || card.number === 1;
+
+        // Moon Phase Interactions
+        if (moonPhase === 'Telihold' && suit === 'Kelyhek') {
+            mods.push("🌕 A Telihold felerősíti ennek a lapnak az érzelmi mélységét.");
+        }
+        if (moonPhase === 'Újhold' && isAce) {
+            mods.push("🌑 Az Újhold energiája támogatja ezt az új kezdetet.");
+        }
+
+        // Element Matches (Sun Sign)
+        const fireSigns = ['Kos', 'Oroszlán', 'Nyilas'];
+        const waterSigns = ['Rák', 'Skorpió', 'Halak'];
+        const airSigns = ['Ikrek', 'Mérleg', 'Vízöntő'];
+        const earthSigns = ['Bika', 'Szűz', 'Bak'];
+
+        if (fireSigns.includes(sunSign) && suit === 'Botok') mods.push(`🔥 A ${sunSign} Napjegy extra lendületet ad a tetteknek.`);
+        if (waterSigns.includes(sunSign) && suit === 'Kelyhek') mods.push(`💧 A ${sunSign} Napjegy mélyíti az intuíciót.`);
+        if (airSigns.includes(sunSign) && suit === 'Kardok') mods.push(`💨 A ${sunSign} Napjegy segíti a tiszta gondolkodást.`);
+        if (earthSigns.includes(sunSign) && suit === 'Érmék') mods.push(`🌱 A ${sunSign} Napjegy segíti a fizikai megvalósítást.`);
+
+        return mods;
+    };
+
     // --- SUB-COMPONENTS ---
 
     const StatsTab = () => (
@@ -236,6 +266,22 @@ export const ReadingAnalysis = ({ reading, onClose, spread }: ReadingAnalysisPro
                                 </div>
                             </div>
                         )}
+
+                        {/* Astro Modifiers */}
+                        {(() => {
+                            const mods = getAstroModifiers(item.card);
+                            if (mods.length === 0) return null;
+                            return (
+                                <div className="bg-purple-900/20 p-3 rounded-xl border border-purple-500/30 mt-4 animate-pulse-slow">
+                                    <h4 className="text-[10px] uppercase font-bold text-purple-300 mb-1 flex items-center gap-1">
+                                        <span>🌌</span> Kozmikus Összhang
+                                    </h4>
+                                    <div className="text-xs text-purple-100 space-y-1">
+                                        {mods.map((m, i) => <div key={i}>{m}</div>)}
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </div>
                 </div>
             ))}

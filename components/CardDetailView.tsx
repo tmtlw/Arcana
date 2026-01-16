@@ -8,9 +8,10 @@ import { CardImage } from './CardImage';
 import { CompareView } from './CompareView';
 import { IconPicker } from './IconPicker';
 import { GAME_ICONS } from '../constants/gameIcons';
+import { useTarot } from '../context/TarotContext'; // Ensure context is used for deck navigation
 
-export const CardDetailView = ({ card, theme, onBack }: { card: Card, theme: any, onBack: () => void }) => {
-    const { activeDeck, updateCardData, resetCardData } = useTarot();
+export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card, theme: any, onBack: () => void, onNavigate?: (c: Card) => void }) => {
+    const { activeDeck, updateCardData, resetCardData, deck } = useTarot(); // Get full deck
     const [isEditing, setIsEditing] = useState(false);
     const [isDeckCompareMode, setIsDeckCompareMode] = useState(false);
     const [editedCard, setEditedCard] = useState<Card>(card);
@@ -21,6 +22,53 @@ export const CardDetailView = ({ card, theme, onBack }: { card: Card, theme: any
     useEffect(() => {
         setEditedCard(card);
     }, [card]);
+
+    // Keyboard Navigation
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (isEditing) return;
+            if (e.key === 'ArrowRight') handleNext();
+            if (e.key === 'ArrowLeft') handlePrev();
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [card, isEditing]);
+
+    const handleNext = () => {
+        if (!onNavigate || !deck) return;
+        const currentIndex = deck.findIndex(c => c.id === card.id);
+        if (currentIndex === -1) return;
+        const nextIndex = (currentIndex + 1) % deck.length;
+        onNavigate(deck[nextIndex]);
+    };
+
+    const handlePrev = () => {
+        if (!onNavigate || !deck) return;
+        const currentIndex = deck.findIndex(c => c.id === card.id);
+        if (currentIndex === -1) return;
+        const prevIndex = (currentIndex - 1 + deck.length) % deck.length;
+        onNavigate(deck[prevIndex]);
+    };
+
+    // Swipe Handling
+    const [touchStart, setTouchStart] = useState<number | null>(null);
+    const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+    const onTouchStart = (e: React.TouchEvent) => {
+        setTouchEnd(null);
+        setTouchStart(e.targetTouches[0].clientX);
+    };
+
+    const onTouchMove = (e: React.TouchEvent) => setTouchEnd(e.targetTouches[0].clientX);
+
+    const onTouchEnd = () => {
+        if (!touchStart || !touchEnd) return;
+        const distance = touchStart - touchEnd;
+        const isLeftSwipe = distance > 50;
+        const isRightSwipe = distance < -50;
+        if (isLeftSwipe) handleNext();
+        if (isRightSwipe) handlePrev();
+    };
 
     if (!card) return null;
 
@@ -114,12 +162,25 @@ export const CardDetailView = ({ card, theme, onBack }: { card: Card, theme: any
     };
 
     return (
-        <div className="animate-fade-in pb-20">
+        <div
+            className="animate-fade-in pb-20"
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+        >
             <div className="flex justify-between items-center mb-6">
                 <button onClick={onBack} className="flex items-center gap-2 text-sm font-bold opacity-70 hover:opacity-100 transition-opacity">
                     <span>&larr;</span> Vissza a könyvtárhoz
                 </button>
                 <div className="flex gap-2">
+                    {/* Navigation Buttons (Visible on Desktop) */}
+                    <button onClick={handlePrev} className="hidden md:block bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-bold border border-white/20 transition-colors mr-1">
+                        ◄ Előző
+                    </button>
+                    <button onClick={handleNext} className="hidden md:block bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-bold border border-white/20 transition-colors mr-2">
+                        Következő ►
+                    </button>
+
                     {!isEditing ? (
                         <>
                             <button
