@@ -1,5 +1,7 @@
 
 import { Quest, User, UserQuestProgress, Reading } from '../types';
+import { db } from './firebase';
+import { collection, addDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
 
 export const DAILY_QUESTS: Quest[] = [
     {
@@ -62,6 +64,35 @@ export const WEEKLY_QUESTS: Quest[] = [
 ];
 
 export const QuestService = {
+
+    // --- Community Quests (Firestore) ---
+
+    createQuest: async (quest: Quest): Promise<string | null> => {
+        if (!db) return null;
+        try {
+            const docRef = await addDoc(collection(db, 'quests'), {
+                ...quest,
+                createdAt: new Date().toISOString()
+            });
+            return docRef.id;
+        } catch (e) {
+            console.error("Error creating quest:", e);
+            return null;
+        }
+    },
+
+    getCommunityQuests: async (): Promise<Quest[]> => {
+        if (!db) return [];
+        try {
+            // Get public quests
+            const q = query(collection(db, 'quests'), where('isPublic', '==', true), orderBy('createdAt', 'desc'));
+            const snap = await getDocs(q);
+            return snap.docs.map(d => ({ id: d.id, ...d.data() } as Quest));
+        } catch (e) {
+            console.error("Error fetching quests:", e);
+            return [];
+        }
+    },
 
     // Initialize or Refresh User Quests
     checkAndRefreshQuests: (user: User): User => {

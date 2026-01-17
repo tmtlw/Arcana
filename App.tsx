@@ -26,6 +26,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { NumerologyView } from './components/NumerologyView';
 import { AstroCalendarView } from './components/AstroCalendarView';
 import { BadgesView } from './components/BadgesView'; // Új
+import { QuestView } from './components/QuestView'; // Import QuestView
 import { Spread, Card } from './types';
 import { t } from './services/i18nService';
 import { AstroService } from './services/astroService'; // Import AstroService
@@ -329,14 +330,6 @@ const AppContent = () => {
             startTutorial();
             return;
         }
-        if (v === 'quests') {
-            setView('dashboard');
-            setIsMenuOpen(false);
-            setTimeout(() => {
-                document.getElementById('quest-log-container')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 300);
-            return;
-        }
 
         if(v === 'customSpread') setSpreadToEdit(undefined);
         if(v === 'profile') setViewProfileId(param); 
@@ -372,7 +365,6 @@ const AppContent = () => {
             title: 'Misztikum',
             items: [
                 { id: 'badges', label: 'Jelvények', icon: '🏆' },
-                { id: 'quests', label: 'Kihívások', icon: '⚔️' }, // Added Quests
                 { id: 'astro', label: 'Holdnaptár', icon: '🌙' },
                 { id: 'numerology', label: 'Számmisztika', icon: '🔢' },
                 { id: 'stats', label: 'Elemzés', icon: '📊' },
@@ -383,6 +375,7 @@ const AppContent = () => {
             title: 'Közösség',
             items: [
                 { id: 'community', label: 'Faliújság', icon: '🌍' },
+                { id: 'quests', label: 'Kihívások', icon: '⚔️' }, // Moved to Community
                 { id: 'live', label: 'Távjóslás (Live)', icon: '📡' },
                 { id: 'communityDecks', label: 'Pakli Piactér', icon: '🎨' },
                 { id: 'communitySpreads', label: 'Kirakás Piactér', icon: '💠' },
@@ -551,6 +544,7 @@ const AppContent = () => {
                 {view === 'numerology' && <NumerologyView onBack={() => setView('dashboard')} />}
                 {view === 'astro' && <AstroCalendarView onBack={() => setView('dashboard')} onStartReading={startReading} />}
                 {view === 'badges' && <BadgesView onBack={() => setView('dashboard')} />}
+                {view === 'quests' && <QuestView onBack={() => setView('dashboard')} />}
                 {isTutorialActive && (
                     <TutorialOverlay
                         steps={TUTORIAL_STEPS}

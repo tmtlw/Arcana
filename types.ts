@@ -363,6 +363,14 @@ export interface Quest {
     conditionType: 'reading_count' | 'lesson_read' | 'card_draw' | 'login_streak' | 'share';
     conditionDetail?: string; // e.g. "morning" for readings, or specific card ID
     icon: string;
+
+    // Community Features
+    creatorId?: string;
+    creatorName?: string;
+    isPublic?: boolean;
+    createdAt?: string;
+    likes?: number;
+    participants?: string[];
 }
 
 export interface UserQuestProgress {

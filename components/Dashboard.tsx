@@ -9,7 +9,6 @@ import { CardImage } from './CardImage';
 import { CommunityService } from '../services/communityService';
 import { AstroService } from '../services/astroService';
 import { t } from '../services/i18nService';
-import { QuestLog } from './QuestLog'; // Import QuestLog
 
 export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => {
     const { currentUser, readings, allSpreads, deleteCustomSpread, deck, activeDeck, showToast, userLocation, language, activeThemeKey, toggleFavoriteSpread, communityEvents } = useTarot();
@@ -275,8 +274,8 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                             </div>
                         </div>
 
-                        {/* RIGHT SIDE: Compact Calendar & Quests */}
-                        <div className="w-full lg:w-72 flex-shrink-0 self-start space-y-4">
+                        {/* RIGHT SIDE: Compact Calendar */}
+                        <div className="w-full lg:w-72 flex-shrink-0 self-start">
                             {/* Calendar */}
                             <div className="glass-panel p-3 rounded-xl bg-black/20 border border-white/10">
                                 <div className="flex justify-between items-center mb-2 pb-2 border-b border-white/5">
@@ -378,11 +377,6 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                                         );
                                     })}
                                 </div>
-                            </div>
-
-                            {/* Quest Log Widget */}
-                            <div id="quest-log-container" className="glass-panel p-4 rounded-xl bg-black/20 border border-white/10">
-                                <QuestLog />
                             </div>
                         </div>
                     </div>
