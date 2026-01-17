@@ -8,7 +8,8 @@ import { CardImage } from './CardImage';
 import { CompareView } from './CompareView';
 import { IconPicker } from './IconPicker';
 import { GAME_ICONS } from '../constants/gameIcons';
-import { useTarot } from '../context/TarotContext'; // Ensure context is used for deck navigation
+// useTarot was imported twice (lines 3 and 11), removed one instance
+// import { useTarot } from '../context/TarotContext'; // Removed duplicate
 
 export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card, theme: any, onBack: () => void, onNavigate?: (c: Card) => void }) => {
     const { activeDeck, updateCardData, resetCardData, deck } = useTarot(); // Get full deck
