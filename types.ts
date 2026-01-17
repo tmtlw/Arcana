@@ -360,7 +360,7 @@ export interface Quest {
     badgeId?: string; // Optional reward
     type: 'daily' | 'weekly' | 'milestone' | 'community';
     target: number; // e.g. 3 readings
-    conditionType: 'reading_count' | 'lesson_read' | 'card_draw' | 'login_streak' | 'share' | 'challenge';
+    conditionType: 'reading_count' | 'lesson_read' | 'card_draw' | 'login_streak' | 'share' | 'challenge' | 'specific_spread';
     conditionDetail?: string; // e.g. "morning" for readings, or specific card ID
     icon: string;
 
@@ -374,6 +374,10 @@ export interface Quest {
     timeUnit?: 'hour' | 'day' | 'month' | 'sabbat' | 'moonphase';
     timeRangeStart?: string;
     timeRangeEnd?: string;
+
+    // Target & Scope
+    filterZodiac?: string; // Csillagjegy feltétel
+    targetSpreadId?: string; // Konkrét kirakás (saját vagy rendszer)
 
     visualEmoji?: string;
 

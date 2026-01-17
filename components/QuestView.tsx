@@ -1,16 +1,26 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTarot } from '../context/TarotContext';
 import { Quest, UserQuestProgress, Card } from '../types';
 import { QuestService, DAILY_QUESTS, WEEKLY_QUESTS } from '../services/questService';
-import { IconPicker } from './IconPicker';
-import { GAME_ICONS } from '../constants/gameIcons';
 import { FULL_DECK } from '../constants';
 
-const TAROT_EMOJIS = ['🔮', '🌙', '☀️', '⭐', '🃏', '🗡️', '🏆', '🌿', '🪙', '🔥', '💧', '🌬️', '🏔️', '🕯️', '🗝️', '📜', '⚖️', '🦁', '🐍', '🦅', '🐟', '💀', '🖤', '♾️', '🔔', '🌍', '👑', '🛡️', '🎭', '🎡'];
+const TAROT_EMOJIS = [
+    '🔮', '🌙', '☀️', '⭐', '🃏', '🗡️', '🏆', '🌿', '🪙', '🔥',
+    '💧', '🌬️', '🏔️', '🕯️', '🗝️', '📜', '⚖️', '🦁', '🐍', '🦅',
+    '🐟', '💀', '🖤', '♾️', '🔔', '🌍', '👑', '🛡️', '🎭', '🎡',
+    '🏺', '🏹', '🦂', '🦀', '👯', '🐂', '🐏', '🐐', '🌊', '🪨',
+    '🪵', '🍷', '💰', '🧿', '📖', '🚪', '🏰', '🏚️', '👼', '👹',
+    '🌕', '🌖', '🌗', '🌘', '🌑', '🌒', '🌓', '🌔'
+];
+
+const ZODIAC_SIGNS = ["Kos", "Bika", "Ikrek", "Rák", "Oroszlán", "Szűz", "Mérleg", "Skorpió", "Nyilas", "Bak", "Vízöntő", "Halak"];
+const SABBATS = ["Yule", "Imbolc", "Ostara", "Beltane", "Litha", "Lughnasadh", "Mabon", "Samhain"];
+const MOON_PHASES = ["Újhold", "Növő Hold", "Telihold", "Fogyó Hold"];
+const MONTHS = ["Január", "Február", "Március", "Április", "Május", "Június", "Július", "Augusztus", "Szeptember", "Október", "November", "December"];
 
 export const QuestView = ({ onBack }: { onBack: () => void }) => {
-    const { currentUser, updateUser, showToast } = useTarot();
+    const { currentUser, updateUser, showToast, allSpreads } = useTarot();
     const [activeTab, setActiveTab] = useState<'active' | 'community'>('active');
     const [communityQuests, setCommunityQuests] = useState<Quest[]>([]);
     const [isCreating, setIsCreating] = useState(false);
@@ -27,17 +37,17 @@ export const QuestView = ({ onBack }: { onBack: () => void }) => {
         conditionDetail: 'any',
         icon: 'fool_bag',
         isPublic: true,
-        // Új mezők alapértékei
         filterCardType: 'any',
         filterLogic: 'OR',
         filterCardIds: [],
         timeUnit: undefined,
         timeRangeStart: '',
         timeRangeEnd: '',
-        visualEmoji: ''
+        visualEmoji: '🔮',
+        filterZodiac: '',
+        targetSpreadId: ''
     });
 
-    const [showIconPicker, setShowIconPicker] = useState(false);
     const [cardSearch, setCardSearch] = useState('');
 
     useEffect(() => {
@@ -72,7 +82,6 @@ export const QuestView = ({ onBack }: { onBack: () => void }) => {
             showToast("Kihívás létrehozva!", "success");
             setIsCreating(false);
             loadCommunityQuests();
-            // Reset form
             setNewQuest({
                 title: '',
                 description: '',
@@ -89,7 +98,9 @@ export const QuestView = ({ onBack }: { onBack: () => void }) => {
                 timeUnit: undefined,
                 timeRangeStart: '',
                 timeRangeEnd: '',
-                visualEmoji: ''
+                visualEmoji: '🔮',
+                filterZodiac: '',
+                targetSpreadId: ''
             });
         } else {
             showToast("Hiba a mentés során.", "info");
@@ -129,6 +140,12 @@ export const QuestView = ({ onBack }: { onBack: () => void }) => {
 
     const filteredCards = FULL_DECK.filter(c => c.name.toLowerCase().includes(cardSearch.toLowerCase()));
 
+    const availableSpreads = useMemo(() => {
+        if (!allSpreads) return [];
+        // Show user's custom spreads AND public/default spreads
+        return allSpreads.filter(s => s.isCustom === false || s.userId === currentUser?.id || s.isPublic);
+    }, [allSpreads, currentUser]);
+
     const activeQuests = (currentUser?.activeQuests || []).map(uq => {
         const staticDef = [...DAILY_QUESTS, ...WEEKLY_QUESTS].find(q => q.id === uq.questId);
         const def = staticDef || communityQuests.find(q => q.id === uq.questId) || {
@@ -158,12 +175,8 @@ export const QuestView = ({ onBack }: { onBack: () => void }) => {
                         const percent = Math.min(100, Math.round((item.progress / (item.def.target || 1)) * 100));
                         return (
                             <div key={idx} className={`p-4 rounded-xl border flex gap-4 transition-colors ${item.isCompleted ? 'bg-green-900/20 border-green-500/50' : 'glass-panel border-white/10'}`}>
-                                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl border flex-shrink-0 ${item.isCompleted ? 'bg-green-500 text-black border-green-400' : 'bg-white/5 text-gold-400 border-white/10'}`}>
-                                    {item.def.visualEmoji ? item.def.visualEmoji : (
-                                        item.def.icon && GAME_ICONS[item.def.icon] ? (
-                                            <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current"><path d={GAME_ICONS[item.def.icon]} /></svg>
-                                        ) : (item.isCompleted ? '✓' : '⚔️')
-                                    )}
+                                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-3xl border flex-shrink-0 ${item.isCompleted ? 'bg-green-500 text-black border-green-400' : 'bg-white/5 text-gold-400 border-white/10'}`}>
+                                    {item.def.visualEmoji || (item.def.icon && item.def.icon.length < 5 ? item.def.icon : '⚔️')}
                                 </div>
                                 <div className="flex-1">
                                     <div className="flex justify-between items-start mb-1">
@@ -172,11 +185,10 @@ export const QuestView = ({ onBack }: { onBack: () => void }) => {
                                     </div>
                                     <p className="text-xs text-white/60 mb-3">{item.def.description}</p>
 
-                                    {/* Info badget for filters */}
                                     {item.def.timeUnit && (
                                         <div className="mb-2 inline-flex gap-2">
                                             <span className="text-[10px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded border border-blue-500/30 uppercase font-bold">
-                                                ⏱ {item.def.timeUnit} {item.def.timeRangeStart && `(${item.def.timeRangeStart} - ${item.def.timeRangeEnd})`}
+                                                ⏱ {item.def.timeUnit} {item.def.timeRangeStart && `(${item.def.timeRangeStart})`}
                                             </span>
                                         </div>
                                     )}
@@ -224,6 +236,7 @@ export const QuestView = ({ onBack }: { onBack: () => void }) => {
                                     <select value={newQuest.conditionType} onChange={e => setNewQuest({...newQuest, conditionType: e.target.value as any})} className="w-full bg-black/30 border border-white/10 rounded p-2 text-white">
                                         <option value="reading_count">Húzás (Darabszám)</option>
                                         <option value="card_draw">Kártya Megtalálása</option>
+                                        <option value="specific_spread">Konkrét Kirakás</option>
                                         <option value="lesson_read">Lecke Elolvasása</option>
                                         <option value="challenge">Egyedi Kihívás</option>
                                     </select>
@@ -233,6 +246,25 @@ export const QuestView = ({ onBack }: { onBack: () => void }) => {
                                     <label className="block text-[10px] uppercase font-bold text-white/50 mb-1">Mennyiség (Cél)</label>
                                     <input type="number" value={newQuest.target} onChange={e => setNewQuest({...newQuest, target: Number(e.target.value)})} className="w-full bg-black/30 border border-white/10 rounded p-2 text-white" min="1" />
                                 </div>
+
+                                {/* --- SPREAD SELECTOR (Ha type = specific_spread) --- */}
+                                {newQuest.conditionType === 'specific_spread' && (
+                                    <div className="md:col-span-2 bg-white/5 p-4 rounded-xl border border-white/10 mt-2">
+                                        <h4 className="text-xs font-bold text-gold-400 uppercase mb-3 border-b border-white/10 pb-1">Válassz Kirakást</h4>
+                                        <select
+                                            value={newQuest.targetSpreadId || ''}
+                                            onChange={e => setNewQuest({...newQuest, targetSpreadId: e.target.value})}
+                                            className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs"
+                                        >
+                                            <option value="">-- Válassz egy kirakást a listából --</option>
+                                            {availableSpreads.map(s => (
+                                                <option key={s.id} value={s.id}>
+                                                    {s.name} ({s.isCustom ? 'Saját' : 'Rendszer'})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
 
                                 {/* --- KÁRTYA SZŰRŐK (Ha típus = card_draw) --- */}
                                 {newQuest.conditionType === 'card_draw' && (
@@ -267,24 +299,29 @@ export const QuestView = ({ onBack }: { onBack: () => void }) => {
                                                 <div className="md:col-span-2">
                                                     <label className="block text-[10px] uppercase font-bold text-white/50 mb-1">Kártyák Kiválasztása ({(newQuest.filterCardIds || []).length})</label>
 
-                                                    {/* Search & List */}
                                                     <input
-                                                        placeholder="Keress kártyát..."
+                                                        placeholder="Keress kártyát név szerint..."
                                                         value={cardSearch}
                                                         onChange={e => setCardSearch(e.target.value)}
-                                                        className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs mb-2"
+                                                        className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs mb-2 focus:border-gold-500 outline-none"
                                                     />
 
-                                                    <div className="h-32 overflow-y-auto custom-scrollbar bg-black/20 rounded border border-white/5 p-2 grid grid-cols-2 gap-1">
-                                                        {filteredCards.map(c => (
-                                                            <button
-                                                                key={c.id}
-                                                                onClick={() => toggleCardId(c.id)}
-                                                                className={`text-left px-2 py-1 rounded text-xs truncate ${newQuest.filterCardIds?.includes(c.id) ? 'bg-gold-500 text-black font-bold' : 'text-gray-400 hover:bg-white/5'}`}
-                                                            >
-                                                                {newQuest.filterCardIds?.includes(c.id) ? '✓ ' : ''}{c.name}
-                                                            </button>
-                                                        ))}
+                                                    <div className="h-60 overflow-y-auto custom-scrollbar bg-black/20 rounded border border-white/5 p-2 grid grid-cols-2 gap-2">
+                                                        {filteredCards.map(c => {
+                                                            const isSelected = newQuest.filterCardIds?.includes(c.id);
+                                                            return (
+                                                                <button
+                                                                    key={c.id}
+                                                                    onClick={() => toggleCardId(c.id)}
+                                                                    className={`flex items-center gap-2 text-left px-3 py-2 rounded text-xs transition-colors border ${isSelected ? 'bg-gold-500/20 border-gold-500 text-gold-300' : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'}`}
+                                                                >
+                                                                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-gold-500 border-gold-500' : 'border-white/20'}`}>
+                                                                        {isSelected && <span className="text-black text-[10px] font-bold">✓</span>}
+                                                                    </div>
+                                                                    <span className="truncate">{c.name}</span>
+                                                                </button>
+                                                            );
+                                                        })}
                                                     </div>
 
                                                     <div className="mt-2 flex items-center gap-2">
@@ -310,15 +347,16 @@ export const QuestView = ({ onBack }: { onBack: () => void }) => {
                                     </div>
                                 )}
 
-                                {/* --- IDŐZÍTÉS --- */}
+                                {/* --- IDŐZÍTÉS & HOROSZKÓP --- */}
                                 <div className="md:col-span-2 bg-white/5 p-4 rounded-xl border border-white/10 mt-2">
-                                    <h4 className="text-xs font-bold text-blue-300 uppercase mb-3 border-b border-white/10 pb-1">Időzítés & Egység</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <h4 className="text-xs font-bold text-blue-300 uppercase mb-3 border-b border-white/10 pb-1">Időzítés & Asztrológia</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Időegység */}
                                         <div>
                                             <label className="block text-[10px] uppercase font-bold text-white/50 mb-1">Időegység</label>
                                             <select
                                                 value={newQuest.timeUnit || ''}
-                                                onChange={e => setNewQuest({...newQuest, timeUnit: e.target.value as any || undefined})}
+                                                onChange={e => setNewQuest({...newQuest, timeUnit: e.target.value as any || undefined, timeRangeStart: '', timeRangeEnd: ''})}
                                                 className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs"
                                             >
                                                 <option value="">Nincs (Bármikor)</option>
@@ -329,58 +367,120 @@ export const QuestView = ({ onBack }: { onBack: () => void }) => {
                                                 <option value="moonphase">Holdállás</option>
                                             </select>
                                         </div>
+
+                                        {/* Idő Értékek (Dinamikus Dropdown) */}
                                         {newQuest.timeUnit && (
-                                            <>
-                                                <div>
-                                                    <label className="block text-[10px] uppercase font-bold text-white/50 mb-1">Kezdet / Érték</label>
-                                                    <input
+                                            <div>
+                                                <label className="block text-[10px] uppercase font-bold text-white/50 mb-1">
+                                                    {newQuest.timeUnit === 'hour' ? 'Kezdet - Vég (Óra)' : 'Válassz Értéket'}
+                                                </label>
+
+                                                {newQuest.timeUnit === 'sabbat' ? (
+                                                    <select
                                                         value={newQuest.timeRangeStart}
                                                         onChange={e => setNewQuest({...newQuest, timeRangeStart: e.target.value})}
-                                                        placeholder={newQuest.timeUnit === 'hour' ? '12:00' : 'Érték...'}
                                                         className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-[10px] uppercase font-bold text-white/50 mb-1">Vég (Opcionális)</label>
-                                                    <input
-                                                        value={newQuest.timeRangeEnd}
-                                                        onChange={e => setNewQuest({...newQuest, timeRangeEnd: e.target.value})}
-                                                        placeholder={newQuest.timeUnit === 'hour' ? '13:00' : '-'}
+                                                    >
+                                                        <option value="">-- Válassz Sabbatot --</option>
+                                                        {SABBATS.map(s => <option key={s} value={s}>{s}</option>)}
+                                                    </select>
+                                                ) : newQuest.timeUnit === 'moonphase' ? (
+                                                    <select
+                                                        value={newQuest.timeRangeStart}
+                                                        onChange={e => setNewQuest({...newQuest, timeRangeStart: e.target.value})}
                                                         className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs"
-                                                    />
-                                                </div>
-                                            </>
+                                                    >
+                                                        <option value="">-- Válassz Holdfázist --</option>
+                                                        {MOON_PHASES.map(m => <option key={m} value={m}>{m}</option>)}
+                                                    </select>
+                                                ) : newQuest.timeUnit === 'month' ? (
+                                                    <select
+                                                        value={newQuest.timeRangeStart}
+                                                        onChange={e => setNewQuest({...newQuest, timeRangeStart: e.target.value})}
+                                                        className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs"
+                                                    >
+                                                        <option value="">-- Válassz Hónapot --</option>
+                                                        {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+                                                    </select>
+                                                ) : newQuest.timeUnit === 'day' ? (
+                                                    <select
+                                                        value={newQuest.timeRangeStart}
+                                                        onChange={e => setNewQuest({...newQuest, timeRangeStart: e.target.value})}
+                                                        className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs"
+                                                    >
+                                                        <option value="">-- Válassz Napot --</option>
+                                                        <option value="Hétfő">Hétfő</option>
+                                                        <option value="Kedd">Kedd</option>
+                                                        <option value="Szerda">Szerda</option>
+                                                        <option value="Csütörtök">Csütörtök</option>
+                                                        <option value="Péntek">Péntek</option>
+                                                        <option value="Szombat">Szombat</option>
+                                                        <option value="Vasárnap">Vasárnap</option>
+                                                    </select>
+                                                ) : (
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            value={newQuest.timeRangeStart}
+                                                            onChange={e => setNewQuest({...newQuest, timeRangeStart: e.target.value})}
+                                                            placeholder="Kezdet..."
+                                                            className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs"
+                                                        />
+                                                        <input
+                                                            value={newQuest.timeRangeEnd}
+                                                            onChange={e => setNewQuest({...newQuest, timeRangeEnd: e.target.value})}
+                                                            placeholder="Vég..."
+                                                            className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs"
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
                                         )}
+
+                                        {/* Horoszkóp Szűrő */}
+                                        <div className="md:col-span-2 pt-2 border-t border-white/5">
+                                            <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!!newQuest.filterZodiac}
+                                                    onChange={e => setNewQuest({...newQuest, filterZodiac: e.target.checked ? ZODIAC_SIGNS[0] : ''})}
+                                                    className="w-4 h-4 bg-black/50 border-white/20 rounded accent-gold-500"
+                                                />
+                                                <span className="text-xs font-bold text-white">Csak adott csillagjegy számára?</span>
+                                            </label>
+
+                                            {newQuest.filterZodiac && (
+                                                <select
+                                                    value={newQuest.filterZodiac}
+                                                    onChange={e => setNewQuest({...newQuest, filterZodiac: e.target.value})}
+                                                    className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs"
+                                                >
+                                                    {ZODIAC_SIGNS.map(z => <option key={z} value={z}>{z}</option>)}
+                                                </select>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
                                 {/* --- Ikon és Emoji --- */}
                                 <div>
-                                    <label className="block text-[10px] uppercase font-bold text-white/50 mb-1">Vizuális Megjelenés</label>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => setShowIconPicker(true)} className="flex-1 flex items-center justify-center gap-2 bg-white/10 px-4 py-2 rounded text-sm text-white border border-white/10 hover:bg-white/20">
-                                            {newQuest.icon && GAME_ICONS[newQuest.icon] ? (
-                                                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current text-gold-400"><path d={GAME_ICONS[newQuest.icon]} /></svg>
-                                            ) : <span>SVG Ikon</span>}
+                                    <label className="block text-[10px] uppercase font-bold text-white/50 mb-1">Vizuális Megjelenés (Emoji)</label>
+                                    <div className="relative group">
+                                        <button className="w-full h-12 bg-white/10 rounded flex items-center justify-between px-4 text-2xl border border-white/10 hover:bg-white/20 transition-colors">
+                                            <span>{newQuest.visualEmoji || 'Válassz...'}</span>
+                                            <span className="text-xs text-white/30">▼</span>
                                         </button>
 
-                                        {/* Emoji Picker Dropdown Trigger */}
-                                        <div className="relative group">
-                                            <button className="h-full aspect-square bg-white/10 rounded flex items-center justify-center text-xl border border-white/10 hover:bg-white/20">
-                                                {newQuest.visualEmoji || '😀'}
-                                            </button>
-                                            <div className="absolute bottom-full right-0 mb-2 p-2 bg-[#1e1e2e] border border-white/20 rounded-xl shadow-2xl w-64 grid grid-cols-6 gap-2 hidden group-hover:grid z-50">
-                                                <button onClick={() => setNewQuest({...newQuest, visualEmoji: ''})} className="col-span-6 text-[10px] text-center bg-red-500/20 text-red-300 rounded hover:bg-red-500/40">Nincs Emoji</button>
-                                                {TAROT_EMOJIS.map(emoji => (
-                                                    <button
-                                                        key={emoji}
-                                                        onClick={() => setNewQuest({...newQuest, visualEmoji: emoji})}
-                                                        className="aspect-square hover:bg-white/10 rounded flex items-center justify-center text-lg"
-                                                    >
-                                                        {emoji}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                        {/* Emoji Grid */}
+                                        <div className="absolute bottom-full left-0 mb-2 p-3 bg-[#1e1e2e] border border-white/20 rounded-xl shadow-2xl w-full max-w-sm grid grid-cols-8 gap-2 hidden group-hover:grid z-50 h-64 overflow-y-auto custom-scrollbar">
+                                            {TAROT_EMOJIS.map(emoji => (
+                                                <button
+                                                    key={emoji}
+                                                    onClick={() => setNewQuest({...newQuest, visualEmoji: emoji})}
+                                                    className="aspect-square hover:bg-white/10 rounded flex items-center justify-center text-lg transition-colors border border-transparent hover:border-white/10"
+                                                >
+                                                    {emoji}
+                                                </button>
+                                            ))}
                                         </div>
                                     </div>
                                 </div>
@@ -394,8 +494,6 @@ export const QuestView = ({ onBack }: { onBack: () => void }) => {
                             <button onClick={handleCreateQuest} disabled={isLoading} className="w-full py-3 bg-green-600 hover:bg-green-500 rounded-lg font-bold text-white shadow-lg transition-all mt-4">
                                 {isLoading ? 'Mentés...' : 'Kihívás Közzététele'}
                             </button>
-
-                            {showIconPicker && <IconPicker onSelect={(icon) => { setNewQuest({...newQuest, icon}); setShowIconPicker(false); }} onClose={() => setShowIconPicker(false)} />}
                         </div>
                     )}
 
@@ -405,25 +503,31 @@ export const QuestView = ({ onBack }: { onBack: () => void }) => {
                         {communityQuests.map(quest => (
                             <div key={quest.id} className="glass-panel p-6 rounded-2xl border border-white/10 flex flex-col hover:border-gold-500/30 transition-colors group">
                                 <div className="flex justify-between items-start mb-4">
-                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center text-gold-400 border border-white/10 group-hover:scale-110 transition-transform text-2xl">
-                                        {quest.visualEmoji ? quest.visualEmoji : (
-                                            quest.icon && GAME_ICONS[quest.icon] ? (
-                                                <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current"><path d={GAME_ICONS[quest.icon]} /></svg>
-                                            ) : '⚔️'
-                                        )}
+                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center text-3xl border border-white/10 group-hover:scale-110 transition-transform">
+                                        {quest.visualEmoji || (quest.icon && quest.icon.length < 5 ? quest.icon : '⚔️')}
                                     </div>
                                     <span className="text-xs font-bold text-gold-400 bg-gold-500/10 px-2 py-1 rounded border border-gold-500/20">+{quest.rewardXP} XP</span>
                                 </div>
                                 <h4 className="text-lg font-bold text-white mb-2">{quest.title}</h4>
                                 <p className="text-xs text-white/60 mb-4 flex-1 leading-relaxed">{quest.description}</p>
 
-                                {quest.timeUnit && (
-                                    <div className="mb-4 pt-2 border-t border-white/5">
+                                <div className="space-y-1 mb-4">
+                                    {quest.timeUnit && (
                                         <div className="text-[10px] text-blue-300 font-bold uppercase flex items-center gap-1">
-                                            <span>⏱</span> {quest.timeUnit}
+                                            <span>⏱</span> {quest.timeUnit} {quest.timeRangeStart && `(${quest.timeRangeStart})`}
                                         </div>
-                                    </div>
-                                )}
+                                    )}
+                                    {quest.filterZodiac && (
+                                        <div className="text-[10px] text-purple-300 font-bold uppercase flex items-center gap-1">
+                                            <span>♈</span> Csak: {quest.filterZodiac}
+                                        </div>
+                                    )}
+                                    {quest.conditionType === 'specific_spread' && (
+                                        <div className="text-[10px] text-green-300 font-bold uppercase flex items-center gap-1">
+                                            <span>🃏</span> Konkrét Kirakás
+                                        </div>
+                                    )}
+                                </div>
 
                                 <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
                                     <div className="text-[10px] text-white/30">
