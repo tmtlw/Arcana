@@ -85,9 +85,17 @@ export const QuestService = {
         if (!db) return [];
         try {
             // Get public quests
-            const q = query(collection(db, 'quests'), where('isPublic', '==', true), orderBy('createdAt', 'desc'));
+            // Removed orderBy('createdAt', 'desc') to avoid composite index error on development.
+            // Sorting will be done client-side.
+            const q = query(collection(db, 'quests'), where('isPublic', '==', true));
             const snap = await getDocs(q);
-            return snap.docs.map(d => ({ id: d.id, ...d.data() } as Quest));
+            const quests = snap.docs.map(d => ({ id: d.id, ...d.data() } as Quest));
+            // Sort by createdAt desc
+            return quests.sort((a, b) => {
+                const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return db - da;
+            });
         } catch (e) {
             console.error("Error fetching quests:", e);
             return [];
