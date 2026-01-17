@@ -325,6 +325,19 @@ const AppContent = () => {
     };
 
     const navigateTo = (v: string, param?: string) => {
+        if (v === 'tutorial') {
+            startTutorial();
+            return;
+        }
+        if (v === 'quests') {
+            setView('dashboard');
+            setIsMenuOpen(false);
+            setTimeout(() => {
+                document.getElementById('quest-log-container')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+            return;
+        }
+
         if(v === 'customSpread') setSpreadToEdit(undefined);
         if(v === 'profile') setViewProfileId(param); 
         else setViewProfileId(undefined); 
@@ -359,6 +372,7 @@ const AppContent = () => {
             title: 'Misztikum',
             items: [
                 { id: 'badges', label: 'Jelvények', icon: '🏆' },
+                { id: 'quests', label: 'Kihívások', icon: '⚔️' }, // Added Quests
                 { id: 'astro', label: 'Holdnaptár', icon: '🌙' },
                 { id: 'numerology', label: 'Számmisztika', icon: '🔢' },
                 { id: 'stats', label: 'Elemzés', icon: '📊' },
@@ -377,6 +391,7 @@ const AppContent = () => {
         {
             title: 'Eszközök',
             items: [
+                { id: 'tutorial', label: 'Kezdő Utazás', icon: '🎓' }, // Added Tutorial
                 { id: 'customSpread', label: 'Kirakás Tervező', icon: '✨' },
                 { id: 'deckBuilder', label: 'Pakli Műhely', icon: '🖌️' },
                 { id: 'education', label: 'Tanulás', icon: '📚' },
@@ -448,19 +463,6 @@ const AppContent = () => {
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                                <div className="space-y-3">
-                                    <h3 className="text-xs font-bold uppercase text-gold-500 tracking-widest mb-2 border-b border-white/5 pb-2">
-                                        Kezdés
-                                    </h3>
-                                    <button
-                                        onClick={startTutorial}
-                                        className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition-colors group text-gray-400 hover:text-white hover:bg-white/5"
-                                    >
-                                        <span className="text-lg">🎓</span>
-                                        <span className="text-sm font-bold">Kezdő Utazás (Tutorial)</span>
-                                    </button>
-                                </div>
-
                                 {menuGroups.map((group, idx) => (
                                     <div key={idx} className="space-y-3">
                                         <h3 className="text-xs font-bold uppercase text-gold-500 tracking-widest mb-2 border-b border-white/5 pb-2">

@@ -381,7 +381,7 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                             </div>
 
                             {/* Quest Log Widget */}
-                            <div className="glass-panel p-4 rounded-xl bg-black/20 border border-white/10">
+                            <div id="quest-log-container" className="glass-panel p-4 rounded-xl bg-black/20 border border-white/10">
                                 <QuestLog />
                             </div>
                         </div>
