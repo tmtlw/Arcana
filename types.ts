@@ -358,11 +358,24 @@ export interface Quest {
     description: string;
     rewardXP: number;
     badgeId?: string; // Optional reward
-    type: 'daily' | 'weekly' | 'milestone';
+    type: 'daily' | 'weekly' | 'milestone' | 'community';
     target: number; // e.g. 3 readings
-    conditionType: 'reading_count' | 'lesson_read' | 'card_draw' | 'login_streak' | 'share';
+    conditionType: 'reading_count' | 'lesson_read' | 'card_draw' | 'login_streak' | 'share' | 'challenge';
     conditionDetail?: string; // e.g. "morning" for readings, or specific card ID
     icon: string;
+
+    // Extended Challenge Filters
+    filterCardType?: 'major' | 'minor' | 'suit' | 'specific' | 'any';
+    filterSuit?: 'Kelyhek' | 'Érmék' | 'Kardok' | 'Botok';
+    filterCardIds?: string[];
+    filterLogic?: 'AND' | 'OR';
+
+    // Timing and Limits
+    timeUnit?: 'hour' | 'day' | 'month' | 'sabbat' | 'moonphase';
+    timeRangeStart?: string;
+    timeRangeEnd?: string;
+
+    visualEmoji?: string;
 
     // Community Features
     creatorId?: string;
