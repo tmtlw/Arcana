@@ -292,6 +292,7 @@ export interface User {
 
   lessonCollection?: string[];
   deckCollection?: string[];
+  activeQuests?: UserQuestProgress[]; // Quest Progress Tracking
 }
 
 export interface ThemeColors {
@@ -306,4 +307,76 @@ export interface ToastMessage {
     id: string;
     text: string;
     type: 'success' | 'info';
+}
+
+export interface WesternHoroscope {
+    id: string;
+    name: string;
+    dates: string;
+    symbol: string;
+    rulingPlanet: string;
+    houseRuled: string;
+    element: string;
+    mode: string;
+    keyword: string;
+    description: string;
+    strengths: string[];
+    weaknesses: string[];
+    likes: string[];
+    dislikes: string[];
+    color: string;
+    luckyGem: string;
+    flower: string;
+    day: string;
+    numbers: string;
+    mostCompatible: string;
+    leastCompatible: string;
+}
+
+export interface ChineseHoroscope {
+    id: string;
+    name: string;
+    luckyNumbers: string;
+    unluckyNumbers: string;
+    luckyFlowers: string;
+    luckyColors: string;
+    unluckyColors: string;
+    luckyDirections: string;
+    unluckyDirections: string;
+    loveCompatibility: {
+        best: string;
+        worst: string;
+    };
+    career: string;
+    description: string;
+    famousPeople: string;
+}
+
+export interface Quest {
+    id: string;
+    title: string;
+    description: string;
+    rewardXP: number;
+    badgeId?: string; // Optional reward
+    type: 'daily' | 'weekly' | 'milestone';
+    target: number; // e.g. 3 readings
+    conditionType: 'reading_count' | 'lesson_read' | 'card_draw' | 'login_streak' | 'share';
+    conditionDetail?: string; // e.g. "morning" for readings, or specific card ID
+    icon: string;
+
+    // Community Features
+    creatorId?: string;
+    creatorName?: string;
+    isPublic?: boolean;
+    createdAt?: string;
+    likes?: number;
+    participants?: string[];
+}
+
+export interface UserQuestProgress {
+    questId: string;
+    progress: number;
+    isCompleted: boolean;
+    claimed: boolean;
+    expiresAt?: string; // For daily/weekly rotation
 }

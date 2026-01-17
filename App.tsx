@@ -26,10 +26,12 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { NumerologyView } from './components/NumerologyView';
 import { AstroCalendarView } from './components/AstroCalendarView';
 import { BadgesView } from './components/BadgesView'; // Új
+import { QuestView } from './components/QuestView'; // Import QuestView
 import { Spread, Card } from './types';
 import { t } from './services/i18nService';
 import { AstroService } from './services/astroService'; // Import AstroService
 import { UpdateService, UpdateResponse } from './services/UpdateService'; // Import UpdateService Logic
+import { TutorialOverlay, TutorialStep } from './components/TutorialOverlay'; // Import Tutorial
 
 // Inline UpdateNotification to avoid module loading errors in copy-and-run environment
 const UpdateNotification: React.FC = () => {
@@ -276,6 +278,16 @@ const AppContent = () => {
     const [viewProfileId, setViewProfileId] = useState<string | undefined>(undefined);
     const [spreadBuilderMode, setSpreadBuilderMode] = useState<'simple'|'advanced'>('simple');
     
+    // Tutorial State
+    const [isTutorialActive, setIsTutorialActive] = useState(false);
+    const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
+
+    const TUTORIAL_STEPS: TutorialStep[] = [
+        { targetId: 'app-header-logo', title: 'Üdvözöllek az Arkánumban!', content: 'Ez a te spirituális útitársad. Kezdjük egy rövid bemutatóval!', position: 'bottom' },
+        { targetId: 'spread-selector-container', title: 'Válassz Kirakást', content: 'Itt találod a különböző élethelyzetekre szóló kártyavetéseket. Válassz egyet a kezdéshez!', position: 'top' },
+        // Future steps would require logic to wait for view change
+    ];
+
     // Header Astro Info
     const today = useMemo(() => new Date(), []);
     const headerAstro = useMemo(() => AstroService.getAstroData(today, userLocation || undefined), [today, userLocation]);
@@ -297,6 +309,15 @@ const AppContent = () => {
         setReadingDate(date);
         setView('reading');
         setIsMenuOpen(false);
+        // If tutorial active, maybe advance step?
+        // For now, simpler implementation.
+    };
+
+    const startTutorial = () => {
+        setIsTutorialActive(true);
+        setTutorialStepIndex(0);
+        setIsMenuOpen(false);
+        setView('dashboard');
     };
 
     const handleSelectCard = (card: Card) => {
@@ -305,6 +326,11 @@ const AppContent = () => {
     };
 
     const navigateTo = (v: string, param?: string) => {
+        if (v === 'tutorial') {
+            startTutorial();
+            return;
+        }
+
         if(v === 'customSpread') setSpreadToEdit(undefined);
         if(v === 'profile') setViewProfileId(param); 
         else setViewProfileId(undefined); 
@@ -349,6 +375,7 @@ const AppContent = () => {
             title: 'Közösség',
             items: [
                 { id: 'community', label: 'Faliújság', icon: '🌍' },
+                { id: 'quests', label: 'Kihívások', icon: '⚔️' }, // Moved to Community
                 { id: 'live', label: 'Távjóslás (Live)', icon: '📡' },
                 { id: 'communityDecks', label: 'Pakli Piactér', icon: '🎨' },
                 { id: 'communitySpreads', label: 'Kirakás Piactér', icon: '💠' },
@@ -357,6 +384,7 @@ const AppContent = () => {
         {
             title: 'Eszközök',
             items: [
+                { id: 'tutorial', label: 'Kezdő Utazás', icon: '🎓' }, // Added Tutorial
                 { id: 'customSpread', label: 'Kirakás Tervező', icon: '✨' },
                 { id: 'deckBuilder', label: 'Pakli Műhely', icon: '🖌️' },
                 { id: 'education', label: 'Tanulás', icon: '📚' },
@@ -378,7 +406,7 @@ const AppContent = () => {
                     <div className="flex justify-between items-center px-4 py-3">
                         
                         {/* Logo & Title Area - UPDATED */}
-                        <div className="flex items-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => navigateTo('dashboard')}>
+                        <div id="app-header-logo" className="flex items-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => navigateTo('dashboard')}>
                             <span className="text-3xl filter drop-shadow-[0_0_10px_rgba(251,191,36,0.6)] mr-3">🔮</span>
                             
                             {/* Vertical Divider */}
@@ -492,7 +520,7 @@ const AppContent = () => {
                 {view === 'communityDecks' && <CommunityDecksView onBack={() => setView('dashboard')} />}
                 {view === 'communitySpreads' && <CommunitySpreadsView onBack={() => setView('dashboard')} />}
                 {view === 'library' && <LibraryView deck={deck} theme={theme} onSelectCard={handleSelectCard} />}
-                {view === 'cardDetail' && selectedCard && <CardDetailView card={deck.find(c => c.id === selectedCard.id) || selectedCard} theme={theme} onBack={() => setView('library')} />}
+                {view === 'cardDetail' && selectedCard && <CardDetailView card={deck.find(c => c.id === selectedCard.id) || selectedCard} theme={theme} onBack={() => setView('library')} onNavigate={setSelectedCard} />}
                 {view === 'customSpread' && (
                     <div className="relative">
                         <div className="absolute top-0 right-0 z-10 p-2">
@@ -516,6 +544,15 @@ const AppContent = () => {
                 {view === 'numerology' && <NumerologyView onBack={() => setView('dashboard')} />}
                 {view === 'astro' && <AstroCalendarView onBack={() => setView('dashboard')} onStartReading={startReading} />}
                 {view === 'badges' && <BadgesView onBack={() => setView('dashboard')} />}
+                {view === 'quests' && <QuestView onBack={() => setView('dashboard')} />}
+                {isTutorialActive && (
+                    <TutorialOverlay
+                        steps={TUTORIAL_STEPS}
+                        currentStepIndex={tutorialStepIndex}
+                        onNextStep={() => setTutorialStepIndex(prev => prev + 1)}
+                        onComplete={() => { setIsTutorialActive(false); alert("Gratulálok, kész az alapozó!"); }}
+                    />
+                )}
             </main>
         </div>
     );

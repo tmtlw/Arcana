@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTarot } from '../context/TarotContext';
 import { THEMES, BADGES, AVATAR_GALLERY, FULL_DECK, getAvatarUrl, CARD_BACKS, ZODIAC_INFO, QUICK_ACTION_OPTIONS, MOODS } from '../constants';
+import { WESTERN_HOROSCOPES } from '../constants/horoscopes_western';
+import { CHINESE_HOROSCOPES, getChineseZodiac } from '../constants/horoscopes_chinese';
 import { CardImage } from './CardImage'; 
 import { ThemeType, CardBackType, Reading, User, DeckMeta } from '../types';
 import { AstroService } from '../services/astroService';
@@ -41,7 +43,7 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
     const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'appearance' | 'account'>('overview');
     const [viewedUser, setViewedUser] = useState<User | null>(null);
     const [publicReadings, setPublicReadings] = useState<Reading[]>([]);
-    const [zodiacModal, setZodiacModal] = useState<{ type: 'Nap'|'Hold'|'Aszcendens', sign: string } | null>(null);
+    const [zodiacModal, setZodiacModal] = useState<{ type: 'Nap'|'Hold'|'Aszcendens'|'Kínai', sign: string } | null>(null);
     const [selectedReading, setSelectedReading] = useState<Reading | null>(null); // For detailed view
     
     // Local Edit States
@@ -181,7 +183,9 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
 
         const dateTimeString = `${viewedUser.birthDate}T${viewedUser.birthTime || "12:00"}:00`;
         const date = new Date(dateTimeString);
-        return AstroService.getAstroData(date, userLocation || undefined);
+        const western = AstroService.getAstroData(date, userLocation || undefined);
+        const chinese = getChineseZodiac(date.getFullYear());
+        return { ...western, chinese };
     }, [viewedUser, isOwnProfile, userLocation]);
 
     const updateSetting = (key: keyof User, value: any) => {
@@ -382,6 +386,15 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                                         </div>
                                         <div className="text-2xl font-serif font-bold text-white mb-1">{natalInfo.ascendant}</div>
                                         <div className="text-xs text-white/50">Megjelenés, Álarc, Út</div>
+                                    </div>
+
+                                    <div onClick={() => setZodiacModal({type: 'Kínai', sign: natalInfo.chinese.sign})} className="glass-panel p-4 rounded-xl border border-red-500/20 bg-gradient-to-r from-red-900/20 to-transparent cursor-pointer hover:border-red-500/50 transition-all group">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <div className="text-red-400 font-bold text-sm">Kínai Horoszkóp</div>
+                                            <div className="text-2xl group-hover:scale-110 transition-transform">🏮</div>
+                                        </div>
+                                        <div className="text-2xl font-serif font-bold text-white mb-1">{natalInfo.chinese.sign}</div>
+                                        <div className="text-xs text-white/50">{natalInfo.chinese.element} Elem</div>
                                     </div>
                                 </div>
                             )}
@@ -723,13 +736,194 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
 
             {zodiacModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={() => setZodiacModal(null)}>
-                    <div className="glass-panel-dark w-full max-w-md rounded-2xl p-6 border border-white/20 text-center relative shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => setZodiacModal(null)} className="absolute top-4 right-4 text-white/50 hover:text-white text-xl">✕</button>
-                        <div className="text-5xl mb-4 animate-float">{zodiacModal.type === 'Nap' ? '☀️' : zodiacModal.type === 'Hold' ? '🌕' : '🏹'}</div>
-                        <h3 className="text-2xl font-serif font-bold text-gold-400 mb-1">{zodiacModal.sign}</h3>
-                        <div className="text-gray-200 leading-relaxed text-sm bg-white/5 p-4 rounded-xl border border-white/5 text-justify mt-4">
-                            {ZODIAC_INFO[zodiacModal.sign]?.sun || "Nincs leírás."}
-                        </div>
+                    <div className="glass-panel-dark w-full max-w-2xl rounded-2xl p-6 border border-white/20 relative shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => setZodiacModal(null)} className="absolute top-4 right-4 text-white/50 hover:text-white text-xl z-10">✕</button>
+
+                        {zodiacModal.type === 'Kínai' ? (
+                            // CHINESE HOROSCOPE DETAIL
+                            (() => {
+                                const data = CHINESE_HOROSCOPES.find(h => h.name === zodiacModal.sign);
+                                if (!data) return <div className="text-center p-10">Nincs adat a '{zodiacModal.sign}' jegyről.</div>;
+                                return (
+                                    <div className="text-left space-y-6">
+                                        <div className="text-center">
+                                            <div className="text-6xl mb-4 animate-float">🏮</div>
+                                            <h3 className="text-3xl font-serif font-bold text-red-500 mb-1">{data.name}</h3>
+                                            <div className="text-white/50 text-sm font-bold uppercase tracking-widest">Kínai Horoszkóp</div>
+                                        </div>
+
+                                        <div className="bg-red-900/10 border border-red-500/20 p-4 rounded-xl text-center">
+                                            <p className="text-gray-200 italic leading-relaxed">"{data.description}"</p>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-3">
+                                                <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                                    <span className="text-xs font-bold text-gray-500 block">Szerencseszámok</span>
+                                                    <span className="text-white font-mono">{data.luckyNumbers}</span>
+                                                </div>
+                                                <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                                    <span className="text-xs font-bold text-gray-500 block">Szerencsevirágok</span>
+                                                    <span className="text-white">{data.luckyFlowers}</span>
+                                                </div>
+                                                <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                                    <span className="text-xs font-bold text-gray-500 block">Szerencseszínek</span>
+                                                    <span className="text-white">{data.luckyColors}</span>
+                                                </div>
+                                                <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                                    <span className="text-xs font-bold text-gray-500 block">Szerencsés Irányok</span>
+                                                    <span className="text-white">{data.luckyDirections}</span>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-3">
+                                                <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                                    <span className="text-xs font-bold text-gray-500 block">Kerülendő Számok</span>
+                                                    <span className="text-gray-400 font-mono">{data.unluckyNumbers}</span>
+                                                </div>
+                                                <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                                    <span className="text-xs font-bold text-gray-500 block">Kerülendő Színek</span>
+                                                    <span className="text-gray-400">{data.unluckyColors}</span>
+                                                </div>
+                                                 <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                                    <span className="text-xs font-bold text-gray-500 block">Kerülendő Irányok</span>
+                                                    <span className="text-gray-400">{data.unluckyDirections}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-black/30 p-4 rounded-xl border border-white/10">
+                                            <h4 className="font-bold text-gold-400 mb-2 flex items-center gap-2">❤️ Szerelem & Kompatibilitás</h4>
+                                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                                <div>
+                                                    <span className="block text-green-400 font-bold mb-1">Legjobb társ:</span>
+                                                    <span className="text-white">{data.loveCompatibility.best}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="block text-red-400 font-bold mb-1">Kerülendő:</span>
+                                                    <span className="text-white">{data.loveCompatibility.worst}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-black/30 p-4 rounded-xl border border-white/10">
+                                            <h4 className="font-bold text-blue-400 mb-2 flex items-center gap-2">💼 Karrier</h4>
+                                            <p className="text-sm text-gray-300">{data.career}</p>
+                                        </div>
+
+                                        {data.famousPeople && (
+                                            <div className="text-xs text-center text-gray-500 italic">
+                                                Híres szülöttek: {data.famousPeople}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()
+                        ) : (
+                            // WESTERN HOROSCOPE DETAIL
+                            (() => {
+                                const data = WESTERN_HOROSCOPES.find(h => h.name === zodiacModal.sign);
+                                if (!data) {
+                                    // Fallback to minimal info if detailed data is missing (should not happen if all covered)
+                                    return (
+                                        <div className="text-center">
+                                            <div className="text-5xl mb-4 animate-float">{zodiacModal.type === 'Nap' ? '☀️' : zodiacModal.type === 'Hold' ? '🌕' : '🏹'}</div>
+                                            <h3 className="text-2xl font-serif font-bold text-gold-400 mb-1">{zodiacModal.sign}</h3>
+                                            <div className="text-gray-200 leading-relaxed text-sm bg-white/5 p-4 rounded-xl border border-white/5 text-justify mt-4">
+                                                {ZODIAC_INFO[zodiacModal.sign]?.sun || "Nincs részletes adat."}
+                                            </div>
+                                        </div>
+                                    );
+                                }
+                                return (
+                                    <div className="text-left space-y-6">
+                                        <div className="text-center relative">
+                                            <div className="text-6xl mb-2 animate-float">{zodiacModal.type === 'Nap' ? '☀️' : zodiacModal.type === 'Hold' ? '🌕' : '🏹'}</div>
+                                            <h3 className="text-4xl font-serif font-bold text-gold-400 mb-1 uppercase tracking-widest">{data.name}</h3>
+                                            <div className="text-gold-200/50 text-sm font-bold uppercase tracking-widest mb-1">{data.dates}</div>
+                                            <div className="flex justify-center gap-4 text-xs font-bold text-white/60 mt-2">
+                                                <span className="bg-white/10 px-2 py-1 rounded">Elem: {data.element}</span>
+                                                <span className="bg-white/10 px-2 py-1 rounded">Minőség: {data.mode}</span>
+                                                <span className="bg-white/10 px-2 py-1 rounded">Uralkodó: {data.rulingPlanet}</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-gold-500/10 border border-gold-500/20 p-5 rounded-xl text-center shadow-lg">
+                                            <div className="text-2xl font-serif text-gold-300 mb-2">"{data.keyword}"</div>
+                                            <p className="text-gray-200 italic leading-relaxed text-sm">
+                                                {zodiacModal.type === 'Nap' && ZODIAC_INFO[zodiacModal.sign]?.sun}
+                                                {zodiacModal.type === 'Hold' && ZODIAC_INFO[zodiacModal.sign]?.moon}
+                                                {zodiacModal.type === 'Aszcendens' && ZODIAC_INFO[zodiacModal.sign]?.ascendant}
+                                                <br/><br/>
+                                                <span className="opacity-70">{data.description}</span>
+                                            </p>
+                                        </div>
+
+                                        {/* Grid Stats */}
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                                            <div className="bg-black/30 p-2 rounded-lg border border-white/5">
+                                                <div className="text-[10px] text-gray-500 uppercase">Szín</div>
+                                                <div className="font-bold text-white">{data.color}</div>
+                                            </div>
+                                            <div className="bg-black/30 p-2 rounded-lg border border-white/5">
+                                                <div className="text-[10px] text-gray-500 uppercase">Kő</div>
+                                                <div className="font-bold text-white">{data.luckyGem}</div>
+                                            </div>
+                                            <div className="bg-black/30 p-2 rounded-lg border border-white/5">
+                                                <div className="text-[10px] text-gray-500 uppercase">Virág</div>
+                                                <div className="font-bold text-white">{data.flower}</div>
+                                            </div>
+                                            <div className="bg-black/30 p-2 rounded-lg border border-white/5">
+                                                <div className="text-[10px] text-gray-500 uppercase">Nap</div>
+                                                <div className="font-bold text-white">{data.day}</div>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div>
+                                                <h4 className="font-bold text-green-400 mb-2 text-sm uppercase">Erősségek</h4>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {data.strengths.map(s => <span key={s} className="bg-green-500/10 text-green-300 px-2 py-1 rounded text-xs border border-green-500/20">{s}</span>)}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-red-400 mb-2 text-sm uppercase">Gyengeségek</h4>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {data.weaknesses.map(s => <span key={s} className="bg-red-500/10 text-red-300 px-2 py-1 rounded text-xs border border-red-500/20">{s}</span>)}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-black/30 p-4 rounded-xl border border-white/10">
+                                            <div className="grid grid-cols-2 gap-4 text-xs">
+                                                <div>
+                                                    <span className="block text-gray-500 font-bold mb-1">Szereti</span>
+                                                    <ul className="list-disc list-inside text-gray-300 space-y-1">
+                                                        {data.likes.map(l => <li key={l}>{l}</li>)}
+                                                    </ul>
+                                                </div>
+                                                <div>
+                                                    <span className="block text-gray-500 font-bold mb-1">Nem szereti</span>
+                                                    <ul className="list-disc list-inside text-gray-300 space-y-1">
+                                                        {data.dislikes.map(l => <li key={l}>{l}</li>)}
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-between items-center text-xs bg-white/5 p-3 rounded-lg">
+                                            <div className="text-center flex-1 border-r border-white/10">
+                                                <div className="text-gray-500 mb-1">Legjobb Párosítás</div>
+                                                <div className="font-bold text-white">{data.mostCompatible}</div>
+                                            </div>
+                                            <div className="text-center flex-1">
+                                                <div className="text-gray-500 mb-1">Nehéz Párosítás</div>
+                                                <div className="font-bold text-white">{data.leastCompatible}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()
+                        )}
                     </div>
                 </div>
             )}

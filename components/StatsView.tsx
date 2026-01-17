@@ -97,7 +97,10 @@ export const StatsView = ({ onBack }: any) => {
         filteredReadings.forEach(r => {
             const d = new Date(r.date);
             hours[d.getHours()]++;
-            weekDays[d.getDay()]++; // 0 = Sun
+            // Shift to Monday=0, Sunday=6 to match visual
+            const dayIdx = d.getDay(); // 0=Sun, 1=Mon
+            const mondayBasedIdx = dayIdx === 0 ? 6 : dayIdx - 1;
+            weekDays[mondayBasedIdx]++;
         });
         const busiestHour = hours.indexOf(Math.max(...hours));
         let timeLabel = "Éjszakai Bagoly 🦉";
@@ -173,6 +176,24 @@ export const StatsView = ({ onBack }: any) => {
             activityMap[dayKey] = (activityMap[dayKey] || 0) + 1;
         });
 
+        // 8. NUMEROLOGY STATS
+        const numerologyCounts: Record<number, number> = {};
+        allDrawnCards.forEach(dc => {
+            const card = FULL_DECK.find(c => c.id === dc.cardId);
+            if (card && card.number !== undefined) {
+                 numerologyCounts[card.number] = (numerologyCounts[card.number] || 0) + 1;
+            }
+        });
+        const topNumber = Object.entries(numerologyCounts).sort((a,b) => b[1] - a[1])[0];
+
+        // 9. DAY vs NIGHT
+        let dayCount = 0;
+        let nightCount = 0;
+        filteredReadings.forEach(r => {
+             const h = new Date(r.date).getHours();
+             if (h >= 6 && h < 18) dayCount++; else nightCount++;
+        });
+
         return {
             totalReadings,
             totalCards,
@@ -186,7 +207,9 @@ export const StatsView = ({ onBack }: any) => {
             longestStreak,
             dominantMood,
             activityMap,
-            weekDayStats: weekDays
+            weekDayStats: weekDays,
+            topNumber: topNumber ? { num: topNumber[0], count: topNumber[1] } : null,
+            dayNight: { day: dayCount, night: nightCount }
         };
     }, [readings, currentUser, timeRange]);
 
@@ -208,9 +231,9 @@ export const StatsView = ({ onBack }: any) => {
         }
 
         return (
-            <div className="glass-panel p-6 rounded-2xl border border-white/10 overflow-hidden">
-                <h3 className="font-bold text-white mb-4 flex items-center gap-2">📅 Aktivitási Napló (Elmúlt 4 hónap)</h3>
-                <div className="flex flex-wrap gap-1 justify-center md:justify-start">
+            <div className="glass-panel p-6 rounded-2xl border border-white/10 overflow-hidden h-full">
+                <h3 className="font-bold text-white mb-4 flex items-center gap-2">📅 Aktivitási Hőtérkép</h3>
+                <div className="flex flex-wrap gap-1 justify-center md:justify-start content-start">
                     {days.map((d, i) => (
                         <div 
                             key={i} 
@@ -219,7 +242,7 @@ export const StatsView = ({ onBack }: any) => {
                         ></div>
                     ))}
                 </div>
-                <div className="flex justify-end items-center gap-2 mt-2 text-[10px] text-white/40">
+                <div className="flex justify-end items-center gap-2 mt-4 text-[10px] text-white/40">
                     <span>Kevés</span>
                     <div className="flex gap-1">
                         <div className="w-2 h-2 bg-white/5 rounded-sm"></div>
@@ -228,6 +251,104 @@ export const StatsView = ({ onBack }: any) => {
                         <div className="w-2 h-2 bg-gold-500 rounded-sm"></div>
                     </div>
                     <span>Sok</span>
+                </div>
+            </div>
+        );
+    };
+
+    const ElementalCalendar = () => {
+        const [currentMonth, setCurrentMonth] = useState(new Date());
+
+        const getDaysInMonth = (date: Date) => {
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            const days = new Date(year, month + 1, 0).getDate();
+            const firstDay = new Date(year, month, 1).getDay(); // 0 = Sun
+            const offset = firstDay === 0 ? 6 : firstDay - 1; // Mon=0
+            return { days, offset, monthName: date.toLocaleDateString('hu-HU', { month: 'long', year: 'numeric' }) };
+        };
+
+        const { days, offset, monthName } = getDaysInMonth(currentMonth);
+
+        const changeMonth = (delta: number) => {
+            const newDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + delta, 1);
+            setCurrentMonth(newDate);
+        };
+
+        const getDayColor = (day: number) => {
+             const dateStr = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day).toISOString().split('T')[0];
+             // Find readings for this day
+             // We use filtered list from context directly to ensure we have cards
+             // Note: stats.activityMap only has counts. We need cards.
+             const dayReadings = readings.filter(r => r.userId === currentUser?.id && r.date.startsWith(dateStr));
+
+             if (dayReadings.length === 0) return 'bg-white/5 text-white/30';
+
+             // Determine dominant element
+             // Priority: Major > Fire/Water/Air/Earth count
+             let major = 0, fire = 0, water = 0, air = 0, earth = 0;
+
+             dayReadings.forEach(r => {
+                 r.cards.forEach(dc => {
+                     const card = FULL_DECK.find(c => c.id === dc.cardId);
+                     if (card) {
+                         if (card.arcana === 'Major') major += 2; // Weight Major higher
+                         else if (card.suit === 'Botok') fire++;
+                         else if (card.suit === 'Kelyhek') water++;
+                         else if (card.suit === 'Kardok') air++;
+                         else if (card.suit === 'Érmék') earth++;
+                     }
+                 });
+             });
+
+             const max = Math.max(major, fire, water, air, earth);
+             if (max === 0) return 'bg-white/20 text-white';
+
+             if (max === major) return 'bg-purple-600 text-white shadow-[0_0_10px_rgba(147,51,234,0.5)]';
+             if (max === fire) return 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.5)]';
+             if (max === water) return 'bg-blue-600 text-white shadow-[0_0_10px_rgba(37,99,235,0.5)]';
+             if (max === air) return 'bg-yellow-200 text-black shadow-[0_0_10px_rgba(253,224,71,0.5)]';
+             if (max === earth) return 'bg-emerald-600 text-white shadow-[0_0_10px_rgba(5,150,105,0.5)]';
+
+             return 'bg-gray-500 text-white';
+        };
+
+        return (
+            <div className="glass-panel p-6 rounded-2xl border border-white/10 h-full">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-white flex items-center gap-2">🗓️ Elemi Naptár</h3>
+                    <div className="flex items-center gap-2 bg-black/30 rounded p-1">
+                        <button onClick={() => changeMonth(-1)} className="hover:text-gold-400 px-2">◄</button>
+                        <span className="text-xs font-bold uppercase w-24 text-center">{monthName}</span>
+                        <button onClick={() => changeMonth(1)} className="hover:text-gold-400 px-2">►</button>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-7 gap-1 mb-1 text-center text-[10px] font-bold text-white/30 uppercase">
+                    <div>H</div><div>K</div><div>S</div><div>C</div><div>P</div><div>S</div><div>V</div>
+                </div>
+                <div className="grid grid-cols-7 gap-1">
+                    {Array.from({ length: offset }).map((_, i) => <div key={`empty-${i}`} />)}
+                    {Array.from({ length: days }).map((_, i) => {
+                        const d = i + 1;
+                        const colorClass = getDayColor(d);
+                        return (
+                            <div
+                                key={d}
+                                className={`aspect-square flex items-center justify-center rounded text-xs font-bold transition-transform hover:scale-110 cursor-default ${colorClass}`}
+                            >
+                                {d}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <div className="flex flex-wrap gap-2 mt-4 justify-center text-[9px] text-white/50 uppercase font-bold">
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-purple-600"></span> Nagy Á.</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-red-600"></span> Tűz</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-blue-600"></span> Víz</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-yellow-200"></span> Lev.</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-600"></span> Föld</span>
                 </div>
             </div>
         );
@@ -340,7 +461,7 @@ export const StatsView = ({ onBack }: any) => {
                 <div className="glass-panel p-6 rounded-2xl border border-white/10">
                     <h3 className="font-bold text-white mb-4 uppercase tracking-widest text-xs text-center">Heti Ritmus</h3>
                     <div className="flex items-end justify-between h-20 gap-1">
-                        {['V', 'H', 'K', 'S', 'C', 'P', 'S'].map((day, i) => {
+                        {['H', 'K', 'Sz', 'Cs', 'P', 'Sz', 'V'].map((day, i) => {
                             const val = stats.weekDayStats[i];
                             const max = Math.max(...stats.weekDayStats) || 1;
                             const h = Math.max(10, (val / max) * 100);
@@ -359,8 +480,40 @@ export const StatsView = ({ onBack }: any) => {
                 </div>
             </div>
 
-            {/* SECTION 5: HEATMAP */}
-            <Heatmap />
+            {/* SECTION 5: EXTRA STATS */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                 <div className="glass-panel p-6 rounded-2xl border border-white/10 flex flex-col items-center justify-center text-center">
+                    <div className="text-4xl mb-2">🔢</div>
+                    <h3 className="font-bold text-white uppercase tracking-widest text-xs mb-1">Domináns Szám</h3>
+                    {stats.topNumber ? (
+                         <>
+                            <div className="text-xl font-serif font-bold text-gold-400 mb-2">{stats.topNumber.num}</div>
+                            <p className="text-xs text-white/50">{stats.topNumber.count} alkalommal</p>
+                         </>
+                    ) : <span className="text-xs opacity-50">Nincs adat</span>}
+                 </div>
+                 <div className="glass-panel p-6 rounded-2xl border border-white/10 flex flex-col items-center justify-center text-center">
+                    <div className="text-4xl mb-2">☀️ / 🌙</div>
+                    <h3 className="font-bold text-white uppercase tracking-widest text-xs mb-1">Nappal vs Éjszaka</h3>
+                    <div className="flex gap-4 items-center">
+                        <div className="text-center">
+                            <span className="block text-gold-400 font-bold">{stats.dayNight.day}</span>
+                            <span className="text-[10px] uppercase opacity-50">Nappal</span>
+                        </div>
+                        <div className="h-8 w-px bg-white/10"></div>
+                        <div className="text-center">
+                            <span className="block text-blue-400 font-bold">{stats.dayNight.night}</span>
+                            <span className="text-[10px] uppercase opacity-50">Éjjel</span>
+                        </div>
+                    </div>
+                 </div>
+            </div>
+
+            {/* SECTION 6: CALENDAR & ACTIVITY LOG */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full items-start">
+                <ElementalCalendar />
+                <Heatmap />
+            </div>
 
         </div>
     );
