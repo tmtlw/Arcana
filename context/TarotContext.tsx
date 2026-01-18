@@ -283,6 +283,7 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
                                 language: 'hu',
                                 badges: [],
                                 xp: 0,
+                                currency: 0, // Init currency
                                 level: 1,
                                 soundEnabled: true,
                                 fontSize: 'normal',
@@ -303,6 +304,11 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
                             setQuizResults([]);
                         }
                         
+                        // Migration: Sync Currency with XP if undefined
+                        if (finalUser.currency === undefined) {
+                            finalUser.currency = finalUser.xp || 0;
+                        }
+
                         setUsers([finalUser]);
                         setCurrentUser(finalUser);
 
@@ -416,9 +422,10 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
         if (userToUpdate) {
             const xpGain = 15;
             const newXp = (userToUpdate.xp || 0) + xpGain;
+            const newCurrency = (userToUpdate.currency || userToUpdate.xp || 0) + xpGain; // Add currency too
             const newLevel = Math.floor(Math.sqrt(newXp / 100)) + 1;
             const leveledUp = newLevel > (userToUpdate.level || 1);
-            let updatedUser = { ...userToUpdate, xp: newXp, level: newLevel };
+            let updatedUser = { ...userToUpdate, xp: newXp, currency: newCurrency, level: newLevel };
             
             // Check Quests
             const questResult = QuestService.processAction(updatedUser, 'reading', { cards: r.cards, majorCount: r.cards.filter(c => deck.find(x => x.id === c.cardId)?.arcana === 'Major').length });
@@ -426,14 +433,9 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
                 updatedUser = questResult.updatedUser;
                 questResult.completedQuests.forEach(qid => showToast("Küldetés teljesítve!", "success"));
                 // Add XP for completed quests
-                // Note: We should ideally lookup quest def to add XP, but for simplicity relying on future refresh or basic bump.
-                // Actually, QuestService doesn't add XP to user object automatically, we need to do it here.
-                // Let's iterate completedQuests to find XP reward.
-                // Import constants inside hook or move definitions.
-                // Since I can't easily import constants here without circular dep potential if they were in types, I will skip dynamic XP addition from quests for this iteration or assume QuestService handles it?
-                // QuestService just marks completion.
-                // Let's add fixed XP for quest completion for now: 100 XP.
-                updatedUser.xp += questResult.completedQuests.length * 100;
+                const bonus = questResult.completedQuests.length * 100;
+                updatedUser.xp += bonus;
+                updatedUser.currency = (updatedUser.currency || 0) + bonus;
             }
 
             await Promise.all([
@@ -570,11 +572,12 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
         if (currentUser) {
             const xpGain = res.score * 5;
             const newXp = (currentUser.xp || 0) + xpGain;
+            const newCurrency = (currentUser.currency || currentUser.xp || 0) + xpGain;
             const newLevel = Math.floor(Math.sqrt(newXp / 100)) + 1;
             
             await Promise.all([
                 StorageService.saveQuizResultToCloud(currentUser.id, res),
-                updateUser({ ...currentUser, xp: newXp, level: newLevel })
+                updateUser({ ...currentUser, xp: newXp, currency: newCurrency, level: newLevel })
             ]);
         }
     };

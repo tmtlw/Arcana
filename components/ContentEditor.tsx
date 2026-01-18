@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, Spread, Lesson } from '../types';
+import { Card, Spread, Lesson, ShopItem } from '../types';
 import { useTarot } from '../context/TarotContext';
 
 // File Mapping Configuration
@@ -17,7 +17,8 @@ const FILES = {
     'Lessons - Reading': { path: 'lessons/reading.ts', variable: 'READING_LESSONS', type: 'Lesson[]', importType: 'Lesson' },
     'Lessons - Symbolism': { path: 'lessons/symbolism.ts', variable: 'SYMBOLISM_LESSONS', type: 'Lesson[]', importType: 'Lesson' },
     'Horoscopes - Western': { path: 'constants/horoscopes_western.ts', variable: 'WESTERN_HOROSCOPES', type: 'WesternHoroscope[]', importType: 'WesternHoroscope' },
-    'Horoscopes - Chinese': { path: 'constants/horoscopes_chinese.ts', variable: 'CHINESE_HOROSCOPES', type: 'ChineseHoroscope[]', importType: 'ChineseHoroscope' }
+    'Horoscopes - Chinese': { path: 'constants/horoscopes_chinese.ts', variable: 'CHINESE_HOROSCOPES', type: 'ChineseHoroscope[]', importType: 'ChineseHoroscope' },
+    'Shop Items': { path: 'constants/shopItems.ts', variable: 'SHOP_ITEMS', type: 'ShopItem[]', importType: 'ShopItem' }
 };
 
 interface ContentEditorProps {

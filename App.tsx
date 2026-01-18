@@ -28,6 +28,8 @@ import { AstroCalendarView } from './components/AstroCalendarView';
 import { BadgesView } from './components/BadgesView'; // Új
 import { QuestView } from './components/QuestView'; // Import QuestView
 import { MonthlySummaryView } from './components/MonthlySummaryView'; // Import MonthlySummaryView
+import { AnalysisView } from './components/AnalysisView'; // Import AnalysisView
+import { MarketplaceView } from './components/MarketplaceView'; // Import MarketplaceView
 import { Spread, Card } from './types';
 import { t } from './services/i18nService';
 import { AstroService } from './services/astroService'; // Import AstroService
@@ -270,7 +272,7 @@ const NotificationCenter = ({ navigateTo }: { navigateTo: (v: string) => void })
 };
 
 const AppContent = () => {
-    const { currentUser, deck, isSyncing, isCloudAvailable, language, activeThemeKey, logout, userLocation } = useTarot(); 
+    const { currentUser, deck, isSyncing, isCloudAvailable, language, activeThemeKey, logout, userLocation, globalSettings } = useTarot();
     const [view, setView] = useState('dashboard');
     const [activeSpread, setActiveSpread] = useState<Spread | null>(null);
     const [readingDate, setReadingDate] = useState<Date | undefined>(undefined);
@@ -365,11 +367,9 @@ const AppContent = () => {
         {
             title: 'Misztikum',
             items: [
+                { id: 'analysis', label: 'Elemzés', icon: '📊' },
                 { id: 'badges', label: 'Jelvények', icon: '🏆' },
                 { id: 'astro', label: 'Holdnaptár', icon: '🌙' },
-                { id: 'numerology', label: 'Számmisztika', icon: '🔢' },
-                { id: 'monthly', label: 'Lelki Irányítópult', icon: '🔮' },
-                { id: 'stats', label: 'Statisztika', icon: '📊' },
                 { id: 'quiz', label: 'Tudás Próba', icon: '🎓' },
             ]
         },
@@ -378,6 +378,7 @@ const AppContent = () => {
             items: [
                 { id: 'community', label: 'Faliújság', icon: '🌍' },
                 { id: 'quests', label: 'Kihívások', icon: '⚔️' }, // Moved to Community
+                ...(globalSettings.enableShop !== false ? [{ id: 'marketplace', label: 'Piactér (Bolt)', icon: '🏷️' }] : []), // New Marketplace (Conditional)
                 { id: 'live', label: 'Távjóslás (Live)', icon: '📡' },
                 { id: 'communityDecks', label: 'Pakli Piactér', icon: '🎨' },
                 { id: 'communitySpreads', label: 'Kirakás Piactér', icon: '💠' },
@@ -540,6 +541,8 @@ const AppContent = () => {
                 {view === 'deckBuilder' && <DeckBuilder onBack={() => setView('dashboard')} />}
                 {view === 'stats' && <StatsView onBack={() => setView('dashboard')} />}
                 {view === 'monthly' && <MonthlySummaryView onBack={() => setView('dashboard')} />}
+                {view === 'analysis' && <AnalysisView onBack={() => setView('dashboard')} />}
+                {view === 'marketplace' && <MarketplaceView onBack={() => setView('dashboard')} />}
                 {view === 'quiz' && <QuizView onBack={() => setView('dashboard')} />}
                 {view === 'profile' && <ProfileView onBack={() => setView('dashboard')} targetUserId={viewProfileId} onNavigate={navigateTo} />}
                 {view === 'live' && <MultiplayerSession onBack={() => setView('dashboard')} />}

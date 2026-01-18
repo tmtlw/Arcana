@@ -309,6 +309,22 @@ export interface User {
   lessonCollection?: string[];
   deckCollection?: string[];
   activeQuests?: UserQuestProgress[]; // Quest Progress Tracking
+
+  // Shop System
+  currency?: number; // Pontok (vásárlásra)
+  inventory?: string[]; // Megvásárolt item ID-k
+}
+
+export interface ShopItem {
+  id: string;
+  name: string;
+  description: string;
+  type: 'deck' | 'background' | 'cover';
+  cost: number;
+  previewUrl?: string;
+  value?: string;
+  category?: string;
+  isPremium?: boolean;
 }
 
 export interface ThemeColors {
