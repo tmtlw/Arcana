@@ -1,24 +1,126 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useTarot } from '../context/TarotContext';
 import { SHOP_ITEMS, ShopItem } from '../constants/shopItems';
+import { CommunityService } from '../services/communityService';
+import { DeckService } from '../services/deckService';
+import { Spread, Lesson, DeckMeta } from '../types';
 import { t } from '../services/i18nService';
 
+// Unified Marketplace Item
+interface MarketItem extends ShopItem {
+    originalData?: any; // The original object (Spread, Lesson, DeckMeta)
+    source: 'system' | 'community';
+    rating?: number;
+    downloads?: number;
+}
+
 export const MarketplaceView = ({ onBack }: { onBack: () => void }) => {
-    const { currentUser, language, updateUser, showToast } = useTarot();
-    const [filter, setFilter] = useState<'all' | 'deck' | 'background' | 'cover'>('all');
+    const { currentUser, updateUser, showToast, toggleDeckInCollection, toggleLessonInCollection, toggleFavoriteSpread, addCustomSpread } = useTarot();
+    const [filter, setFilter] = useState<'all' | 'deck' | 'background' | 'cover' | 'spread' | 'lesson'>('all');
     const [buyingId, setBuyingId] = useState<string | null>(null);
+    const [communityItems, setCommunityItems] = useState<MarketItem[]>([]);
+    const [loading, setLoading] = useState(false);
 
     const inventory = currentUser?.inventory || [];
     const balance = currentUser?.currency ?? currentUser?.xp ?? 0;
 
-    const filteredItems = useMemo(() => {
-        return SHOP_ITEMS.filter(item => filter === 'all' || item.type === filter);
-    }, [filter]);
+    useEffect(() => {
+        loadCommunityContent();
+    }, []);
 
-    const handleBuy = async (item: ShopItem) => {
+    const loadCommunityContent = async () => {
+        setLoading(true);
+        try {
+            const [spreads, decks, lessons] = await Promise.all([
+                CommunityService.getPublicSpreads(),
+                DeckService.getPublicDecks(),
+                CommunityService.getPublicLessons()
+            ]);
+
+            const newItems: MarketItem[] = [];
+
+            spreads.forEach(s => {
+                newItems.push({
+                    id: s.id,
+                    name: s.name,
+                    description: s.description,
+                    type: 'spread' as any, // Cast to any to fit ShopItem type strictness temporarily or extend types
+                    cost: s.price || 0,
+                    category: s.category,
+                    source: 'community',
+                    originalData: s,
+                    previewUrl: undefined, // Spreads don't have easy preview yet
+                    downloads: s.downloads
+                });
+            });
+
+            decks.forEach(d => {
+                newItems.push({
+                    id: d.id,
+                    name: d.name,
+                    description: d.description,
+                    type: 'deck',
+                    cost: d.price || 0,
+                    source: 'community',
+                    originalData: d,
+                    previewUrl: d.basePath ? `${d.basePath}/major_0.${d.extension}` : undefined, // Simple preview
+                    downloads: d.downloads
+                });
+            });
+
+            lessons.forEach(l => {
+                newItems.push({
+                    id: l.id,
+                    name: l.title,
+                    description: l.description,
+                    type: 'lesson' as any,
+                    cost: l.price || 0,
+                    category: l.category,
+                    source: 'community',
+                    originalData: l,
+                    downloads: l.downloads
+                });
+            });
+
+            setCommunityItems(newItems);
+
+        } catch (e) {
+            console.error(e);
+            showToast("Hiba a piactér betöltésekor.", "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const allItems = useMemo(() => {
+        // System items
+        const system: MarketItem[] = SHOP_ITEMS.map(i => ({ ...i, source: 'system' }));
+        return [...system, ...communityItems];
+    }, [communityItems]);
+
+    const filteredItems = useMemo(() => {
+        return allItems.filter(item => filter === 'all' || item.type === filter);
+    }, [filter, allItems]);
+
+    const handleBuy = async (item: MarketItem) => {
         if (!currentUser) return;
-        if (inventory.includes(item.id)) return;
+
+        // Check ownership logic based on type
+        let owned = false;
+        if (item.source === 'system') {
+            owned = inventory.includes(item.id);
+        } else {
+            // Check collections
+            if (item.type === 'deck') owned = (currentUser.deckCollection || []).includes(item.id);
+            if (item.type === 'lesson') owned = (currentUser.lessonCollection || []).includes(item.id);
+            if (item.type === 'spread') owned = (currentUser.favoriteSpreads || []).includes(item.id); // For spreads, we usually clone them or fav them.
+            // Actually, for spreads, "buying" might mean cloning it to custom spreads.
+            // Let's assume for paid spreads, we add ID to inventory AND clone.
+            // For free spreads, we just clone.
+        }
+
+        if (owned) return;
         if (balance < item.cost) {
             showToast("Nincs elég pontod!", "error");
             return;
@@ -28,39 +130,77 @@ export const MarketplaceView = ({ onBack }: { onBack: () => void }) => {
 
         setBuyingId(item.id);
         try {
-            const newInventory = [...inventory, item.id];
-            const newBalance = balance - item.cost;
+            // 1. Deduct cost if > 0
+            if (item.cost > 0) {
+                 await updateUser({
+                    ...currentUser,
+                    currency: balance - item.cost,
+                    inventory: [...inventory, item.id] // Mark as bought in general inventory to prevent rebuy
+                });
+            }
 
-            await updateUser({
-                ...currentUser,
-                currency: newBalance,
-                inventory: newInventory
-            });
+            // 2. Deliver Item
+            if (item.source === 'system') {
+                 if (item.type === 'deck') {
+                     // Add to deck collection
+                     await toggleDeckInCollection(item.id);
+                 }
+                 // Backgrounds/Covers are just enabled by inventory presence usually
+            } else {
+                // Community Item Delivery
+                if (item.type === 'deck') {
+                    await toggleDeckInCollection(item.id);
+                } else if (item.type === 'lesson') {
+                    await toggleLessonInCollection(item.id);
+                } else if (item.type === 'spread') {
+                    // Clone spread
+                    const spread = item.originalData as Spread;
+                    await addCustomSpread({ ...spread, isCustom: true, author: spread.author, userId: currentUser.id, id: `bought_${Date.now()}` });
+                    showToast("Kirakás hozzáadva a gyűjteményedhez!", "success");
+                }
+            }
 
-            showToast("Sikeres vásárlás!", "success");
+            if (item.cost > 0) showToast("Sikeres vásárlás!", "success");
+            else showToast("Sikeres letöltés!", "success");
+
         } catch (e) {
             console.error(e);
-            showToast("Hiba a vásárláskor.", "error");
+            showToast("Hiba a tranzakció során.", "error");
         } finally {
             setBuyingId(null);
         }
     };
 
-    const ItemCard = ({ item }: { item: ShopItem }) => {
-        const owned = inventory.includes(item.id) || item.cost === 0;
+    const getRandomPreview = (item: MarketItem) => {
+        // Special handling for Marseille & Thoth
+        if (item.id === 'deck_marseille') return 'https://upload.wikimedia.org/wikipedia/commons/d/de/RWS_Tarot_01_Magician.jpg'; // Placeholder url or logic
+        if (item.id === 'deck_thoth') return 'https://upload.wikimedia.org/wikipedia/en/5/53/Thoth_Tarot_Deck_Magus.jpg';
+        return item.previewUrl;
+    };
+
+    const ItemCard = ({ item }: { item: MarketItem }) => {
+        const isSystem = item.source === 'system';
+        // Ownership Check
+        let owned = false;
+        if (inventory.includes(item.id)) owned = true; // General check
+        if (item.type === 'deck' && (currentUser?.deckCollection || []).includes(item.id)) owned = true;
+        if (item.type === 'lesson' && (currentUser?.lessonCollection || []).includes(item.id)) owned = true;
+
         const canAfford = balance >= item.cost;
 
         return (
             <div className={`glass-panel rounded-xl overflow-hidden border transition-all duration-300 group hover:scale-[1.02] ${owned ? 'border-green-500/30' : 'border-white/10 hover:border-gold-500'}`}>
                 {/* Preview Area */}
                 <div className="h-32 bg-black/40 relative overflow-hidden flex items-center justify-center">
-                    {item.previewUrl?.startsWith('url') || item.previewUrl?.startsWith('linear') ? (
-                        <div className="w-full h-full" style={{ background: item.previewUrl }}></div>
-                    ) : item.previewUrl ? (
-                         <img src={item.previewUrl} alt={item.name} className="w-full h-full object-cover" />
+                    {item.previewUrl || (item.value && item.value.startsWith('bg-')) ? (
+                         (item.previewUrl?.startsWith('url') || item.previewUrl?.startsWith('linear') || (item.value && item.value.startsWith('linear'))) ? (
+                            <div className="w-full h-full" style={{ background: item.previewUrl || (item.value?.includes('gradient') ? item.value : '') }}></div>
+                        ) : (
+                             <img src={getRandomPreview(item)} onError={(e:any) => e.target.style.display='none'} alt={item.name} className="w-full h-full object-cover" />
+                        )
                     ) : (
                         <div className="text-4xl opacity-20">
-                            {item.type === 'deck' ? '🎴' : item.type === 'background' ? '🖼️' : '🎨'}
+                            {item.type === 'deck' ? '🎴' : item.type === 'background' ? '🖼️' : item.type === 'spread' ? '💠' : item.type === 'lesson' ? '🎓' : '🎨'}
                         </div>
                     )}
 
@@ -69,39 +209,49 @@ export const MarketplaceView = ({ onBack }: { onBack: () => void }) => {
                             Premium
                         </div>
                     )}
+                    {!isSystem && (
+                        <div className="absolute top-2 left-2 bg-blue-500/80 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider shadow-lg">
+                            Community
+                        </div>
+                    )}
                 </div>
 
-                <div className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                        <div>
-                            <div className="text-[10px] uppercase font-bold text-white/40 tracking-wider mb-1">{item.type}</div>
-                            <h3 className="font-bold text-white leading-tight">{item.name}</h3>
-                        </div>
+                <div className="p-4 flex flex-col h-[180px]">
+                    <div className="mb-2">
+                        <div className="text-[10px] uppercase font-bold text-white/40 tracking-wider mb-1">{item.type} {item.category ? `• ${item.category}` : ''}</div>
+                        <h3 className="font-bold text-white leading-tight line-clamp-1" title={item.name}>{item.name}</h3>
                     </div>
-                    <p className="text-xs text-white/60 mb-4 h-8 line-clamp-2">{item.description}</p>
+                    <p className="text-xs text-white/60 mb-4 h-10 line-clamp-2">{item.description}</p>
 
-                    <div className="flex justify-between items-center mt-auto">
-                        <div className="font-mono text-gold-400 font-bold">
-                            {item.cost === 0 ? 'INGYENES' : `${item.cost} pont`}
-                        </div>
-
-                        {owned ? (
-                            <div className="flex items-center gap-1 text-green-400 text-xs font-bold uppercase">
-                                <span>✓</span> Megvan
+                    <div className="mt-auto">
+                        {item.downloads !== undefined && (
+                            <div className="text-[10px] text-white/30 mb-2 flex items-center gap-1">
+                                <span>⬇️</span> {item.downloads} letöltés
                             </div>
-                        ) : (
-                            <button
-                                onClick={() => handleBuy(item)}
-                                disabled={!canAfford || buyingId !== null}
-                                className={`px-4 py-1.5 rounded text-xs font-bold uppercase transition-all ${
-                                    canAfford
-                                    ? 'bg-gold-500 hover:bg-gold-400 text-black shadow-lg hover:shadow-gold-500/20'
-                                    : 'bg-white/10 text-white/30 cursor-not-allowed'
-                                }`}
-                            >
-                                {buyingId === item.id ? '...' : 'Megveszem'}
-                            </button>
                         )}
+                        <div className="flex justify-between items-center">
+                            <div className="font-mono text-gold-400 font-bold">
+                                {item.cost === 0 ? 'INGYENES' : `${item.cost} pont`}
+                            </div>
+
+                            {owned ? (
+                                <div className="flex items-center gap-1 text-green-400 text-xs font-bold uppercase">
+                                    <span>✓</span> Megvan
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => handleBuy(item)}
+                                    disabled={!canAfford || buyingId !== null}
+                                    className={`px-4 py-1.5 rounded text-xs font-bold uppercase transition-all ${
+                                        canAfford
+                                        ? 'bg-gold-500 hover:bg-gold-400 text-black shadow-lg hover:shadow-gold-500/20'
+                                        : 'bg-white/10 text-white/30 cursor-not-allowed'
+                                    }`}
+                                >
+                                    {buyingId === item.id ? '...' : (item.cost === 0 ? 'Letöltés' : 'Megveszem')}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -137,6 +287,8 @@ export const MarketplaceView = ({ onBack }: { onBack: () => void }) => {
                 {[
                     { id: 'all', label: 'Minden' },
                     { id: 'deck', label: 'Paklik' },
+                    { id: 'spread', label: 'Kirakások' },
+                    { id: 'lesson', label: 'Leckék' },
                     { id: 'background', label: 'Hátterek' },
                     { id: 'cover', label: 'Hátlapok' },
                 ].map(f => (
@@ -154,14 +306,17 @@ export const MarketplaceView = ({ onBack }: { onBack: () => void }) => {
                 ))}
             </div>
 
-            {/* Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredItems.map(item => (
-                    <ItemCard key={item.id} item={item} />
-                ))}
-            </div>
+            {loading ? (
+                <div className="text-center py-20 animate-pulse text-white/50">Bolt betöltése...</div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {filteredItems.map(item => (
+                        <ItemCard key={item.id} item={item} />
+                    ))}
+                </div>
+            )}
 
-            {filteredItems.length === 0 && (
+            {!loading && filteredItems.length === 0 && (
                 <div className="text-center py-20 opacity-30">
                     <div className="text-6xl mb-4">🔍</div>
                     <p>Nincs találat ebben a kategóriában.</p>

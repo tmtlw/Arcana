@@ -2,11 +2,12 @@
 import React, { useState } from 'react';
 import { StatsView } from './StatsView';
 import { NumerologyView } from './NumerologyView';
+import { SoulCompass } from './SoulCompass';
 import { MonthlySummaryView } from './MonthlySummaryView';
 import { t } from '../services/i18nService';
 import { useTarot } from '../context/TarotContext';
 
-type Tab = 'stats' | 'numerology' | 'spirit';
+type Tab = 'stats' | 'numerology' | 'compass' | 'monthly';
 
 export const AnalysisView = ({ onBack }: { onBack: () => void }) => {
     const { language } = useTarot();
@@ -21,7 +22,7 @@ export const AnalysisView = ({ onBack }: { onBack: () => void }) => {
                         &larr; {t('btn.back', language)}
                     </button>
 
-                    <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 overflow-x-auto max-w-full">
+                    <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 overflow-x-auto max-w-full custom-scrollbar">
                         <button
                             onClick={() => setActiveTab('stats')}
                             className={`px-4 py-2 rounded-lg text-xs md:text-sm font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'stats' ? 'bg-gold-500 text-black shadow-lg scale-105' : 'text-gray-400 hover:text-white'}`}
@@ -35,10 +36,16 @@ export const AnalysisView = ({ onBack }: { onBack: () => void }) => {
                             🔢 Számmisztika
                         </button>
                         <button
-                            onClick={() => setActiveTab('spirit')}
-                            className={`px-4 py-2 rounded-lg text-xs md:text-sm font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'spirit' ? 'bg-gold-500 text-black shadow-lg scale-105' : 'text-gray-400 hover:text-white'}`}
+                            onClick={() => setActiveTab('compass')}
+                            className={`px-4 py-2 rounded-lg text-xs md:text-sm font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'compass' ? 'bg-gold-500 text-black shadow-lg scale-105' : 'text-gray-400 hover:text-white'}`}
                         >
-                            🔮 Lelki Iránytű
+                            🧭 Lelki Iránytű
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('monthly')}
+                            className={`px-4 py-2 rounded-lg text-xs md:text-sm font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'monthly' ? 'bg-gold-500 text-black shadow-lg scale-105' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            📅 Havi Összesítő
                         </button>
                     </div>
                 </div>
@@ -48,7 +55,8 @@ export const AnalysisView = ({ onBack }: { onBack: () => void }) => {
             <div className="max-w-5xl mx-auto px-4">
                 {activeTab === 'stats' && <StatsView onBack={() => {}} embedded={true} />}
                 {activeTab === 'numerology' && <NumerologyView onBack={() => {}} embedded={true} />}
-                {activeTab === 'spirit' && <MonthlySummaryView onBack={() => {}} embedded={true} />}
+                {activeTab === 'compass' && <SoulCompass />}
+                {activeTab === 'monthly' && <MonthlySummaryView onBack={() => {}} embedded={true} />}
             </div>
         </div>
     );

@@ -8,7 +8,7 @@ import { HistoryView } from './components/HistoryView';
 import { LibraryView } from './components/LibraryView';
 import { CustomSpreadBuilder } from './components/CustomSpreadBuilder';
 import { AdvancedSpreadBuilder } from './components/AdvancedSpreadBuilder';
-import { StatsView } from './components/StatsView';
+import { StatsView } from './components/StatsView'; // Still imported but used inside Analysis
 import { QuizView } from './components/QuizView';
 import { CardDetailView } from './components/CardDetailView'; 
 import { AchievementPopup } from './components/AchievementPopup';
@@ -23,18 +23,18 @@ import { CommunityView } from './components/CommunityView';
 import { CommunityDecksView } from './components/CommunityDecksView'; 
 import { CommunitySpreadsView } from './components/CommunitySpreadsView'; 
 import { AdminDashboard } from './components/AdminDashboard';
-import { NumerologyView } from './components/NumerologyView';
+import { NumerologyView } from './components/NumerologyView'; // Still imported but used inside Analysis
 import { AstroCalendarView } from './components/AstroCalendarView';
-import { BadgesView } from './components/BadgesView'; // Új
-import { QuestView } from './components/QuestView'; // Import QuestView
-import { MonthlySummaryView } from './components/MonthlySummaryView'; // Import MonthlySummaryView
-import { AnalysisView } from './components/AnalysisView'; // Import AnalysisView
-import { MarketplaceView } from './components/MarketplaceView'; // Import MarketplaceView
+import { BadgesView } from './components/BadgesView';
+import { QuestView } from './components/QuestView';
+import { MonthlySummaryView } from './components/MonthlySummaryView'; // Still imported
+import { AnalysisView } from './components/AnalysisView';
+import { MarketplaceView } from './components/MarketplaceView';
 import { Spread, Card } from './types';
 import { t } from './services/i18nService';
-import { AstroService } from './services/astroService'; // Import AstroService
-import { UpdateService, UpdateResponse } from './services/UpdateService'; // Import UpdateService Logic
-import { TutorialOverlay, TutorialStep } from './components/TutorialOverlay'; // Import Tutorial
+import { AstroService } from './services/astroService';
+import { UpdateService, UpdateResponse } from './services/UpdateService';
+import { TutorialOverlay, TutorialStep } from './components/TutorialOverlay';
 
 // Inline UpdateNotification to avoid module loading errors in copy-and-run environment
 const UpdateNotification: React.FC = () => {
@@ -288,7 +288,6 @@ const AppContent = () => {
     const TUTORIAL_STEPS: TutorialStep[] = [
         { targetId: 'app-header-logo', title: 'Üdvözöllek az Arkánumban!', content: 'Ez a te spirituális útitársad. Kezdjük egy rövid bemutatóval!', position: 'bottom' },
         { targetId: 'spread-selector-container', title: 'Válassz Kirakást', content: 'Itt találod a különböző élethelyzetekre szóló kártyavetéseket. Válassz egyet a kezdéshez!', position: 'top' },
-        // Future steps would require logic to wait for view change
     ];
 
     // Header Astro Info
@@ -312,8 +311,6 @@ const AppContent = () => {
         setReadingDate(date);
         setView('reading');
         setIsMenuOpen(false);
-        // If tutorial active, maybe advance step?
-        // For now, simpler implementation.
     };
 
     const startTutorial = () => {
@@ -367,7 +364,7 @@ const AppContent = () => {
         {
             title: 'Misztikum',
             items: [
-                { id: 'analysis', label: 'Elemzés', icon: '📊' },
+                { id: 'analysis', label: 'Elemzés', icon: '📊' }, // Consolidated item
                 { id: 'badges', label: 'Jelvények', icon: '🏆' },
                 { id: 'astro', label: 'Holdnaptár', icon: '🌙' },
                 { id: 'quiz', label: 'Tudás Próba', icon: '🎓' },
@@ -377,8 +374,8 @@ const AppContent = () => {
             title: 'Közösség',
             items: [
                 { id: 'community', label: 'Faliújság', icon: '🌍' },
-                { id: 'quests', label: 'Kihívások', icon: '⚔️' }, // Moved to Community
-                ...(globalSettings.enableShop !== false ? [{ id: 'marketplace', label: 'Piactér (Bolt)', icon: '🏷️' }] : []), // New Marketplace (Conditional)
+                { id: 'quests', label: 'Kihívások', icon: '⚔️' },
+                ...(globalSettings.enableShop !== false ? [{ id: 'marketplace', label: 'Piactér (Bolt)', icon: '🏷️' }] : []),
                 { id: 'live', label: 'Távjóslás (Live)', icon: '📡' },
                 { id: 'communityDecks', label: 'Pakli Piactér', icon: '🎨' },
                 { id: 'communitySpreads', label: 'Kirakás Piactér', icon: '💠' },
@@ -387,7 +384,7 @@ const AppContent = () => {
         {
             title: 'Eszközök',
             items: [
-                { id: 'tutorial', label: 'Kezdő Utazás', icon: '🎓' }, // Added Tutorial
+                { id: 'tutorial', label: 'Kezdő Utazás', icon: '🎓' },
                 { id: 'customSpread', label: 'Kirakás Tervező', icon: '✨' },
                 { id: 'deckBuilder', label: 'Pakli Műhely', icon: '🖌️' },
                 { id: 'education', label: 'Tanulás', icon: '📚' },
@@ -539,15 +536,19 @@ const AppContent = () => {
                     </div>
                 )}
                 {view === 'deckBuilder' && <DeckBuilder onBack={() => setView('dashboard')} />}
-                {view === 'stats' && <StatsView onBack={() => setView('dashboard')} />}
-                {view === 'monthly' && <MonthlySummaryView onBack={() => setView('dashboard')} />}
+
+                {/* Consolidating Views */}
+                {view === 'stats' && <StatsView onBack={() => setView('dashboard')} />} {/* Fallback route, but menu now points to analysis */}
+                {view === 'numerology' && <NumerologyView onBack={() => setView('dashboard')} />} {/* Fallback route */}
+
                 {view === 'analysis' && <AnalysisView onBack={() => setView('dashboard')} />}
+                {view === 'monthly' && <MonthlySummaryView onBack={() => setView('dashboard')} />}
+
                 {view === 'marketplace' && <MarketplaceView onBack={() => setView('dashboard')} />}
                 {view === 'quiz' && <QuizView onBack={() => setView('dashboard')} />}
                 {view === 'profile' && <ProfileView onBack={() => setView('dashboard')} targetUserId={viewProfileId} onNavigate={navigateTo} />}
                 {view === 'live' && <MultiplayerSession onBack={() => setView('dashboard')} />}
                 {view === 'install' && <InstallView onBack={() => setView('dashboard')} />}
-                {view === 'numerology' && <NumerologyView onBack={() => setView('dashboard')} />}
                 {view === 'astro' && <AstroCalendarView onBack={() => setView('dashboard')} onStartReading={startReading} />}
                 {view === 'badges' && <BadgesView onBack={() => setView('dashboard')} />}
                 {view === 'quests' && <QuestView onBack={() => setView('dashboard')} />}

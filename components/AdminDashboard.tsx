@@ -8,7 +8,7 @@ import { User, Reading, Spread, DeckMeta, Lesson, TarotNotification } from '../t
 import { MarkdownEditor, MarkdownRenderer } from './MarkdownSupport';
 import { ContentEditor } from './ContentEditor';
 
-type AdminTab = 'users' | 'readings' | 'spreads' | 'decks' | 'lessons' | 'system' | 'content';
+type AdminTab = 'users' | 'readings' | 'spreads' | 'decks' | 'lessons' | 'system' | 'content' | 'marketplace';
 
 export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
     const { currentUser, showToast } = useTarot();
@@ -21,6 +21,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
     const [spreads, setSpreads] = useState<Spread[]>([]);
     const [decks, setDecks] = useState<DeckMeta[]>([]);
     const [lessons, setLessons] = useState<Lesson[]>([]);
+    const [marketItems, setMarketItems] = useState<any[]>([]);
 
     // System States
     const [systemInfo, setSystemInfo] = useState<any>(null);
@@ -32,7 +33,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
     const [geminiApiKey, setGeminiApiKey] = useState('');
     const [enableGeminiSpreadImport, setEnableGeminiSpreadImport] = useState(false);
     const [enableRegistration, setEnableRegistration] = useState(true);
-    const [enableShop, setEnableShop] = useState(true); // Default true for now
+    const [enableShop, setEnableShop] = useState(true);
 
     // Detail Modal State
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
@@ -40,6 +41,19 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
     // Edit Modal State
     const [isEditingLesson, setIsEditingLesson] = useState(false);
     const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+
+    // Create Market Item State
+    const [isCreatingMarketItem, setIsCreatingMarketItem] = useState(false);
+    const [newMarketItem, setNewMarketItem] = useState({
+        name: '',
+        description: '',
+        type: 'background',
+        cost: 0,
+        value: '', // CSS or URL
+        previewUrl: '',
+        isPremium: false,
+        category: 'general'
+    });
 
     useEffect(() => {
         if (!currentUser?.isAdmin) {
@@ -58,11 +72,12 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                 case 'spreads': setSpreads(await AdminService.getGlobalSpreads()); break;
                 case 'decks': setDecks(await AdminService.getGlobalDecks()); break;
                 case 'lessons': setLessons(await AdminService.getGlobalLessons()); break;
+                case 'marketplace':
+                    const mItems = await CommunityService.getMarketplaceItems();
+                    setMarketItems(mItems);
+                    break;
                 case 'system': await loadSystemData(); break;
             }
-            // Load Settings (simulated fetch from StorageService/Firestore)
-            // In a real implementation, this would fetch from a 'settings' collection
-            // For now, we initialize with defaults or previous values if stored in memory
         } catch (e) {
             alert("Hiba az adatok betöltésekor: " + e);
         } finally {
@@ -81,10 +96,6 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                 setBackups(bRes.backups);
             }
 
-            // Fetch Global Settings
-            // Assuming CommunityService or a new SettingsService handles this
-            // Here we just simulate or use CommunityService if we add a method
-            // For MVP: Fetch from a specific document in Firestore
             const settings = await CommunityService.getGlobalSettings();
             if (settings) {
                 setGeminiApiKey(settings.geminiApiKey || '');
@@ -164,18 +175,38 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
         }
     };
 
-    const handleDelete = async (id: string, userId: string | undefined, type: 'user' | 'reading' | 'spread' | 'deck' | 'lesson', itemName?: string) => {
-        const reason = prompt("Kérlek indokold meg a törlést (az érintett felhasználó értesítést kap róla):", "Szabályzat megsértése");
-        if (reason === null) return; // Cancelled
-
-        if (!userId && type !== 'user') {
-            alert("Hiba: A tulajdonos ID-ja nem azonosítható.");
+    const handleCreateMarketItem = async () => {
+        if (!newMarketItem.name || !newMarketItem.type) {
+            alert("Név és típus kötelező!");
             return;
         }
 
+        const id = `item_${Date.now()}`;
+        const item = {
+            id,
+            ...newMarketItem,
+            createdBy: currentUser?.id || 'admin'
+        };
+
+        const success = await CommunityService.createMarketplaceItem(item);
+        if (success) {
+            showToast("Piactér elem létrehozva!", "success");
+            setIsCreatingMarketItem(false);
+            setNewMarketItem({
+                name: '', description: '', type: 'background', cost: 0, value: '', previewUrl: '', isPremium: false, category: 'general'
+            });
+            loadData();
+        } else {
+            showToast("Hiba létrehozáskor.", "error");
+        }
+    };
+
+    const handleDelete = async (id: string, userId: string | undefined, type: 'user' | 'reading' | 'spread' | 'deck' | 'lesson' | 'market', itemName?: string) => {
+        const reason = prompt("Kérlek indokold meg a törlést (az érintett felhasználó értesítést kap róla):", "Szabályzat megsértése");
+        if (reason === null) return;
+
         try {
-            // Send Notification to Owner
-            if (userId) {
+            if (userId && type !== 'market') {
                 const notif: TarotNotification = {
                     id: `admin_del_${Date.now()}`,
                     userId: userId,
@@ -188,36 +219,41 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                 await CommunityService.addNotification(notif);
             }
 
-            // Perform Deletion
             switch (type) {
                 case 'user':
-                    await AdminService.banUser(id);
+                    if (userId) await AdminService.banUser(id);
                     setUsers(prev => prev.filter(u => u.id !== id));
                     break;
                 case 'reading':
-                    await AdminService.deleteReading(userId!, id);
+                    if (userId) await AdminService.deleteReading(userId, id);
                     setReadings(prev => prev.filter(r => r.id !== id));
                     break;
                 case 'spread':
-                    await AdminService.deleteSpread(userId!, id);
+                    if (userId) await AdminService.deleteSpread(userId, id);
                     setSpreads(prev => prev.filter(s => s.id !== id));
                     break;
                 case 'deck':
-                    await AdminService.deleteDeck(userId!, id);
+                    if (userId) await AdminService.deleteDeck(userId, id);
                     setDecks(prev => prev.filter(d => d.id !== id));
                     break;
                 case 'lesson':
-                    if (lessons.find(l => l.id === id)?.isPublic) {
-                        await AdminService.deletePublicLesson(id);
-                    } else {
-                        await AdminService.deleteLesson(userId!, id);
+                    if (userId) {
+                        if (lessons.find(l => l.id === id)?.isPublic) {
+                            await AdminService.deletePublicLesson(id);
+                        } else {
+                            await AdminService.deleteLesson(userId, id);
+                        }
                     }
                     setLessons(prev => prev.filter(l => l.id !== id));
                     break;
+                case 'market':
+                    await CommunityService.deleteMarketplaceItem(id);
+                    setMarketItems(prev => prev.filter(i => i.id !== id));
+                    break;
             }
-            showToast("Sikeres törlés és értesítés elküldve.", "success");
+            showToast("Sikeres törlés.", "success");
         } catch (e) {
-            alert("Hiba a törléskor (Jogosultság?): " + e);
+            alert("Hiba a törléskor: " + e);
         }
     };
 
@@ -336,18 +372,104 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
         );
     };
 
+    const CreateMarketItemModal = () => {
+        if (!isCreatingMarketItem) return null;
+        return (
+            <div className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4">
+                <div className="bg-[#1e1e2e] w-full max-w-md rounded-2xl p-6 border border-white/10">
+                    <h3 className="text-xl font-bold text-white mb-4">Új Piactér Elem</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-xs text-gray-500">Típus</label>
+                            <select
+                                value={newMarketItem.type}
+                                onChange={e => setNewMarketItem({...newMarketItem, type: e.target.value})}
+                                className="w-full bg-black/30 border border-white/10 rounded p-2 text-white"
+                            >
+                                <option value="background">Háttér</option>
+                                <option value="cover">Kártya Hátlap</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-500">Név</label>
+                            <input
+                                value={newMarketItem.name}
+                                onChange={e => setNewMarketItem({...newMarketItem, name: e.target.value})}
+                                className="w-full bg-black/30 border border-white/10 rounded p-2 text-white"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-500">Leírás</label>
+                            <input
+                                value={newMarketItem.description}
+                                onChange={e => setNewMarketItem({...newMarketItem, description: e.target.value})}
+                                className="w-full bg-black/30 border border-white/10 rounded p-2 text-white"
+                            />
+                        </div>
+                         <div>
+                            <label className="text-xs text-gray-500">Kategória (pl. 'nature', 'dark')</label>
+                            <input
+                                value={newMarketItem.category}
+                                onChange={e => setNewMarketItem({...newMarketItem, category: e.target.value})}
+                                className="w-full bg-black/30 border border-white/10 rounded p-2 text-white"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-500">Ár (Pont)</label>
+                            <input
+                                type="number"
+                                value={newMarketItem.cost}
+                                onChange={e => setNewMarketItem({...newMarketItem, cost: parseInt(e.target.value)})}
+                                className="w-full bg-black/30 border border-white/10 rounded p-2 text-white"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-500">Érték (CSS Gradient vagy Kép URL)</label>
+                            <textarea
+                                value={newMarketItem.value}
+                                onChange={e => setNewMarketItem({...newMarketItem, value: e.target.value})}
+                                className="w-full bg-black/30 border border-white/10 rounded p-2 text-white h-20"
+                                placeholder="bg-gradient-to-r from-red-500... VAGY https://..."
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-500">Előnézet URL (Opcionális)</label>
+                            <input
+                                value={newMarketItem.previewUrl}
+                                onChange={e => setNewMarketItem({...newMarketItem, previewUrl: e.target.value})}
+                                className="w-full bg-black/30 border border-white/10 rounded p-2 text-white"
+                            />
+                        </div>
+                        <div className="flex gap-2">
+                             <button onClick={() => setNewMarketItem({...newMarketItem, isPremium: !newMarketItem.isPremium})} className={`px-3 py-1 rounded text-xs border ${newMarketItem.isPremium ? 'bg-gold-500 text-black border-gold-500' : 'border-white/20'}`}>
+                                {newMarketItem.isPremium ? 'Prémium' : 'Normál'}
+                             </button>
+                        </div>
+                    </div>
+                    <div className="mt-6 flex justify-end gap-2">
+                         <button onClick={() => setIsCreatingMarketItem(false)} className="text-gray-400 px-4 py-2 hover:text-white">Mégse</button>
+                         <button onClick={handleCreateMarketItem} className="bg-gold-500 text-black px-4 py-2 rounded font-bold hover:bg-gold-400">Létrehozás</button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+
     return (
         <div className="min-h-screen bg-[#13131a] text-gray-300 font-sans animate-fade-in flex flex-col md:flex-row">
             {selectedItem && <DetailModal />}
             {isEditingLesson && <EditLessonModal />}
+            {isCreatingMarketItem && <CreateMarketItemModal />}
             
             <div className="w-full md:w-64 bg-[#1e1e2e] flex-shrink-0 flex flex-col border-r border-white/5">
                 <div className="p-6 border-b border-white/5">
                     <h2 className="text-xl font-bold text-white tracking-widest uppercase">Admin Pult</h2>
                     <p className="text-xs text-red-400 mt-1 font-bold">⚠️ Isten Mód (Mindent lát)</p>
                 </div>
-                <nav className="flex-1 py-4">
+                <nav className="flex-1 py-4 overflow-y-auto custom-scrollbar">
                     <TabButton id="system" label="Rendszer & Frissítés" icon="🖥️" />
+                    <TabButton id="marketplace" label="Piactér Kezelő" icon="🏷️" />
                     <TabButton id="content" label="Tartalom Szerkesztő" icon="📝" />
                     <div className="my-4 border-t border-white/5"></div>
                     <TabButton id="readings" label="Minden Húzás" icon="📜" />
@@ -369,6 +491,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                     <div>
                         <h3 className="text-lg font-bold text-white">
                             {activeTab === 'system' && 'Rendszer Állapot & Frissítés Kezelő'}
+                            {activeTab === 'marketplace' && 'Piactér Tartalmak (Hátterek, Borítók)'}
                             {activeTab === 'users' && 'Összes Regisztrált Felhasználó (Személyes adatok védve)'}
                             {activeTab === 'readings' && 'Rendszernapló: Összes Húzás (Privát is látható)'}
                             {activeTab === 'spreads' && 'Rendszernapló: Egyéni Kirakások'}
@@ -391,6 +514,43 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                         <div className="w-full">
                             {activeTab === 'content' && (
                                 <ContentEditor secretKey="admin123" />
+                            )}
+
+                            {activeTab === 'marketplace' && (
+                                <div className="space-y-6">
+                                    <div className="flex justify-between items-center">
+                                        <h4 className="font-bold text-white">Hátterek és Kártya Hátlapok</h4>
+                                        <button onClick={() => setIsCreatingMarketItem(true)} className="bg-gold-500 text-black px-4 py-2 rounded font-bold hover:bg-gold-400">
+                                            + Új Elem
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {marketItems.map(item => (
+                                            <div key={item.id} className="bg-[#2a2a3c] p-4 rounded-xl border border-white/10 flex flex-col gap-2">
+                                                <div className="h-20 bg-black/40 rounded overflow-hidden mb-2 relative">
+                                                    {item.previewUrl || (item.value && item.value.startsWith('bg-')) ? (
+                                                        (item.previewUrl?.startsWith('http') || item.previewUrl?.startsWith('data') || (item.value && item.value.startsWith('bg-'))) ? (
+                                                            <div className={`w-full h-full ${item.value.startsWith('bg-') ? item.value : ''}`}>
+                                                                {item.previewUrl?.startsWith('http') && <img src={item.previewUrl} className="w-full h-full object-cover" />}
+                                                            </div>
+                                                        ) : null
+                                                    ) : (
+                                                        <div className="flex items-center justify-center h-full text-2xl">🖼️</div>
+                                                    )}
+                                                    <div className="absolute top-1 right-1 bg-black/60 text-white px-2 rounded text-[10px] font-bold uppercase">{item.type}</div>
+                                                </div>
+                                                <div className="font-bold text-white">{item.name}</div>
+                                                <div className="text-xs text-gray-400">{item.description}</div>
+                                                <div className="text-xs text-gold-400 font-bold">{item.cost} pont {item.isPremium && '(PREMIUM)'}</div>
+                                                <div className="mt-auto pt-2 border-t border-white/5 flex justify-between">
+                                                    <span className="text-[10px] text-gray-500 font-mono">{item.id}</span>
+                                                    <button onClick={() => handleDelete(item.id, undefined, 'market')} className="text-red-400 hover:text-red-300 text-xs font-bold uppercase">Törlés</button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {marketItems.length === 0 && <div className="text-gray-500 italic col-span-3 text-center py-10">Nincsenek feltöltött elemek.</div>}
+                                    </div>
+                                </div>
                             )}
 
                             {activeTab === 'system' && (
@@ -540,17 +700,6 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                     </thead>
                                     <tbody className="divide-y divide-white/5">
                                         {users.map(u => {
-                                            // Mock timestamps if not available in current interface
-                                            // Ideally these come from the backend/firestore metadata
-                                            // Since we are mocking or using simple interface, we'll try to show what we have or placeholder
-                                            // In a real Firebase setup, these would be user.metadata.creationTime / lastSignInTime
-                                            // Assuming we might have them or will treat them as 'N/A' for now if not in types.ts
-                                            // But the user requested them, so let's check types.ts
-                                            // types.ts User interface doesn't have createdAt/lastLogin.
-                                            // We will display placeholders or infer if possible, but request says "látszódjon".
-                                            // I will modify the display to include columns for them, even if data is N/A for now.
-                                            // And remove the "Personal Data" column.
-
                                             return (
                                             <tr key={u.id} className="hover:bg-[#1e1e2e] transition-colors cursor-pointer" onClick={() => setSelectedItem(u)}>
                                                 <td className="p-4">

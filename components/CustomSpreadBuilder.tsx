@@ -2,28 +2,31 @@
 import React, { useState, useEffect } from 'react';
 import { useTarot } from '../context/TarotContext';
 import { Spread, SpreadPosition, MeaningContext, SpreadCategory } from '../types';
+import { CommunityService } from '../services/communityService';
 
 export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () => void, initialSpread?: Spread }) => {
-    const { addCustomSpread, updateCustomSpread, globalSettings } = useTarot();
+    const { addCustomSpread, updateCustomSpread, globalSettings, currentUser, showToast } = useTarot();
     const [name, setName] = useState(initialSpread?.name || "");
     const [description, setDescription] = useState(initialSpread?.description || "");
     const [positions, setPositions] = useState<SpreadPosition[]>(initialSpread?.positions || []);
     const [activePosId, setActivePosId] = useState<number | null>(null);
     const [category, setCategory] = useState<SpreadCategory>(initialSpread?.category || 'general');
+    const [price, setPrice] = useState<number>(initialSpread?.price || 0);
     const [isUploading, setIsUploading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [uploadStatus, setUploadStatus] = useState("");
     
     // 7x5 Grid for more flexibility
     const gridCols = 7;
     const gridRows = 5;
 
-    // Load initial data if provided (for editing)
     useEffect(() => {
         if(initialSpread) {
             setName(initialSpread.name);
             setDescription(initialSpread.description);
             setPositions(initialSpread.positions);
             setCategory(initialSpread.category || 'general');
+            setPrice(initialSpread.price || 0);
         }
     }, [initialSpread]);
 
@@ -31,18 +34,15 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
         const existing = positions.find(p => p.x === x && p.y === y);
         
         if (existing) {
-            // Only remove if it is the currently selected one, otherwise select it
             if(activePosId === existing.id) {
-                // Remove
                 const newPositions = positions.filter(p => p !== existing)
-                    .map((p, index) => ({ ...p, id: index + 1 })); // Renumber remaining
+                    .map((p, index) => ({ ...p, id: index + 1 }));
                 setPositions(newPositions);
                 setActivePosId(null);
             } else {
                 setActivePosId(existing.id);
             }
         } else {
-            // Add
             if (positions.length >= 15) return alert("Maximum 15 kártya helyezhető el.");
             const newPos: SpreadPosition = {
                 id: positions.length + 1,
@@ -90,10 +90,7 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                 }
 
                 setUploadStatus("Küldés a mesterséges intelligenciának...");
-
-                // Use simple timeout protection or feedback
                 const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Időtúllépés a szerver válaszában")), 30000));
-
                 const fetchPromise = fetch('./gemini_proxy.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -118,18 +115,14 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                     throw new Error(`API hiba: ${data.error}`);
                 }
 
-                // Apply data
                 if (data.name) setName(data.name);
                 if (data.description) setDescription(data.description);
                 if (data.category && CATEGORIES.some(c => c.id === data.category)) setCategory(data.category);
 
                 if (Array.isArray(data.positions)) {
                     const newPositions = data.positions.map((p: any, index: number) => {
-                        // Correctly map 0-100 coordinates to grid (1-7 X, 1-5 Y)
                         let x = Math.round((p.x / 100) * (gridCols - 1)) + 1;
                         let y = Math.round((p.y / 100) * (gridRows - 1)) + 1;
-
-                        // Ensure bounds
                         x = Math.max(1, Math.min(gridCols, x || (index % gridCols) + 1));
                         y = Math.max(1, Math.min(gridRows, y || Math.floor(index / gridCols) + 1));
 
@@ -158,33 +151,46 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
         }
     };
 
-    const handleSave = () => {
+    const handleSave = async (publish: boolean = false) => {
         if (!name) return alert("Kérlek adj nevet a kirakásnak!");
         if (positions.length === 0) return alert("Helyezz el legalább egy kártyát az asztalon!");
+        if (publish && !currentUser) return alert("Jelentkezz be a közzétételhez!");
         
-        if (initialSpread) {
-            // Update existing
-            const updatedSpread: Spread = {
-                ...initialSpread,
-                name,
-                description,
-                positions,
-                category
-            };
-            updateCustomSpread(updatedSpread);
-        } else {
-            // Create new
-            const newSpread: Spread = {
-                id: `custom_${Date.now()}`,
+        setIsSaving(true);
+        try {
+            const spreadId = initialSpread?.id || `custom_${Date.now()}`;
+            const spreadData: Spread = {
+                id: spreadId,
                 name,
                 description: description || "Egyéni kirakás",
                 positions,
                 category,
-                isCustom: true
+                isCustom: true,
+                price: price,
+                author: currentUser?.displayName || 'Ismeretlen',
+                userId: currentUser?.id
             };
-            addCustomSpread(newSpread);
+
+            // 1. Save Local
+            if (initialSpread) {
+                updateCustomSpread(spreadData);
+            } else {
+                addCustomSpread(spreadData);
+            }
+
+            // 2. Publish if requested
+            if (publish) {
+                await CommunityService.publishSpread(spreadData, price);
+                showToast("Kirakás sikeresen közzétéve a Piactéren!", "success");
+            } else {
+                showToast("Kirakás sikeresen mentve!", "success");
+            }
+            onCancel();
+        } catch (e: any) {
+            showToast(`Hiba: ${e.message || e}`, "error");
+        } finally {
+            setIsSaving(false);
         }
-        onCancel();
     };
 
     const activePosition = positions.find(p => p.id === activePosId);
@@ -208,27 +214,21 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
         { id: 'advice', label: 'Tanács & Útmutatás', icon: '💡' }
     ];
 
-    // Check if AI import is enabled - Force visibility if setting is missing but user claims it's on, or check logic
-    // The previous code had: globalSettings?.enableGeminiSpreadImport
-    // I will verify this and maybe add a fallback or debug info if needed, but primarily ensure it renders.
     const isAIEnabled = globalSettings?.enableGeminiSpreadImport;
 
     return (
         <div className="flex flex-col lg:flex-row h-full lg:h-[calc(100vh-100px)] gap-6 animate-fade-in pb-24">
             
-            {/* LEFT PANEL - Settings (Top on Mobile) */}
             <div className="lg:w-1/3 flex flex-col gap-4 order-1 lg:order-1 min-h-[500px]">
                 <button onClick={onCancel} className="self-start flex items-center gap-2 text-white/50 hover:text-white mb-2 font-bold transition-colors">
                     <span>&larr;</span> Mégse
                 </button>
 
-                {/* Removed overflow-hidden to allow scrolling full content if needed on small screens, or set overflow-y-auto */}
                 <div className="glass-panel p-6 rounded-2xl flex-1 flex flex-col border border-white/10 max-h-[85vh] lg:max-h-none overflow-y-auto custom-scrollbar">
                     <h2 className="text-2xl font-serif font-bold text-gold-400 mb-6 flex items-center gap-2">
                         <span>✨</span> {initialSpread ? 'Kirakás Szerkesztése' : 'Kirakás Tervező'}
                     </h2>
                     
-                    {/* Always show the area, but disable if no key, or provide info */}
                     <div className="mb-4">
                         {isAIEnabled ? (
                             <>
@@ -257,26 +257,10 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                                         </>
                                     )}
                                 </label>
-                                <p className="text-[10px] text-white/40 text-center mt-1">
-                                    Tölts fel egy képet a kirakásról, és a mesterséges intelligencia megpróbálja felismerni a pozíciókat.
-                                </p>
-                            {isUploading && (
-                                <div className="w-full bg-white/10 rounded-full h-2 mt-3 overflow-hidden border border-white/5 relative">
-                                    <div className="absolute inset-0 bg-gold-500/20 animate-pulse"></div>
-                                    <div className="h-full bg-gold-500 w-1/2" style={{animation: 'indeterminate 1.5s infinite linear'}}></div>
-                                    <style>{`
-                                        @keyframes indeterminate {
-                                            0% { transform: translateX(-100%); }
-                                            100% { transform: translateX(200%); }
-                                        }
-                                    `}</style>
-                                </div>
-                            )}
                             </>
                         ) : (
-                             // Fallback / Debug: If user thinks it should be on but it's off
                              <div className="text-[10px] text-white/30 text-center border border-white/5 p-2 rounded bg-white/5">
-                                AI Kirakás importálás inaktív. (Beállítások -> Admin)
+                                AI Kirakás importálás inaktív.
                              </div>
                         )}
                     </div>
@@ -312,6 +296,17 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                                 placeholder="Mire való ez a kirakás?"
                             />
                         </div>
+                         <div>
+                            <label className="block text-xs font-bold uppercase text-gold-400 mb-1">Ár (Pont)</label>
+                            <input
+                                type="number"
+                                min="0"
+                                value={price}
+                                onChange={e => setPrice(parseInt(e.target.value) || 0)}
+                                className="w-full bg-black/30 border border-gold-500/50 rounded-xl p-3 text-white focus:border-gold-500 outline-none font-mono"
+                            />
+                            <div className="text-[10px] text-white/30 mt-1">0 = Ingyenes. Csak közzétételkor számít.</div>
+                        </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar bg-black/20 rounded-xl p-2 border border-white/5 min-h-[150px]">
@@ -339,7 +334,6 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                                                 className="bg-transparent border-b border-white/10 focus:border-gold-500 outline-none text-sm font-bold text-white flex-1"
                                                 placeholder="Pozíció neve..."
                                             />
-                                            {/* Context Selector Mini */}
                                             <select 
                                                 value={p.defaultContext || 'general'}
                                                 onChange={(e) => updatePositionDetails(p.id, 'defaultContext', e.target.value)}
@@ -364,7 +358,7 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                         )}
                     </div>
 
-                    <div className="mt-4 border-t border-white/10 pt-4">
+                    <div className="mt-4 border-t border-white/10 pt-4 space-y-2">
                         {activePosition && (
                             <div className="mb-4 flex items-center justify-between text-sm">
                                 <span className="text-white/60">Kiválasztva: <span className="font-bold text-white">{activePosition.id}. {activePosition.name}</span></span>
@@ -377,22 +371,28 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                             </div>
                         )}
                         <button 
-                            onClick={handleSave} 
-                            className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl font-bold text-white shadow-lg hover:shadow-indigo-500/50 transition-all transform hover:-translate-y-1"
+                            onClick={() => handleSave(false)}
+                            disabled={isSaving}
+                            className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-xl font-bold text-white transition-all disabled:opacity-50"
                         >
-                            {initialSpread ? 'Változtatások Mentése' : 'Kirakás Mentése'}
+                            {isSaving ? '...' : (initialSpread ? 'Változtatások Mentése (Helyi)' : 'Mentés (Privát)')}
+                        </button>
+
+                        <button
+                            onClick={() => handleSave(true)}
+                             disabled={isSaving}
+                            className="w-full py-3 bg-gradient-to-r from-gold-600 to-gold-400 rounded-xl font-bold text-black shadow-lg hover:scale-[1.02] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            <span>📢</span> {isSaving ? 'Feldolgozás...' : 'Mentés és Közzététel'}
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* RIGHT PANEL - The Table (Bottom on Mobile) */}
             <div className="lg:w-2/3 glass-panel-dark rounded-2xl border border-white/10 p-4 lg:p-8 flex items-center justify-center relative overflow-hidden shadow-inner order-2 lg:order-2 h-[500px] lg:h-auto">
-                {/* Background Decoration */}
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#312e81_0%,_#000000_100%)] opacity-80"></div>
                 <div className="absolute inset-0" style={{backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.03\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")'}}></div>
 
-                {/* The Grid - Scrollable on mobile */}
                 <div 
                     className="relative z-10 grid gap-2 lg:gap-4 max-w-full max-h-full overflow-auto p-4 custom-scrollbar"
                     style={{
@@ -418,7 +418,7 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                                 `}
                                 style={{
                                     transform: pos?.rotation ? 'rotate(90deg) scale(0.9)' : 'none',
-                                    zIndex: pos?.id // Simple layering if overlapped manually, though grid prevents real overlap
+                                    zIndex: pos?.id
                                 }}
                             >
                                 {pos ? (
@@ -447,7 +447,6 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                     })}
                 </div>
                 
-                {/* Helper Text */}
                 <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-white/30 italic pointer-events-none hidden lg:block">
                     Kattints egy üres helyre a kártya hozzáadásához, vagy egy meglévőre a törléshez/kiválasztáshoz.
                 </div>
