@@ -5,15 +5,6 @@ import { Quest, UserQuestProgress, Card } from '../types';
 import { QuestService, DAILY_QUESTS, WEEKLY_QUESTS } from '../services/questService';
 import { FULL_DECK } from '../constants';
 
-const TAROT_EMOJIS = [
-    '🔮', '🌙', '☀️', '⭐', '🃏', '🗡️', '🏆', '🌿', '🪙', '🔥',
-    '💧', '🌬️', '🏔️', '🕯️', '🗝️', '📜', '⚖️', '🦁', '🐍', '🦅',
-    '🐟', '💀', '🖤', '♾️', '🔔', '🌍', '👑', '🛡️', '🎭', '🎡',
-    '🏺', '🏹', '🦂', '🦀', '👯', '🐂', '🐏', '🐐', '🌊', '🪨',
-    '🪵', '🍷', '💰', '🧿', '📖', '🚪', '🏰', '🏚️', '👼', '👹',
-    '🌕', '🌖', '🌗', '🌘', '🌑', '🌒', '🌓', '🌔'
-];
-
 const ZODIAC_SIGNS = ["Kos", "Bika", "Ikrek", "Rák", "Oroszlán", "Szűz", "Mérleg", "Skorpió", "Nyilas", "Bak", "Vízöntő", "Halak"];
 const SABBATS = ["Yule", "Imbolc", "Ostara", "Beltane", "Litha", "Lughnasadh", "Mabon", "Samhain"];
 const MOON_PHASES = ["Újhold", "Növő Hold", "Telihold", "Fogyó Hold"];
@@ -461,26 +452,28 @@ export const QuestView = ({ onBack }: { onBack: () => void }) => {
                                     </div>
                                 </div>
 
-                                {/* --- Ikon és Emoji --- */}
+                                {/* --- Ikon és Emoji (Csak Emoji Input) --- */}
                                 <div>
-                                    <label className="block text-[10px] uppercase font-bold text-white/50 mb-1">Vizuális Megjelenés (Emoji)</label>
-                                    <div className="relative group">
-                                        <button className="w-full h-12 bg-white/10 rounded flex items-center justify-between px-4 text-2xl border border-white/10 hover:bg-white/20 transition-colors">
-                                            <span>{newQuest.visualEmoji || 'Válassz...'}</span>
-                                            <span className="text-xs text-white/30">▼</span>
-                                        </button>
-
-                                        {/* Emoji Grid */}
-                                        <div className="absolute bottom-full left-0 mb-2 p-3 bg-[#1e1e2e] border border-white/20 rounded-xl shadow-2xl w-full max-w-sm grid grid-cols-8 gap-2 hidden group-hover:grid z-50 h-64 overflow-y-auto custom-scrollbar">
-                                            {TAROT_EMOJIS.map(emoji => (
-                                                <button
-                                                    key={emoji}
-                                                    onClick={() => setNewQuest({...newQuest, visualEmoji: emoji})}
-                                                    className="aspect-square hover:bg-white/10 rounded flex items-center justify-center text-lg transition-colors border border-transparent hover:border-white/10"
-                                                >
-                                                    {emoji}
-                                                </button>
-                                            ))}
+                                    <label className="block text-[10px] uppercase font-bold text-white/50 mb-1">Kihívás Ikonja (Emoji)</label>
+                                    <div className="flex items-center gap-4">
+                                        <input
+                                            type="text"
+                                            value={newQuest.visualEmoji || ''}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                const emojiRegex = /(\p{Emoji_Presentation}|\p{Extended_Pictographic})/u;
+                                                if (val === '' || emojiRegex.test(val)) {
+                                                    // Ha van találat, csak az első emojit vesszük ki, vagy engedjük a beírást ha valid
+                                                    const match = val.match(emojiRegex);
+                                                    setNewQuest({...newQuest, visualEmoji: match ? match[0] : val});
+                                                }
+                                            }}
+                                            className="w-16 h-16 text-center text-4xl bg-black/40 border border-white/20 rounded-xl focus:border-gold-500 outline-none transition-all placeholder:opacity-20"
+                                            placeholder="🏆"
+                                            maxLength={2}
+                                        />
+                                        <div className="text-xs text-white/40 max-w-[200px]">
+                                            Ide egyetlen karaktert írhatsz, ami a kihívás jelképe lesz. Válassz egy kifejező emojit!
                                         </div>
                                     </div>
                                 </div>

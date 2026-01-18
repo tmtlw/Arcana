@@ -178,10 +178,26 @@ export interface CommunityBadge {
   createdAt: string;
   likes: number;
   likedBy: string[];
-  requirements?: string; // Új: A megszerzés feltétele szövegesen
-  isManual?: boolean;    // Új: A készítő hagyja-e jóvá manuálisan
-  limit?: number;        // Új: Maximális kiadható darabszám
-  issuedCount?: number;  // Új: Hány darab került eddig kiadásra
+  requirements?: string; // Szöveges leírás megmarad
+  isManual?: boolean;
+  limit?: number;
+  issuedCount?: number;
+
+  // Automatikus ellenőrzés mezői (Quest-ből átvéve)
+  conditionType?: 'reading_count' | 'lesson_read' | 'card_draw' | 'login_streak' | 'share' | 'challenge' | 'specific_spread';
+  target?: number; // Cél darabszám
+
+  filterCardType?: 'major' | 'minor' | 'suit' | 'specific' | 'any';
+  filterSuit?: 'Kelyhek' | 'Érmék' | 'Kardok' | 'Botok';
+  filterCardIds?: string[];
+  filterLogic?: 'AND' | 'OR';
+
+  timeUnit?: 'hour' | 'day' | 'month' | 'sabbat' | 'moonphase';
+  timeRangeStart?: string;
+  timeRangeEnd?: string;
+
+  filterZodiac?: string;
+  targetSpreadId?: string;
 }
 
 export interface BadgeRequest {
