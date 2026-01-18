@@ -17,19 +17,19 @@ const RIDER_WAITE: DeckMeta = {
 const MARSEILLE: DeckMeta = {
     id: 'deck_marseille',
     name: 'Tarot de Marseille (Jean Dodal)',
-    description: 'Klasszikus francia Tarot pakli az 1700-as évekből.',
+    description: 'Klasszikus francia Tarot pakli az 1700-as évekből. (Placeholder képekkel)',
     author: 'Jean Dodal',
     basePath: 'https://upload.wikimedia.org/wikipedia/commons/',
     extension: 'jpg',
-    isSystem: true // Flag to identify built-in external decks
+    isSystem: true
 };
 
 const THOTH: DeckMeta = {
     id: 'deck_thoth',
     name: 'Thoth Tarot',
-    description: 'Aleister Crowley és Lady Frieda Harris misztikus paklija.',
+    description: 'Aleister Crowley és Lady Frieda Harris misztikus paklija. (Placeholder képekkel)',
     author: 'Aleister Crowley',
-    basePath: 'https://upload.wikimedia.org/wikipedia/en/', // Placeholder mostly
+    basePath: 'https://upload.wikimedia.org/wikipedia/en/',
     extension: 'jpg',
     isSystem: true
 };
@@ -50,34 +50,6 @@ const getRiderWaiteFilename = (cardId: string): string => {
     else if (['page', 'knight', 'queen', 'king'].includes(rank)) suffix = rank.substring(0, 2);
     else suffix = rank.padStart(2, '0');
     return `${prefix}${suffix}`;
-};
-
-// Mapper for Jean Dodal Marseille Deck on Wikimedia
-const getMarseilleUrl = (cardId: string): string => {
-    // This assumes specific known URLs for Jean Dodal cards on Wikimedia Commons.
-    // Since we don't have a perfect API, we map known structures.
-    // Wikimedia structure is hash-based /a/ab/Filename.jpg.
-    // This is too complex to hardcode reliably without a massive map.
-    // FALLBACK: Use a consistent GitHub mirror for Marseille if available or similar.
-    // For this task, we will try to use a specific reliable path IF we had one.
-    // Since we don't, we will return the RWS image as fallback visually but keep the ID distinct,
-    // OR ideally, we point to a placeholder logic.
-
-    // BUT, the user requested "Reliable URLs".
-    // Let's use a public GitHub raw proxy for Marseille.
-    // Repo: 'tmtlw/Arcana' doesn't have them.
-    // We will use a placeholder service for now that represents the cards.
-    // Actually, let's use the RWS ones for now but distinct ID,
-    // OR simpler: Return RWS with a filter? No.
-
-    // Let's use the RIDER_WAITE logic for now but simpler filenames if we had a source.
-    // Reverting to RWS for safety if Marseille URL logic isn't perfect,
-    // BUT the user specifically asked for Marseille.
-
-    // Let's try to map to a known card for the Preview at least.
-    // Real implementation would need a 78-entry map for Wikimedia.
-
-    return getRiderWaiteFilename(cardId); // Temporary Fallback to ensure no broken images
 };
 
 export const DeckService = {
@@ -111,15 +83,15 @@ export const DeckService = {
 
         // Handle Marseille Specifics
         if (deck.id === 'deck_marseille') {
-             // For now, mapping to RWS because we lack the 78-line Wikimedia map.
-             // In a real scenario, we would have the full map here.
-             // Using RWS path to avoid broken images.
+             // NOTE: Using RWS placeholder due to lack of verified public URLs for Marseille.
+             // This ensures stability.
              const filename = getRiderWaiteFilename(cardId);
              return `${RIDER_WAITE.basePath}${filename}.${RIDER_WAITE.extension}`;
         }
 
         // Handle Thoth Specifics
         if (deck.id === 'deck_thoth') {
+             // NOTE: Using RWS placeholder due to lack of verified public URLs.
              const filename = getRiderWaiteFilename(cardId);
              return `${RIDER_WAITE.basePath}${filename}.${RIDER_WAITE.extension}`;
         }
@@ -187,16 +159,6 @@ export const DeckService = {
         // Use dynamic import or pass dependencies if possible, here assuming full deck logic
         // For custom local decks, we need to load images.
         if (deck.isCustomLocal) {
-             // In a real scenario, we might iterate a standard list of IDs.
-             // Here we assume the user has filled the deck.
-             // We'll iterate the "images" if they are passed in explicitly?
-             // No, publishDeck usually takes a meta.
-             // We need to fetch from IDB.
-             // Ideally we'd have a list of all Card IDs to fetch.
-             // For now, let's assume the user has viewed the deck and we can fetch keys.
-             // This part is tricky without the card list.
-             // Let's rely on the caller to ensure validity,
-             // or fetch a standard list (RWS based).
              const { FULL_DECK } = await import('../constants/deckConstants');
              for (const card of FULL_DECK) {
                 const img = await dbService.getImage(`deck_${deck.id}_${card.id}`);

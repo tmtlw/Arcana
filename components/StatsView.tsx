@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useTarot } from '../context/TarotContext';
-import { FULL_DECK, getCardImage, MOODS } from '../constants';
+import { FULL_DECK } from '../constants/deckConstants'; // Updated import
+import { getCardImage, MOODS } from '../constants';
 import { t } from '../services/i18nService';
 import { CardImage } from './CardImage';
 
