@@ -27,6 +27,7 @@ import { NumerologyView } from './components/NumerologyView';
 import { AstroCalendarView } from './components/AstroCalendarView';
 import { BadgesView } from './components/BadgesView'; // Új
 import { QuestView } from './components/QuestView'; // Import QuestView
+import { MonthlySummaryView } from './components/MonthlySummaryView'; // Import MonthlySummaryView
 import { Spread, Card } from './types';
 import { t } from './services/i18nService';
 import { AstroService } from './services/astroService'; // Import AstroService
@@ -367,7 +368,8 @@ const AppContent = () => {
                 { id: 'badges', label: 'Jelvények', icon: '🏆' },
                 { id: 'astro', label: 'Holdnaptár', icon: '🌙' },
                 { id: 'numerology', label: 'Számmisztika', icon: '🔢' },
-                { id: 'stats', label: 'Elemzés', icon: '📊' },
+                { id: 'monthly', label: 'Lelki Irányítópult', icon: '🔮' },
+                { id: 'stats', label: 'Statisztika', icon: '📊' },
                 { id: 'quiz', label: 'Tudás Próba', icon: '🎓' },
             ]
         },
@@ -537,6 +539,7 @@ const AppContent = () => {
                 )}
                 {view === 'deckBuilder' && <DeckBuilder onBack={() => setView('dashboard')} />}
                 {view === 'stats' && <StatsView onBack={() => setView('dashboard')} />}
+                {view === 'monthly' && <MonthlySummaryView onBack={() => setView('dashboard')} />}
                 {view === 'quiz' && <QuizView onBack={() => setView('dashboard')} />}
                 {view === 'profile' && <ProfileView onBack={() => setView('dashboard')} targetUserId={viewProfileId} onNavigate={navigateTo} />}
                 {view === 'live' && <MultiplayerSession onBack={() => setView('dashboard')} />}
