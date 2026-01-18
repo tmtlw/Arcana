@@ -5,7 +5,7 @@ import { NumerologyService } from '../services/numerologyService';
 import { CardImage } from './CardImage';
 import { t } from '../services/i18nService';
 
-export const NumerologyView = ({ onBack }: { onBack: () => void }) => {
+export const NumerologyView = ({ onBack, embedded }: { onBack: () => void, embedded?: boolean }) => {
     const { currentUser, deck, language } = useTarot();
     const [activeTab, setActiveTab] = useState<'profile' | 'name_analysis'>('profile');
     const [customName, setCustomName] = useState('');
@@ -71,11 +71,13 @@ export const NumerologyView = ({ onBack }: { onBack: () => void }) => {
     return (
         <div className="animate-fade-in max-w-4xl mx-auto pb-20">
             <div className="flex justify-between items-center mb-6">
-                <button onClick={onBack} className="flex items-center gap-2 font-bold text-white/60 hover:text-gold-400 transition-colors">
-                    <span>&larr;</span> {t('btn.back', language)}
-                </button>
+                {!embedded && (
+                    <button onClick={onBack} className="flex items-center gap-2 font-bold text-white/60 hover:text-gold-400 transition-colors">
+                        <span>&larr;</span> {t('btn.back', language)}
+                    </button>
+                )}
 
-                <div className="flex bg-black/30 p-1 rounded-lg border border-white/10">
+                <div className={`flex bg-black/30 p-1 rounded-lg border border-white/10 ${embedded ? 'mx-auto' : ''}`}>
                     <button
                         onClick={() => setActiveTab('profile')}
                         className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-colors ${activeTab === 'profile' ? 'bg-gold-500 text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}

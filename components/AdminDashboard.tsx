@@ -32,6 +32,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
     const [geminiApiKey, setGeminiApiKey] = useState('');
     const [enableGeminiSpreadImport, setEnableGeminiSpreadImport] = useState(false);
     const [enableRegistration, setEnableRegistration] = useState(true);
+    const [enableShop, setEnableShop] = useState(true); // Default true for now
 
     // Detail Modal State
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
@@ -89,6 +90,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                 setGeminiApiKey(settings.geminiApiKey || '');
                 setEnableGeminiSpreadImport(settings.enableGeminiSpreadImport || false);
                 setEnableRegistration(settings.enableRegistration !== undefined ? settings.enableRegistration : true);
+                setEnableShop(settings.enableShop !== undefined ? settings.enableShop : true);
             }
         } catch (e) {
             console.error(e);
@@ -100,7 +102,8 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
             await CommunityService.saveGlobalSettings({
                 geminiApiKey,
                 enableGeminiSpreadImport,
-                enableRegistration
+                enableRegistration,
+                enableShop
             });
             showToast("Beállítások mentve!", "success");
         } catch (e) {
@@ -436,6 +439,19 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                                     className={`w-12 h-6 rounded-full p-1 transition-colors ${enableGeminiSpreadImport ? 'bg-blue-500' : 'bg-gray-600'}`}
                                                 >
                                                     <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-transform ${enableGeminiSpreadImport ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                                                </button>
+                                            </div>
+
+                                            <div className="flex items-center justify-between bg-black/20 p-4 rounded-xl">
+                                                <div>
+                                                    <div className="font-bold text-white">Piactér & Pontrendszer</div>
+                                                    <div className="text-xs text-gray-500">Felhasználók vásárolhatnak tartalmakat pontokért.</div>
+                                                </div>
+                                                <button
+                                                    onClick={() => setEnableShop(!enableShop)}
+                                                    className={`w-12 h-6 rounded-full p-1 transition-colors ${enableShop ? 'bg-gold-500' : 'bg-gray-600'}`}
+                                                >
+                                                    <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-transform ${enableShop ? 'translate-x-6' : 'translate-x-0'}`}></div>
                                                 </button>
                                             </div>
 
