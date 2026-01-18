@@ -39,7 +39,7 @@ export const QUICK_ACTION_OPTIONS = [
     { id: 'customSpread', icon: '✨', label: 'Tervező', color: 'text-purple-400' },
     { id: 'astro', icon: '🌙', label: 'Holdnaptár', color: 'text-indigo-400' },
     { id: 'numerology', icon: '🔢', label: 'Számmisztika', color: 'text-pink-400' },
-    { id: 'stats', icon: '📊', label: 'Elemzés', color: 'text-orange-400' },
+    { id: 'analysis', icon: '📊', label: 'Elemzés', color: 'text-orange-400' }, // Updated from stats to analysis
     { id: 'deckBuilder', icon: '🖌️', label: 'Pakli Műhely', color: 'text-green-400' },
     { id: 'communityDecks', icon: '🎨', label: 'Pakli Piac', color: 'text-red-300' },
     { id: 'communitySpreads', icon: '💠', label: 'Kirakás Piac', color: 'text-teal-300' },
