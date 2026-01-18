@@ -4,6 +4,12 @@ import { useTarot } from '../context/TarotContext';
 import { BADGES } from '../constants/badges';
 import { CommunityService } from '../services/communityService';
 import { CommunityBadge, Reading, Badge, BadgeRequest } from '../types';
+import { FULL_DECK } from '../constants';
+
+const ZODIAC_SIGNS = ["Kos", "Bika", "Ikrek", "Rák", "Oroszlán", "Szűz", "Mérleg", "Skorpió", "Nyilas", "Bak", "Vízöntő", "Halak"];
+const SABBATS = ["Yule", "Imbolc", "Ostara", "Beltane", "Litha", "Lughnasadh", "Mabon", "Samhain"];
+const MOON_PHASES = ["Újhold", "Növő Hold", "Telihold", "Fogyó Hold"];
+const MONTHS = ["Január", "Február", "Március", "Április", "Május", "Június", "Július", "Augusztus", "Szeptember", "Október", "November", "December"];
 
 const BadgeCard: React.FC<{ badge: any, locked?: boolean, onClaim?: () => void, isClaimed?: boolean, isPending?: boolean }> = ({ badge, locked, onClaim, isClaimed, isPending }) => (
     <div className={`glass-panel p-6 rounded-2xl border transition-all flex flex-col items-center text-center relative group ${locked ? 'opacity-40 border-white/5 grayscale' : 'border-gold-500/30 bg-gold-500/5 shadow-lg shadow-gold-500/5'}`}>
@@ -11,9 +17,20 @@ const BadgeCard: React.FC<{ badge: any, locked?: boolean, onClaim?: () => void, 
         <h3 className="font-serif font-bold text-white text-lg mb-1">{badge.name}</h3>
         <p className="text-xs text-white/50 leading-relaxed mb-2">{badge.description}</p>
         
-        {badge.requirements && (
+        {badge.requirements && badge.isManual && (
             <div className="text-[10px] bg-black/40 border border-white/10 p-2 rounded-lg mb-4 text-gray-300 italic">
-                Feltétel: {badge.requirements}
+                {badge.requirements}
+            </div>
+        )}
+
+        {badge.conditionType && !badge.isManual && (
+            <div className="text-[10px] bg-black/40 border border-white/10 p-2 rounded-lg mb-4 text-gray-300 text-left w-full space-y-1">
+                <div className="font-bold text-gold-500 uppercase border-b border-white/10 pb-1 mb-1">Automata Feltételek</div>
+                <div>🎯 Típus: {badge.conditionType} (x{badge.target})</div>
+                {badge.filterCardType !== 'any' && badge.filterCardType && <div>🃏 Kártya: {badge.filterCardType} {badge.filterCardIds?.length ? `(${badge.filterCardIds.length} db)` : ''}</div>}
+                {badge.timeUnit && <div>⏱ Idő: {badge.timeUnit} {badge.timeRangeStart && `(${badge.timeRangeStart})`}</div>}
+                {badge.filterZodiac && <div>♈ Jegy: {badge.filterZodiac}</div>}
+                {badge.targetSpreadId && <div>💠 Kirakás: Konkrét</div>}
             </div>
         )}
 
@@ -26,6 +43,11 @@ const BadgeCard: React.FC<{ badge: any, locked?: boolean, onClaim?: () => void, 
             {badge.isManual && (
                 <span className="text-[9px] uppercase font-bold px-2 py-0.5 rounded-full border border-indigo-500 text-indigo-300">
                     Manuális
+                </span>
+            )}
+            {badge.conditionType && !badge.isManual && (
+                <span className="text-[9px] uppercase font-bold px-2 py-0.5 rounded-full border border-green-500 text-green-300">
+                    Auto
                 </span>
             )}
         </div>
@@ -58,7 +80,7 @@ const BadgeCard: React.FC<{ badge: any, locked?: boolean, onClaim?: () => void, 
 );
 
 export const BadgesView = ({ onBack }: { onBack: () => void }) => {
-    const { currentUser, readings, showToast, requestCommunityBadge, approveCommunityBadgeRequest, rejectCommunityBadgeRequest } = useTarot();
+    const { currentUser, readings, showToast, requestCommunityBadge, approveCommunityBadgeRequest, rejectCommunityBadgeRequest, allSpreads } = useTarot();
     const [activeTab, setActiveTab] = useState<'earned' | 'all' | 'community' | 'requests'>('earned');
     const [communityBadges, setCommunityBadges] = useState<CommunityBadge[]>([]);
     const [myRequests, setMyRequests] = useState<BadgeRequest[]>([]);
@@ -66,11 +88,26 @@ export const BadgesView = ({ onBack }: { onBack: () => void }) => {
     
     // Badge Builder State
     const [isBuilding, setIsBuilding] = useState(false);
-    const [newName, setNewName] = useState("");
-    const [newDesc, setNewDesc] = useState("");
-    const [newIcon, setNewIcon] = useState("✨");
-    const [newReq, setNewReq] = useState("");
-    const [isManual, setIsManual] = useState(true);
+    const [newBadge, setNewBadge] = useState<Partial<CommunityBadge>>({
+        name: '',
+        description: '',
+        icon: '✨',
+        requirements: '',
+        isManual: true,
+
+        conditionType: 'reading_count',
+        target: 1,
+        filterCardType: 'any',
+        filterLogic: 'OR',
+        filterCardIds: [],
+        timeUnit: undefined,
+        timeRangeStart: '',
+        timeRangeEnd: '',
+        filterZodiac: '',
+        targetSpreadId: ''
+    });
+
+    const [cardSearch, setCardSearch] = useState('');
 
     const myEarnedIds = currentUser?.badges || [];
 
@@ -95,33 +132,42 @@ export const BadgesView = ({ onBack }: { onBack: () => void }) => {
     };
 
     const handleCreateBadge = async () => {
-        if (!newName || !newDesc || !currentUser) return;
+        if (!newBadge.name || !newBadge.description || !currentUser) return showToast("Hiányzó adatok!", "info");
+
         const badge: CommunityBadge = {
             id: `cb_${Date.now()}`,
-            name: newName,
-            description: newDesc,
-            icon: newIcon,
+            ...newBadge as CommunityBadge,
             userId: currentUser.id,
             authorName: currentUser.name,
             createdAt: new Date().toISOString(),
             likes: 0,
             likedBy: [],
-            requirements: newReq,
-            isManual: isManual,
             issuedCount: 0
         };
         const success = await CommunityService.publishCommunityBadge(badge);
         if (success) {
             showToast("Jelvény publikálva a közösségnek!", "success");
-            setNewName(""); setNewDesc(""); setNewReq(""); setIsBuilding(false);
+            setNewBadge({
+                name: '', description: '', icon: '✨', requirements: '', isManual: true,
+                conditionType: 'reading_count', target: 1, filterCardType: 'any', filterLogic: 'OR',
+                filterCardIds: [], timeUnit: undefined, timeRangeStart: '', timeRangeEnd: '', filterZodiac: '', targetSpreadId: ''
+            });
+            setIsBuilding(false);
             loadCommunityBadges();
         }
     };
 
     const handleClaim = async (badge: CommunityBadge) => {
-        const msg = prompt("Írj egy rövid üzenetet a készítőnek (pl. miért gondolod, hogy teljesítetted a feltételt):");
-        if (msg === null) return; // Cancel
-        await requestCommunityBadge(badge, msg);
+        if (badge.isManual) {
+            const msg = prompt("Írj egy rövid üzenetet a készítőnek (pl. miért gondolod, hogy teljesítetted a feltételt):");
+            if (msg === null) return;
+            await requestCommunityBadge(badge, msg);
+        } else {
+            // Auto check should happen on server or action, but here we can trigger a manual check or just claim if logic permits
+            // For now, treat community badges as manual claim in UI flow, or auto assigned by system.
+            // If user clicks claim on auto badge, maybe re-verify?
+            showToast("Ez a jelvény automatikusan kerül kiosztásra, ha teljesíted a feltételeket!", "info");
+        }
     };
 
     const handleResolveRequest = async (req: BadgeRequest, status: 'approved' | 'rejected') => {
@@ -131,6 +177,22 @@ export const BadgesView = ({ onBack }: { onBack: () => void }) => {
             await rejectCommunityBadgeRequest(req.id, req.requesterId, req.badgeName);
         }
         loadRequests();
+    };
+
+    const filteredCards = FULL_DECK.filter(c => c.name.toLowerCase().includes(cardSearch.toLowerCase()));
+
+    const availableSpreads = useMemo(() => {
+        if (!allSpreads) return [];
+        return allSpreads.filter(s => s.isCustom === false || s.userId === currentUser?.id || s.isPublic);
+    }, [allSpreads, currentUser]);
+
+    const toggleCardId = (id: string) => {
+        const currentIds = newBadge.filterCardIds || [];
+        if (currentIds.includes(id)) {
+            setNewBadge({ ...newBadge, filterCardIds: currentIds.filter(cid => cid !== id) });
+        } else {
+            setNewBadge({ ...newBadge, filterCardIds: [...currentIds, id] });
+        }
     };
 
     return (
@@ -162,7 +224,6 @@ export const BadgesView = ({ onBack }: { onBack: () => void }) => {
             {activeTab === 'earned' && (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {BADGES.filter(b => myEarnedIds.includes(b.id)).map(b => <BadgeCard key={b.id} badge={b} isClaimed />)}
-                    {/* Add Community badges that I earned too */}
                     {communityBadges.filter(cb => myEarnedIds.includes(cb.id)).map(cb => <BadgeCard key={cb.id} badge={cb} isClaimed />)}
                     {(myEarnedIds.length === 0) && <div className="col-span-full py-20 text-center opacity-30 italic">Még nem szereztél jelvényt. Tarts egy szeánszot!</div>}
                 </div>
@@ -186,39 +247,176 @@ export const BadgesView = ({ onBack }: { onBack: () => void }) => {
 
                     {isBuilding && (
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in max-w-6xl mx-auto">
-                            {/* Builder Form */}
+                            {/* Builder Form (Quest Style) */}
                             <div className="glass-panel p-8 rounded-3xl border border-gold-500/30 bg-black/40 shadow-2xl">
                                 <h3 className="text-xl font-serif font-bold text-white mb-6 text-center">Jelvény Tervező</h3>
                                 <div className="space-y-4">
+
+                                    {/* Icon Input (Emoji Only) */}
                                     <div className="flex justify-center mb-4">
-                                        <input 
-                                            type="text" value={newIcon} onChange={e => setNewIcon(e.target.value)} 
-                                            className="text-6xl bg-transparent text-center w-24 focus:outline-none" 
-                                            maxLength={2}
-                                        />
+                                        <div className="relative group text-center">
+                                            <label className="block text-[10px] uppercase font-bold text-white/30 mb-2">Ikon (Emoji)</label>
+                                            <input
+                                                type="text"
+                                                value={newBadge.icon || ''}
+                                                onChange={e => {
+                                                    const val = e.target.value;
+                                                    const emojiRegex = /(\p{Emoji_Presentation}|\p{Extended_Pictographic})/u;
+                                                    if (val === '' || emojiRegex.test(val)) {
+                                                        const match = val.match(emojiRegex);
+                                                        setNewBadge({...newBadge, icon: match ? match[0] : val});
+                                                    }
+                                                }}
+                                                className="w-24 h-24 text-center text-6xl bg-black/40 border border-white/20 rounded-2xl focus:border-gold-500 outline-none transition-all placeholder:opacity-20"
+                                                placeholder="🏆"
+                                                maxLength={2}
+                                            />
+                                        </div>
                                     </div>
+
                                     <div>
                                         <label className="block text-[10px] uppercase font-bold text-gold-500/60 mb-1 ml-1">Megnevezés</label>
-                                        <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Pl. Hajnali Látó" className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-gold-500" />
+                                        <input value={newBadge.name} onChange={e => setNewBadge({...newBadge, name: e.target.value})} placeholder="Pl. Hajnali Látó" className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-gold-500" />
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] uppercase font-bold text-gold-500/60 mb-1 ml-1">Jelentés / Leírás</label>
-                                        <textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Mit jelképez ez a rang?" className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-gold-500 h-20 resize-none" />
+                                        <label className="block text-[10px] uppercase font-bold text-gold-500/60 mb-1 ml-1">Leírás</label>
+                                        <textarea value={newBadge.description} onChange={e => setNewBadge({...newBadge, description: e.target.value})} placeholder="Mit jelképez ez a rang?" className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-gold-500 h-20 resize-none" />
                                     </div>
-                                    <div>
-                                        <label className="block text-[10px] uppercase font-bold text-gold-500/60 mb-1 ml-1">Megszerzés Feltétele</label>
-                                        <input value={newReq} onChange={e => setNewReq(e.target.value)} placeholder="Pl. Legalább 10 hajnali húzás" className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-gold-500" />
-                                    </div>
-                                    
-                                    <div className="flex items-center justify-between p-2 bg-white/5 rounded-xl border border-white/10">
-                                        <div className="text-xs font-bold text-white/70 ml-2">Manuális jóváhagyás szükséges?</div>
+
+                                    {/* Auto Check Logic Switch */}
+                                    <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10 mt-4">
+                                        <div className="ml-2">
+                                            <div className="text-sm font-bold text-white">Automatikus Ellenőrzés?</div>
+                                            <div className="text-[10px] text-white/50">A rendszer figyeli a húzásokat</div>
+                                        </div>
                                         <button 
-                                            onClick={() => setIsManual(!isManual)}
-                                            className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all ${isManual ? 'bg-gold-500 text-black' : 'bg-white/10 text-white/40'}`}
+                                            onClick={() => setNewBadge({...newBadge, isManual: !newBadge.isManual})}
+                                            className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all ${!newBadge.isManual ? 'bg-green-500 text-black' : 'bg-white/10 text-white/40'}`}
                                         >
-                                            {isManual ? 'IGEN' : 'NEM'}
+                                            {!newBadge.isManual ? 'IGEN (Auto)' : 'NEM (Manuális)'}
                                         </button>
                                     </div>
+
+                                    {/* Ha Manuális, akkor csak szöveges feltétel */}
+                                    {newBadge.isManual ? (
+                                        <div className="animate-fade-in">
+                                            <label className="block text-[10px] uppercase font-bold text-gold-500/60 mb-1 ml-1">Megszerzés Feltétele (Szöveg)</label>
+                                            <input value={newBadge.requirements} onChange={e => setNewBadge({...newBadge, requirements: e.target.value})} placeholder="Pl. Oszd meg 10 húzásodat..." className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-gold-500" />
+                                        </div>
+                                    ) : (
+                                        <div className="animate-fade-in space-y-4 pt-2">
+                                            {/* Auto Filters (Quest Style) */}
+                                            <div>
+                                                <label className="block text-[10px] uppercase font-bold text-white/50 mb-1">Cél Típusa</label>
+                                                <select value={newBadge.conditionType} onChange={e => setNewBadge({...newBadge, conditionType: e.target.value as any})} className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs">
+                                                    <option value="reading_count">Húzás (Darabszám)</option>
+                                                    <option value="card_draw">Kártya Megtalálása</option>
+                                                    <option value="specific_spread">Konkrét Kirakás</option>
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-[10px] uppercase font-bold text-white/50 mb-1">Cél Mennyiség</label>
+                                                <input type="number" value={newBadge.target} onChange={e => setNewBadge({...newBadge, target: Number(e.target.value)})} className="w-full bg-black/30 border border-white/10 rounded p-2 text-white" min="1" />
+                                            </div>
+
+                                            {/* Kártya Feltételek */}
+                                            {newBadge.conditionType === 'card_draw' && (
+                                                <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                                                    <h4 className="text-xs font-bold text-gold-400 uppercase mb-3">Kártyák</h4>
+                                                    <div className="space-y-3">
+                                                        <select value={newBadge.filterCardType} onChange={e => setNewBadge({...newBadge, filterCardType: e.target.value as any})} className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs">
+                                                            <option value="any">Bármelyik lap</option>
+                                                            <option value="major">Csak Nagy Árkánum</option>
+                                                            <option value="minor">Csak Kis Árkánum</option>
+                                                            <option value="suit">Adott Szín</option>
+                                                            <option value="specific">Konkrét Kártya(k)</option>
+                                                        </select>
+
+                                                        {newBadge.filterCardType === 'suit' && (
+                                                            <select value={newBadge.filterSuit} onChange={e => setNewBadge({...newBadge, filterSuit: e.target.value as any})} className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs">
+                                                                <option value="Kelyhek">Kelyhek 🏆</option>
+                                                                <option value="Botok">Botok 🌿</option>
+                                                                <option value="Kardok">Kardok 🗡️</option>
+                                                                <option value="Érmék">Érmék 🪙</option>
+                                                            </select>
+                                                        )}
+
+                                                        {newBadge.filterCardType === 'specific' && (
+                                                            <div>
+                                                                <input
+                                                                    placeholder="Keress kártyát..."
+                                                                    value={cardSearch}
+                                                                    onChange={e => setCardSearch(e.target.value)}
+                                                                    className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs mb-2"
+                                                                />
+                                                                <div className="h-40 overflow-y-auto custom-scrollbar bg-black/20 rounded border border-white/5 p-2 grid grid-cols-2 gap-2">
+                                                                    {filteredCards.map(c => {
+                                                                        const isSelected = newBadge.filterCardIds?.includes(c.id);
+                                                                        return (
+                                                                            <button
+                                                                                key={c.id}
+                                                                                onClick={() => toggleCardId(c.id)}
+                                                                                className={`flex items-center gap-2 text-left px-2 py-1.5 rounded text-[10px] transition-colors border ${isSelected ? 'bg-gold-500/20 border-gold-500 text-gold-300' : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'}`}
+                                                                            >
+                                                                                {isSelected && <span>✓</span>} {c.name}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Kirakás Feltétel */}
+                                            {newBadge.conditionType === 'specific_spread' && (
+                                                <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                                                    <h4 className="text-xs font-bold text-green-400 uppercase mb-3">Kirakás</h4>
+                                                    <select value={newBadge.targetSpreadId} onChange={e => setNewBadge({...newBadge, targetSpreadId: e.target.value})} className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs">
+                                                        <option value="">-- Válassz --</option>
+                                                        {availableSpreads.map(s => <option key={s.id} value={s.id}>{s.name} ({s.isCustom ? 'Saját' : 'System'})</option>)}
+                                                    </select>
+                                                </div>
+                                            )}
+
+                                            {/* Idő & Horoszkóp */}
+                                            <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                                                <h4 className="text-xs font-bold text-blue-300 uppercase mb-3">Időzítés & Asztrológia</h4>
+                                                <div className="space-y-3">
+                                                    <select value={newBadge.timeUnit || ''} onChange={e => setNewBadge({...newBadge, timeUnit: e.target.value as any || undefined, timeRangeStart: ''})} className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs">
+                                                        <option value="">Bármikor</option>
+                                                        <option value="sabbat">Sabbat</option>
+                                                        <option value="moonphase">Holdállás</option>
+                                                        <option value="day">Nap</option>
+                                                        <option value="hour">Óra</option>
+                                                    </select>
+
+                                                    {newBadge.timeUnit === 'sabbat' && (
+                                                        <select value={newBadge.timeRangeStart} onChange={e => setNewBadge({...newBadge, timeRangeStart: e.target.value})} className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs">
+                                                            <option value="">-- Sabbat --</option>
+                                                            {SABBATS.map(s => <option key={s} value={s}>{s}</option>)}
+                                                        </select>
+                                                    )}
+
+                                                    {/* Egyéb idő inputok hasonlóan QuestView-hoz (egyszerűsítve) */}
+
+                                                    <div className="pt-2 border-t border-white/5">
+                                                        <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                                            <input type="checkbox" checked={!!newBadge.filterZodiac} onChange={e => setNewBadge({...newBadge, filterZodiac: e.target.checked ? ZODIAC_SIGNS[0] : ''})} className="w-4 h-4 bg-black/50 border-white/20 rounded accent-gold-500" />
+                                                            <span className="text-xs font-bold text-white">Csak Csillagjegy?</span>
+                                                        </label>
+                                                        {newBadge.filterZodiac && (
+                                                            <select value={newBadge.filterZodiac} onChange={e => setNewBadge({...newBadge, filterZodiac: e.target.value})} className="w-full bg-black/30 border border-white/10 rounded p-2 text-white text-xs">
+                                                                {ZODIAC_SIGNS.map(z => <option key={z} value={z}>{z}</option>)}
+                                                            </select>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     <button onClick={handleCreateBadge} className="w-full py-4 bg-gold-500 text-black font-bold rounded-xl shadow-lg transform hover:scale-105 transition-transform mt-4">
                                         Publikálás a Piactérre
@@ -226,36 +424,24 @@ export const BadgesView = ({ onBack }: { onBack: () => void }) => {
                                 </div>
                             </div>
 
-                            {/* System Guide - UPDATED DESCRIPTION */}
-                            <div className="glass-panel p-8 rounded-3xl border border-white/10 bg-indigo-950/20 flex flex-col justify-center">
-                                <h3 className="text-xl font-serif font-bold text-gold-400 mb-6 flex items-center gap-2">
-                                    <span>🕯️</span> Hogyan tervezz jó próbát?
-                                </h3>
-                                
-                                <div className="space-y-6 text-sm leading-relaxed text-gray-300">
-                                    <p className="italic text-white/60">
-                                        A közösségi jelvények a <span className="text-gold-500 font-bold">"Bizonyíték alapú elismerésre"</span> épülnek. Ez nem csak egy statisztika, hanem egy közösségi rituálé, ahol te döntöd el, ki méltó a rangra.
-                                    </p>
-                                    
-                                    <div>
-                                        <h4 className="font-bold text-white mb-2 uppercase tracking-widest text-[10px]">1. A Törvény (Feltételek)</h4>
-                                        <p>Írd le világosan a követelményeket a megfelelő mezőbe. Példa: <span className="text-indigo-300 italic">"Legyél a Nap gyermeke: Oszd meg legalább 5 olyan publikus húzásodat, ahol a Nap kártya szerepel!"</span></p>
-                                    </div>
-
-                                    <div>
-                                        <h4 className="font-bold text-white mb-2 uppercase tracking-widest text-[10px]">2. A Próbatétel (Kérelem)</h4>
-                                        <p>A többi látnok látja a jelvényt a Piactéren. Ha úgy érzik, teljesítették a kihívást, a <span className="font-bold text-gold-500">"Megszerzés kérelmezése"</span> gombbal jelentkezhetnek. Ekkor egy rövid üzenetben bizonyíthatják igazukat neked.</p>
-                                    </div>
-
-                                    <div>
-                                        <h4 className="font-bold text-white mb-2 uppercase tracking-widest text-[10px]">3. A Lovaggá ütés (Jóváhagyás)</h4>
-                                        <p>Te mint készítő kapsz egy értesítést. A <span className="font-bold text-white">"Kérelmek"</span> fül alatt ellenőrizheted a jelentkezőt (megnézheted a faliújság posztjait), és véglegesen odaítélheted a rangot.</p>
-                                    </div>
-
-                                    <div className="bg-white/5 p-4 rounded-xl border border-white/5 text-xs text-gold-400/80 italic">
-                                        Tipp: Használd a 'Manuális' opciót a különleges, egyedi elbírálást igénylő rangokhoz!
-                                    </div>
-                                </div>
+                            {/* Preview / Guide */}
+                            <div className="glass-panel p-8 rounded-3xl border border-white/10 bg-indigo-950/20 flex flex-col justify-center items-center text-center">
+                                <h3 className="text-xl font-serif font-bold text-gold-400 mb-6">Előnézet</h3>
+                                <BadgeCard
+                                    badge={{
+                                        ...newBadge,
+                                        tier: 'community',
+                                        requirements: newBadge.isManual ? newBadge.requirements : `Automata: ${newBadge.conditionType} (${newBadge.target}x)`
+                                    }}
+                                    locked={false}
+                                    isClaimed={false}
+                                />
+                                <p className="text-xs text-white/40 mt-6 max-w-sm">
+                                    {newBadge.isManual
+                                        ? "Ez egy manuális jelvény. A felhasználóknak kérelmezniük kell, és neked jóváhagyni."
+                                        : "Ez egy automatikus jelvény. A rendszer figyeli a feltételeket és automatikusan kiosztja."
+                                    }
+                                </p>
                             </div>
                         </div>
                     )}
@@ -296,7 +482,6 @@ export const BadgesView = ({ onBack }: { onBack: () => void }) => {
                                     <div className="text-5xl mb-2">{req.badgeIcon}</div>
                                     <div className="text-[10px] uppercase font-bold text-gold-500">{req.badgeName}</div>
                                 </div>
-                                
                                 <div className="flex-1 text-center md:text-left">
                                     <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
                                         <img src={req.requesterAvatar || ""} className="w-8 h-8 rounded-full border border-white/20" />
@@ -307,20 +492,9 @@ export const BadgesView = ({ onBack }: { onBack: () => void }) => {
                                         "{req.message || 'Nem írt üzenetet.'}"
                                     </p>
                                 </div>
-
                                 <div className="flex gap-2 w-full md:w-auto">
-                                    <button 
-                                        onClick={() => handleResolveRequest(req, 'rejected')}
-                                        className="flex-1 md:flex-none px-4 py-2 rounded-lg bg-red-500/20 text-red-300 text-xs font-bold border border-red-500/30 hover:bg-red-500/40 transition-all"
-                                    >
-                                        Elutasítás
-                                    </button>
-                                    <button 
-                                        onClick={() => handleResolveRequest(req, 'approved')}
-                                        className="flex-1 md:flex-none px-4 py-2 rounded-lg bg-green-600 text-white text-xs font-bold shadow-lg hover:bg-green-500 transition-all"
-                                    >
-                                        Jóváhagyás
-                                    </button>
+                                    <button onClick={() => handleResolveRequest(req, 'rejected')} className="flex-1 md:flex-none px-4 py-2 rounded-lg bg-red-500/20 text-red-300 text-xs font-bold border border-red-500/30 hover:bg-red-500/40 transition-all">Elutasítás</button>
+                                    <button onClick={() => handleResolveRequest(req, 'approved')} className="flex-1 md:flex-none px-4 py-2 rounded-lg bg-green-600 text-white text-xs font-bold shadow-lg hover:bg-green-500 transition-all">Jóváhagyás</button>
                                 </div>
                             </div>
                         ))
