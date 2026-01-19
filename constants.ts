@@ -30,7 +30,7 @@ export const getAvatarUrl = (user: User) => {
 };
 
 // --- EXPLICIT EXPORTS (Fixing loader issues) ---
-import { FULL_DECK } from './constants/deck';
+import { FULL_DECK } from './constants/deckConstants'; // Updated path
 import { HOLIDAY_DETAILS, ZODIAC_INFO } from './constants/astro';
 import { MOODS, QUICK_ACTION_OPTIONS, THEMES, CARD_BACKS, AVATAR_GALLERY as AG, LESSON_COLORS, LESSON_ICONS } from './constants/ui';
 import { BADGES, LESSONS } from './constants/gamification';

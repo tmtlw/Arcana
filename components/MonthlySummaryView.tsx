@@ -7,7 +7,7 @@ import { CardImage } from './CardImage';
 import { AnalysisService } from '../services/AnalysisService';
 import { MarkdownRenderer } from './MarkdownSupport';
 
-export const MonthlySummaryView = ({ onBack }: { onBack: () => void }) => {
+export const MonthlySummaryView = ({ onBack, embedded }: { onBack: () => void, embedded?: boolean }) => {
     const { readings, currentUser } = useTarot();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [summary, setSummary] = useState<string | null>(null);
@@ -72,17 +72,19 @@ export const MonthlySummaryView = ({ onBack }: { onBack: () => void }) => {
         <div className="animate-fade-in max-w-4xl mx-auto pb-20">
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
-                <button onClick={onBack} className="flex items-center gap-2 text-white/60 hover:text-white font-bold transition-colors">
-                    &larr; Vissza
-                </button>
-                <div className="flex items-center gap-4 bg-black/40 p-2 rounded-full border border-white/10 shadow-lg">
+                {!embedded && (
+                    <button onClick={onBack} className="flex items-center gap-2 text-white/60 hover:text-white font-bold transition-colors">
+                        &larr; Vissza
+                    </button>
+                )}
+                <div className={`flex items-center gap-4 bg-black/40 p-2 rounded-full border border-white/10 shadow-lg ${embedded ? 'mx-auto' : ''}`}>
                     <button onClick={() => changeMonth(-1)} className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-full transition-colors">◄</button>
                     <span className="font-serif font-bold text-gold-400 uppercase tracking-widest min-w-[150px] text-center text-sm md:text-base">
                         {currentDate.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long' })}
                     </span>
                     <button onClick={() => changeMonth(1)} className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-full transition-colors">►</button>
                 </div>
-                <div className="w-20 hidden md:block"></div>
+                {!embedded && <div className="w-20 hidden md:block"></div>}
             </div>
 
             {monthReadings.length === 0 ? (

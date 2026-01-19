@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useTarot } from '../context/TarotContext';
-import { FULL_DECK, getCardImage, MOODS } from '../constants';
+import { FULL_DECK } from '../constants/deckConstants'; // Updated import
+import { getCardImage, MOODS } from '../constants';
 import { t } from '../services/i18nService';
 import { CardImage } from './CardImage';
 
@@ -38,7 +39,7 @@ const ProgressBar = ({ label, value, max, color }: { label: string, value: numbe
     );
 };
 
-export const StatsView = ({ onBack }: any) => {
+export const StatsView = ({ onBack, embedded }: { onBack: () => void, embedded?: boolean }) => {
     const { readings, currentUser, language } = useTarot();
     const [timeRange, setTimeRange] = useState<'all' | 'month'>('all');
     
@@ -357,16 +358,18 @@ export const StatsView = ({ onBack }: any) => {
     return (
         <div className="animate-fade-in pb-20 max-w-5xl mx-auto">
             <div className="flex justify-between items-center mb-6">
-                <button onClick={onBack} className="flex items-center gap-2 font-bold text-white/60 hover:text-gold-400">
-                    &larr; {t('btn.back', language)}
-                </button>
-                <div className="flex bg-black/40 p-1 rounded-lg">
+                {!embedded && (
+                    <button onClick={onBack} className="flex items-center gap-2 font-bold text-white/60 hover:text-gold-400">
+                        &larr; {t('btn.back', language)}
+                    </button>
+                )}
+                <div className="flex bg-black/40 p-1 rounded-lg ml-auto">
                     <button onClick={() => setTimeRange('all')} className={`px-3 py-1 rounded text-xs font-bold ${timeRange === 'all' ? 'bg-gold-500 text-black' : 'text-white/50'}`}>Mindig</button>
                     <button onClick={() => setTimeRange('month')} className={`px-3 py-1 rounded text-xs font-bold ${timeRange === 'month' ? 'bg-gold-500 text-black' : 'text-white/50'}`}>E hónap</button>
                 </div>
             </div>
             
-            <h2 className="text-3xl font-serif font-bold text-center mb-2 text-gold-400">Lelki Irányítópult</h2>
+            {!embedded && <h2 className="text-3xl font-serif font-bold text-center mb-2 text-gold-400">Lelki Irányítópult</h2>}
             <p className="text-center text-white/40 text-sm mb-10">Az elmúlt időszak energiamintázatai</p>
 
             {/* SECTION 1: HERO METRICS */}

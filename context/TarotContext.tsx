@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import { User, Reading, Spread, ThemeType, ToastMessage, DeckMeta, Card, QuizResult, Lesson, CommunityBadge, BadgeRequest, TarotNotification, CommunityEvent } from '../types';
 import { StorageService } from '../services/storageService';
@@ -10,7 +9,7 @@ import { AstroService } from '../services/astroService';
 import { db } from '../services/firebase';
 import { onSnapshot, collection, query, where, orderBy, limit } from 'firebase/firestore';
 // Import FULL_DECK directly from source to avoid circular dependency issues
-import { FULL_DECK } from '../constants/deck'; 
+import { FULL_DECK } from '../constants/deckConstants';
 // Fix: Added getAvatarUrl to imports to resolve the error in requestCommunityBadge
 import { BADGES, DEFAULT_SPREADS, AVATAR_GALLERY, ADMIN_EMAILS, LESSONS, getAvatarUrl } from '../constants';
 import { auth } from '../services/firebase'; 
@@ -21,6 +20,7 @@ interface GlobalSettings {
     geminiApiKey?: string;
     enableGeminiSpreadImport?: boolean;
     enableRegistration?: boolean;
+    enableShop?: boolean; // Added
 }
 
 interface TarotContextType {
@@ -249,6 +249,11 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
                             // Init quests logic if needed
                             finalUser = QuestService.checkAndRefreshQuests({ ...cloudData.user, isAdmin });
 
+                            // XP to Currency Migration (Only once if undefined)
+                            if (finalUser.currency === undefined) {
+                                finalUser.currency = finalUser.xp || 0;
+                            }
+
                             setReadings(cloudData.readings);
                             setCustomSpreads(cloudData.customSpreads);
                             setCustomLessons(cloudData.customLessons);
@@ -283,6 +288,7 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
                                 language: 'hu',
                                 badges: [],
                                 xp: 0,
+                                currency: 0, // Init currency
                                 level: 1,
                                 soundEnabled: true,
                                 fontSize: 'normal',
@@ -426,15 +432,17 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
                 updatedUser = questResult.updatedUser;
                 questResult.completedQuests.forEach(qid => showToast("Küldetés teljesítve!", "success"));
                 // Add XP for completed quests
-                // Note: We should ideally lookup quest def to add XP, but for simplicity relying on future refresh or basic bump.
-                // Actually, QuestService doesn't add XP to user object automatically, we need to do it here.
-                // Let's iterate completedQuests to find XP reward.
-                // Import constants inside hook or move definitions.
-                // Since I can't easily import constants here without circular dep potential if they were in types, I will skip dynamic XP addition from quests for this iteration or assume QuestService handles it?
-                // QuestService just marks completion.
-                // Let's add fixed XP for quest completion for now: 100 XP.
                 updatedUser.xp += questResult.completedQuests.length * 100;
             }
+
+            // Sync Currency with XP only if needed?
+            // Wait, if user earns XP, they should earn Currency too.
+            // If they spent currency, we shouldn't reset it to XP.
+            // So: newCurrency = oldCurrency + earnedXP
+            // The XP gain here is 15.
+            // So we just add 15 to currency as well.
+            const earnedXP = updatedUser.xp - (userToUpdate.xp || 0); // Total gained (base + quests)
+            updatedUser.currency = (updatedUser.currency || 0) + earnedXP;
 
             await Promise.all([
                 StorageService.saveReadingToCloud(userToUpdate.id, r),
@@ -572,9 +580,12 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
             const newXp = (currentUser.xp || 0) + xpGain;
             const newLevel = Math.floor(Math.sqrt(newXp / 100)) + 1;
             
+            // Sync Currency
+            const newCurrency = (currentUser.currency || 0) + xpGain;
+
             await Promise.all([
                 StorageService.saveQuizResultToCloud(currentUser.id, res),
-                updateUser({ ...currentUser, xp: newXp, level: newLevel })
+                updateUser({ ...currentUser, xp: newXp, currency: newCurrency, level: newLevel })
             ]);
         }
     };

@@ -2,15 +2,17 @@
 import React, { useState } from 'react';
 import { useTarot } from '../context/TarotContext';
 import { DeckMeta } from '../types';
-import { FULL_DECK } from '../constants';
+import { FULL_DECK } from '../constants/deckConstants';
 import { DeckService } from '../services/deckService';
 import { DeckImportWizard } from './DeckImportWizard';
+import { CommunityService } from '../services/communityService'; // For publishing logic later if integrated, but DeckService handles publish
 
 export const DeckBuilder = ({ onBack }: { onBack: () => void }) => {
-    const { availableDecks, showToast, currentUser } = useTarot(); // Added currentUser
+    const { availableDecks, showToast, currentUser } = useTarot();
     const [mode, setMode] = useState<'build' | 'import'>('build');
     const [deckName, setDeckName] = useState("");
     const [authorName, setAuthorName] = useState("");
+    const [price, setPrice] = useState<number>(0); // Added Price
     const [customImages, setCustomImages] = useState<Record<string, string>>({});
     const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -34,7 +36,7 @@ export const DeckBuilder = ({ onBack }: { onBack: () => void }) => {
         }
     };
 
-    const handleSave = async () => {
+    const handleSave = async (publish: boolean = false) => {
         if (!deckName) return alert("Adj nevet a paklinak!");
         setIsSaving(true);
         
@@ -44,15 +46,35 @@ export const DeckBuilder = ({ onBack }: { onBack: () => void }) => {
             name: deckName,
             author: authorName || 'Én',
             description: 'Saját készítésű pakli',
-            basePath: 'indexeddb', // Marker for IDB
+            basePath: 'indexeddb',
             extension: 'base64',
-            isCustomLocal: true
+            isCustomLocal: true,
+            price: price // Store price locally even if not used yet
         };
 
         try {
-            // Pass currentUser.id to enable cloud sync
+            // 1. Save locally/personal cloud
             await DeckService.saveCustomDeck(newDeck, customImages, currentUser?.id);
-            showToast("Pakli sikeresen mentve az adatbázisba (Felhő + Helyi)!", "success");
+
+            // 2. If publishing requested
+            if (publish && currentUser) {
+                if(Object.keys(customImages).length < 78) {
+                    if(!confirm("A pakli hiányos (nincs 78 kártya). Biztosan közzéteszed?")) {
+                        setIsSaving(false);
+                        return;
+                    }
+                }
+
+                // Using the just-created deck meta but ensuring ID allows publishing logic if needed.
+                // Usually we publish an existing deck.
+                // But here we do it in one flow or ask to publish separately?
+                // The UI is "Save".
+                // Let's keep it simple: Save = Personal. Publish is a separate action in most UIs,
+                // but user wants to "Create for Marketplace".
+                // I'll add a separate "Mentés és Közzététel" button.
+            }
+
+            showToast("Pakli sikeresen mentve!", "success");
             setTimeout(() => window.location.reload(), 1000); 
         } catch (e) {
             alert("Hiba a mentéskor: " + e);
@@ -60,6 +82,37 @@ export const DeckBuilder = ({ onBack }: { onBack: () => void }) => {
             setIsSaving(false);
         }
     };
+
+    const handlePublish = async () => {
+         if (!deckName) return alert("Adj nevet a paklinak!");
+         if (!currentUser) return alert("Jelentkezz be a közzétételhez!");
+
+         setIsSaving(true);
+         const deckId = `custom_${Date.now()}`;
+         const newDeck: DeckMeta = {
+            id: deckId,
+            name: deckName,
+            author: authorName || currentUser.displayName || 'Névtelen',
+            description: 'Saját készítésű pakli',
+            basePath: 'indexeddb',
+            extension: 'base64',
+            isCustomLocal: true,
+            price: price
+        };
+
+        try {
+            // First save local copy
+            await DeckService.saveCustomDeck(newDeck, customImages, currentUser.id);
+            // Then publish
+            await DeckService.publishDeck(newDeck, currentUser.id, price);
+            showToast("Pakli sikeresen közzétéve a Piactéren!", "success");
+             setTimeout(() => window.location.reload(), 1000);
+        } catch (e) {
+            showToast("Hiba: " + e, "error");
+        } finally {
+            setIsSaving(false);
+        }
+    }
 
     return (
         <div className="animate-fade-in pb-20">
@@ -73,10 +126,10 @@ export const DeckBuilder = ({ onBack }: { onBack: () => void }) => {
             <div className="glass-panel p-4 md:p-8 rounded-3xl mb-8">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-2">
                     <h2 className="text-2xl md:text-3xl font-serif font-bold text-gold-400">Pakli Műhely</h2>
-                    <div className="text-xs bg-white/10 px-3 py-1 rounded text-white/50">Helyi adatbázisba mentés</div>
+                    <div className="text-xs bg-white/10 px-3 py-1 rounded text-white/50">Helyi mentés + Közzététel</div>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div>
                         <label className="block text-xs font-bold uppercase text-white/50 mb-2">Pakli Neve</label>
                         <input value={deckName} onChange={e => setDeckName(e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white focus:border-gold-500 outline-none" placeholder="Pl. Égi Fény Tarot" />
@@ -84,6 +137,17 @@ export const DeckBuilder = ({ onBack }: { onBack: () => void }) => {
                     <div>
                         <label className="block text-xs font-bold uppercase text-white/50 mb-2">Alkotó</label>
                         <input value={authorName} onChange={e => setAuthorName(e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white focus:border-gold-500 outline-none" placeholder="A Te neved" />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold uppercase text-gold-400 mb-2">Ár (Pont)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={price}
+                            onChange={e => setPrice(parseInt(e.target.value) || 0)}
+                            className="w-full bg-black/30 border border-gold-500/50 rounded-xl p-3 text-white focus:border-gold-500 outline-none font-mono"
+                        />
+                        <div className="text-[10px] text-white/30 mt-1">0 = Ingyenes.</div>
                     </div>
                 </div>
 
@@ -131,17 +195,22 @@ export const DeckBuilder = ({ onBack }: { onBack: () => void }) => {
                     </div>
                 </div>
 
-                <div className="mt-8 flex justify-end gap-4">
+                <div className="mt-8 flex flex-col md:flex-row justify-end gap-4">
                     <button 
-                        onClick={handleSave} 
+                        onClick={() => handleSave(false)}
                         disabled={isSaving}
-                        className="w-full md:w-auto bg-green-600 hover:bg-green-500 text-white px-8 py-3 rounded-xl font-bold shadow-lg transition-all transform hover:scale-105 disabled:opacity-50"
+                        className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-xl font-bold transition-all disabled:opacity-50"
                     >
-                        {isSaving ? 'Mentés...' : 'Pakli Mentése'}
+                        {isSaving ? '...' : 'Mentés (Privát)'}
                     </button>
-                </div>
-                <div className="mt-4 text-center text-xs text-white/30">
-                    Mentés után a "Beállítások" menüben választhatod ki az új paklit.
+
+                    <button
+                        onClick={handlePublish}
+                        disabled={isSaving}
+                        className="bg-gradient-to-r from-gold-600 to-gold-400 hover:from-gold-500 hover:to-gold-300 text-black px-8 py-3 rounded-xl font-bold shadow-lg transition-all transform hover:scale-105 disabled:opacity-50 flex items-center gap-2"
+                    >
+                        <span>📢</span> {isSaving ? 'Közzététel...' : 'Mentés és Közzététel a Piactéren'}
+                    </button>
                 </div>
             </div>
         </div>

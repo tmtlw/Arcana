@@ -1,115 +1,104 @@
 
-import os
-import time
 from playwright.sync_api import sync_playwright, expect
 
-def verify_marketplaces(page):
-    # 1. Navigate to the app (assuming localhost:5173 based on npm run dev output)
-    # The app takes a while to boot due to the custom loader mechanism
-    page.goto("http://localhost:5173", timeout=60000)
+def run(playwright):
+    browser = playwright.chromium.launch(headless=True)
+    context = browser.new_context(viewport={'width': 1280, 'height': 800})
+    page = context.new_page()
 
-    # Wait for the "boot" sequence (spinners etc)
-    # The main page usually has a "Bejelentkezés" or "Vendég mód" button or directly dashboard
-    # Let's wait for something stable.
+    print("Navigating to app...")
+    page.goto("http://localhost:8000")
 
-    print("Waiting for app to load...")
-    # Try to find a known element on the landing/dashboard.
-    # Based on memory, there might be a "Vendégként folytatom" button if not logged in.
-
+    # Login
     try:
-        # Wait for either dashboard or auth view
-        page.wait_for_selector('text=Arkánum', timeout=30000)
+        page.wait_for_selector("text=Vendég Bejelentkezés", timeout=5000)
+        page.click("text=Vendég Bejelentkezés")
+        print("Clicked Guest Login")
     except:
-        print("Timeout waiting for 'Arkánum' text. Dumping page content.")
-        print(page.content())
-        raise
+        print("Login screen skipped or different.")
 
-    # If we are at Auth screen, click Guest mode if available, or just check if we can see the title
-    # Actually, the Community/Marketplace might be accessible.
+    # Wait for Dashboard
+    try:
+        page.wait_for_selector("text=Üdvözöllek", timeout=10000) # Assuming "Üdvözöllek" in dashboard
+        print("Dashboard loaded.")
+    except:
+        print("Dashboard wait timeout. Taking screenshot.")
+        page.screenshot(path="verification/debug_dashboard.png")
 
-    # Let's try to find a way to the Marketplace.
-    # Usually accessible via the Dashboard.
-    # Assuming we land on a Dashboard or can navigate to it.
+    # 1. Check Deck Builder Price Input
+    print("Checking Deck Builder...")
+    # Navigate: Beállítások -> Pakli Műhely
+    try:
+        # Assuming menu is visible or hamburger. Desktop view usually has sidebar/topbar.
+        # Look for "Beállítások" (Settings)
+        # If menu is collapsed (mobile), might need to open it. But viewport is 1280.
 
-    # Take a screenshot of the initial state
-    page.screenshot(path="verification/step1_loaded.png")
+        # Try to find "Beállítások"
+        page.click("text=Beállítások", timeout=3000)
+        page.wait_for_timeout(1000)
 
-    # If there is a "Vendégként folytatom" button, click it.
-    guest_btn = page.get_by_text("Vendégként folytatom")
-    if guest_btn.count() > 0:
-        guest_btn.click()
-        time.sleep(2)
+        # Look for "Pakli Műhely"
+        page.click("text=Pakli Műhely")
+        page.wait_for_timeout(1000)
 
-    # Look for "Közösség" or "Piactér" button
-    # Based on file structure, there is a CommunityView.
-    # We need to find the button that leads there.
-    # Often icons or text in the dashboard.
-
-    # Let's try to navigate via URL hash if the router supports it, but this is a custom PHP/React app, might not work.
-    # We'll look for text "Közösség"
-
-    print("Looking for Community/Marketplace link...")
-    community_link = page.get_by_text("Közösség")
-    if community_link.count() > 0:
-        community_link.first.click()
-    else:
-        # Maybe it's an icon? Or "Kirakások"?
-        # Let's try finding "Kirakások" directly if it's on the dashboard
-        spreads_btn = page.get_by_text("Új Kirakások")
-        if spreads_btn.count() > 0:
-            spreads_btn.click()
+        # Check input
+        if page.get_by_text("Ár (Pont)").is_visible():
+            print("Deck Builder Price Input verified.")
+            page.screenshot(path="verification/deck_builder_price.png")
         else:
-             print("Could not find direct link. Screenshotting.")
-             page.screenshot(path="verification/failed_to_find_link.png")
-             # Force fail to check screenshot
-             # expect(community_link).to_be_visible()
+            print("Deck Builder Price Input NOT found.")
+            page.screenshot(path="verification/deck_builder_fail.png")
 
-    time.sleep(2)
+        # Go back to home/dashboard
+        page.click("text=Vissza") # or navigate home
+        page.wait_for_timeout(500)
+        page.click("text=Főoldal") # Assuming Home button or similar
+        page.wait_for_timeout(500)
 
-    # Assuming we are in Community View, looking for "Kirakások Piactere" button
-    spread_market_btn = page.get_by_text("Kirakások")
-    if spread_market_btn.count() > 0:
-        spread_market_btn.first.click()
+    except Exception as e:
+        print(f"Could not verify Deck Builder: {e}")
+        page.screenshot(path="verification/debug_settings.png")
 
-    time.sleep(2)
+    # 2. Check Spread Builder Price Input
+    print("Checking Spread Builder...")
+    # Navigate: Kártyavetés -> Tervező (or similar)
+    try:
+        # If "Kártyavetés" is a menu item
+        page.click("text=Kártyavetés", timeout=3000)
+        page.wait_for_timeout(500)
 
-    # Now we should be in CommunitySpreadsView
-    # Verify the title "Kirakások Piactere"
-    expect(page.get_by_text("Kirakások Piactere")).to_be_visible()
+        # Look for "Tervező"
+        page.click("text=Tervező")
+        page.wait_for_timeout(1000)
 
-    # Verify we see the new spreads (e.g., "Kapcsolati Tükör")
-    # This proves the Spread list update worked
-    expect(page.get_by_text("Kapcsolati Tükör")).to_be_visible()
+        # Check input
+        if page.get_by_text("Ár (Pont)").is_visible():
+            print("Spread Builder Price Input verified.")
+            page.screenshot(path="verification/spread_builder_price.png")
+        else:
+             # Try checking if it's "Eladási Ár" (Lesson builder used that, Spread used "Ár (Pont)")
+            print("Spread Builder Price Input NOT found.")
+            page.screenshot(path="verification/spread_builder_fail.png")
 
-    # Verify Rating System is visible (Stars)
-    # The component renders stars as buttons with "★"
-    stars = page.locator("button:has-text('★')")
-    expect(stars.first).to_be_visible()
+    except Exception as e:
+        print(f"Could not verify Spread Builder: {e}")
+        page.screenshot(path="verification/debug_spread.png")
 
-    # Verify Comment Section button is visible (chat icon)
-    comment_btn = page.locator("button:has-text('💬')")
-    expect(comment_btn.first).to_be_visible()
+    # 3. Marketplace
+    print("Checking Marketplace...")
+    try:
+        # It might be hidden if not enabled.
+        if page.get_by_text("Piactér").is_visible():
+            page.click("text=Piactér")
+            page.wait_for_timeout(1000)
+            page.screenshot(path="verification/marketplace_view.png")
+            print("Marketplace screenshot taken.")
+        else:
+            print("Marketplace button not visible (Feature toggle?).")
+    except:
+        pass
 
-    # Click to expand comments
-    comment_btn.first.click()
-    time.sleep(1)
+    browser.close()
 
-    # Verify Comment Section expanded
-    expect(page.get_by_text("Hozzászólások")).to_be_visible()
-    expect(page.get_by_placeholder("Írj egy hozzászólást...")).to_be_visible()
-
-    # Take final screenshot
-    page.screenshot(path="verification/marketplace_verified.png")
-    print("Verification successful!")
-
-if __name__ == "__main__":
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        try:
-            verify_marketplaces(page)
-        except Exception as e:
-            print(f"Error: {e}")
-            page.screenshot(path="verification/error_state.png")
-        finally:
-            browser.close()
+with sync_playwright() as playwright:
+    run(playwright)

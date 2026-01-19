@@ -1,7 +1,7 @@
 
 import { db } from './firebase';
 import { collection, addDoc, getDocs, query, orderBy, limit, doc, updateDoc, increment, deleteDoc, setDoc, getDoc, where, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { Reading, Spread, Comment, Lesson, CommunityBadge, BadgeRequest, TarotNotification, CommunityEvent } from '../types';
+import { Reading, Spread, Comment, Lesson, CommunityBadge, BadgeRequest, TarotNotification, CommunityEvent, ShopItem } from '../types';
 
 const COLLECTION_READINGS = 'public_readings';
 const COLLECTION_SPREADS = 'public_spreads';
@@ -10,6 +10,7 @@ const COLLECTION_BADGES = 'community_badges';
 const COLLECTION_REQUESTS = 'badge_requests';
 const COLLECTION_NOTIFICATIONS = 'notifications';
 const COLLECTION_EVENTS = 'community_events';
+const COLLECTION_MARKET = 'market_items'; // New collection for generic market items
 
 export const CommunityService = {
     
@@ -260,7 +261,7 @@ export const CommunityService = {
 
     // --- Spreads (Marketplace) ---
 
-    publishSpread: async (spread: Spread, authorName: string, userId: string) => {
+    publishSpread: async (spread: Spread, authorName: string, userId: string, price: number = 0) => {
         if (!db) return false;
         try {
             const docRef = doc(db, COLLECTION_SPREADS, spread.id);
@@ -269,7 +270,8 @@ export const CommunityService = {
                 author: authorName,
                 userId: userId,
                 isPublic: true,
-                downloads: spread.downloads || 0
+                downloads: spread.downloads || 0,
+                price
             };
             await setDoc(docRef, publicSpread);
             return true;
@@ -440,7 +442,7 @@ export const CommunityService = {
 
     // --- Lessons (Academy Marketplace) ---
 
-    publishLesson: async (lesson: Lesson, authorName: string, userId: string) => {
+    publishLesson: async (lesson: Lesson, authorName: string, userId: string, price: number = 0) => {
         if (!db) return false;
         try {
             const docRef = doc(db, COLLECTION_LESSONS, lesson.id);
@@ -449,7 +451,8 @@ export const CommunityService = {
                 author: authorName,
                 userId: userId,
                 isPublic: true,
-                downloads: lesson.downloads || 0
+                downloads: lesson.downloads || 0,
+                price
             };
             await setDoc(docRef, publicLesson);
             return true;
@@ -501,6 +504,48 @@ export const CommunityService = {
         if (!db) return false;
         try {
             await deleteDoc(doc(db, COLLECTION_LESSONS, lessonId));
+            return true;
+        } catch (e) {
+            return false;
+        }
+    },
+
+    // --- Generic Marketplace Items (Backgrounds, Covers) ---
+
+    createMarketplaceItem: async (item: ShopItem & { createdBy: string }) => {
+        if (!db) return false;
+        try {
+            await setDoc(doc(db, COLLECTION_MARKET, item.id), item);
+            return true;
+        } catch (e) {
+            console.error("Create market item failed:", e);
+            return false;
+        }
+    },
+
+    getMarketplaceItems: async (type?: string): Promise<ShopItem[]> => {
+        if (!db) return [];
+        try {
+            let q = query(collection(db, COLLECTION_MARKET));
+            if (type) {
+                q = query(collection(db, COLLECTION_MARKET), where('type', '==', type));
+            }
+            const snap = await getDocs(q);
+            const items: ShopItem[] = [];
+            snap.forEach(doc => {
+                items.push(doc.data() as ShopItem);
+            });
+            return items;
+        } catch (e) {
+            console.error("Fetch market items failed:", e);
+            return [];
+        }
+    },
+
+    deleteMarketplaceItem: async (itemId: string): Promise<boolean> => {
+        if (!db) return false;
+        try {
+            await deleteDoc(doc(db, COLLECTION_MARKET, itemId));
             return true;
         } catch (e) {
             return false;

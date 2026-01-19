@@ -45,6 +45,7 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
     const [newLessonColor, setNewLessonColor] = useState(""); 
     const [newLessonIcon, setNewLessonIcon] = useState("📝"); 
     const [newLessonXp, setNewLessonXp] = useState(20); 
+    const [newLessonPrice, setNewLessonPrice] = useState(0); // Added Price State
     const [newLessonQuiz, setNewLessonQuiz] = useState<LessonQuizQuestion[]>([]);
     
     const [isCardSelectorOpen, setIsCardSelectorOpen] = useState(false);
@@ -61,12 +62,9 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
     const filteredLessons = allLessons.filter(l => {
         const catMatch = selectedCategory === 'all' || l.category === selectedCategory;
         const diffMatch = selectedDifficulty === 'all' || l.difficulty === selectedDifficulty;
-        // Visibility: System lessons (no userId), Public custom lessons, or Own lessons
         const visibilityMatch = !l.userId || l.isPublic || l.userId === currentUser?.id || currentUser?.isAdmin;
         return catMatch && diffMatch && visibilityMatch;
     });
-
-    // --- LOGIC ---
 
     const getProgress = (cat: LessonCategory | 'all') => {
         const targetLessons = cat === 'all' ? allLessons : allLessons.filter(l => l.category === cat);
@@ -90,7 +88,6 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
         
         setShowQuizResults(true);
 
-        // Save result to cloud
         const result: QuizResult = {
             id: `lesson_quiz_${Date.now()}`,
             date: new Date().toISOString(),
@@ -106,7 +103,6 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
         };
         await saveQuizResult(result);
 
-        // Threshold check: 60%
         if (scorePercent >= 60) {
             if (!completedIds.includes(selectedLesson.id)) {
                 const newXp = (currentUser.xp || 0) + selectedLesson.xpReward;
@@ -128,13 +124,10 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
 
     const handleCompleteLesson = (lesson: Lesson) => {
         if (!currentUser) return;
-        
-        // If there's a quiz, check if it was completed successfully
         if (lesson.quizQuestions && lesson.quizQuestions.length > 0 && !completedIds.includes(lesson.id)) {
             startQuiz();
             return;
         }
-
         setSelectedLesson(null);
     };
 
@@ -150,6 +143,7 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
             setNewLessonColor(lesson.color || "");
             setNewLessonIcon(lesson.icon || "📝");
             setNewLessonXp(lesson.xpReward || 20);
+            setNewLessonPrice(lesson.price || 0); // Load Price
             setNewLessonQuiz(lesson.quizQuestions || []);
             setNewLessonIsPublic(!!lesson.isPublic);
         } else {
@@ -163,6 +157,7 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
             setNewLessonColor("");
             setNewLessonIcon("📝");
             setNewLessonXp(20);
+            setNewLessonPrice(0);
             setNewLessonQuiz([]);
             setNewLessonIsPublic(false);
         }
@@ -190,7 +185,8 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
             isCustom: true,
             author: currentUser?.name || 'Ismeretlen',
             userId: currentUser?.id,
-            isPublic: newLessonIsPublic
+            isPublic: newLessonIsPublic,
+            price: newLessonPrice // Save Price
         };
 
         if (editingId) {
@@ -232,7 +228,8 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
         e.stopPropagation();
         if (!currentUser) return;
         if (confirm(`Publikálod a "${lesson.title}" leckét a Piactéren?`)) {
-            const success = await CommunityService.publishLesson(lesson, currentUser.name, currentUser.id);
+            // Pass the price from the lesson object
+            const success = await CommunityService.publishLesson(lesson, currentUser.name, currentUser.id, lesson.price || 0);
             if (success) showToast("Lecke sikeresen publikálva!", "success");
             else showToast("Hiba a publikáláskor.", "info");
         }
@@ -258,8 +255,8 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
         }
     };
 
-    // --- RENDER: DETAIL VIEW ---
     if (selectedLesson) {
+        // ... (Render Detail View - No Changes)
         const isDone = completedIds.includes(selectedLesson.id);
         const baseCatColor = CATEGORIES.find(c => c.id === selectedLesson.category)?.color || 'from-gray-700 to-gray-900';
         const displayColor = selectedLesson.color || baseCatColor;
@@ -284,7 +281,6 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
                     </div>
                 )}
 
-                {/* QUIZ MODAL - NEW */}
                 {isQuizModalOpen && (
                     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
                         <div className="glass-panel-dark w-full max-w-2xl rounded-3xl border border-white/20 overflow-hidden flex flex-col max-h-[90vh] shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -374,7 +370,6 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
                     )}
                 </div>
 
-                {/* Hero Header */}
                 <div className={`relative rounded-3xl overflow-hidden p-8 md:p-12 mb-8 bg-gradient-to-r ${displayColor} shadow-2xl border border-white/10`}>
                     <div className="absolute top-0 right-0 text-9xl opacity-10 pointer-events-none transform translate-x-10 -translate-y-10">{selectedLesson.icon}</div>
                     <div className="relative z-10">
@@ -395,7 +390,6 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
                     </div>
                 </div>
 
-                {/* Content Body */}
                 <div className="glass-panel p-8 md:p-12 rounded-3xl border border-white/10 mb-8 space-y-8 bg-black/40 shadow-xl">
                     <MarkdownRenderer content={selectedLesson.content} className="prose prose-invert prose-lg max-w-none" />
 
@@ -443,7 +437,6 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
         );
     }
 
-    // --- MARKETPLACE ---
     if (viewMode === 'market') {
         if (!marketLessons.length && !isLoadingMarket) loadMarketLessons();
 
@@ -475,12 +468,17 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
                                         <div className="text-xs bg-white/10 px-2 py-1 rounded">⬇ {lesson.downloads || 0}</div>
                                     </div>
                                     <p className="text-sm text-gray-400 mb-6 flex-1 line-clamp-3">{lesson.description}</p>
-                                    <button 
-                                        onClick={() => toggleLessonInCollection(lesson.id)}
-                                        className={`w-full py-2 rounded-lg font-bold text-sm transition-all ${isCollected ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg'}`}
-                                    >
-                                        {isCollected ? 'Eltávolítás' : 'Hozzáadás'}
-                                    </button>
+                                    <div className="flex justify-between items-center">
+                                         <div className="font-mono text-gold-400 font-bold">
+                                            {lesson.price ? `${lesson.price} pont` : 'INGYENES'}
+                                        </div>
+                                        <button
+                                            onClick={() => toggleLessonInCollection(lesson.id)}
+                                            className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${isCollected ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg'}`}
+                                        >
+                                            {isCollected ? 'Eltávolítás' : 'Letöltés'}
+                                        </button>
+                                    </div>
                                 </div>
                             );
                         })}
@@ -490,7 +488,6 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
         );
     }
 
-    // --- BUILDER ---
     if (viewMode === 'build') {
         return (
             <div className="animate-fade-in max-w-3xl mx-auto pb-20">
@@ -562,6 +559,22 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
                             />
                         </div>
 
+                        {/* Price Input */}
+                         <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                            <div className="flex justify-between items-center mb-2">
+                                <label className="text-xs font-bold uppercase text-gold-400">Eladási Ár (Pont)</label>
+                                <span className="text-gold-400 font-bold font-mono">{newLessonPrice} P</span>
+                            </div>
+                            <input
+                                type="number" min="0"
+                                value={newLessonPrice}
+                                onChange={e => setNewLessonPrice(parseInt(e.target.value) || 0)}
+                                className="w-full bg-black/30 border border-gold-500/50 rounded-lg p-2 text-white font-mono"
+                                placeholder="0"
+                            />
+                            <div className="text-[10px] text-white/30 mt-1">Ha 0, akkor ingyenes. Csak a Piactéren számít.</div>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs font-bold uppercase text-white/50 mb-1">Kategória</label>
@@ -587,7 +600,6 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
                         <textarea value={newLessonDesc} onChange={e => setNewLessonDesc(e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white h-20 resize-none" placeholder="Rövid leírás..." />
                         <MarkdownEditor value={newLessonContent} onChange={setNewLessonContent} height="h-80" placeholder="Lecke tartalma..." />
 
-                        {/* Card Selector */}
                         <div>
                             <label className="block text-xs font-bold uppercase text-white/50 mb-2">Kapcsolódó Kártyák ({newLessonCards.length})</label>
                             <button onClick={() => setIsCardSelectorOpen(!isCardSelectorOpen)} className="bg-white/10 px-4 py-2 rounded-lg text-sm font-bold border border-white/20 hover:bg-white/20">
@@ -608,7 +620,6 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
                             )}
                         </div>
 
-                        {/* QUIZ BUILDER - RESTORED & UPDATED */}
                         <div>
                             <label className="block text-xs font-bold uppercase text-white/50 mb-4">Tudás Próba (Állítások)</label>
                             <div className="space-y-4">
@@ -655,6 +666,7 @@ export const EducationView = ({ onBack }: { onBack: () => void }) => {
 
     return (
         <div className="animate-fade-in max-w-6xl mx-auto pb-20">
+            {/* ... Rest of Main View (No changes needed) ... */}
             <div className="flex justify-between items-center mb-8">
                 <button onClick={onBack} className="flex items-center gap-2 font-bold text-white/60 hover:text-gold-400 transition-colors">
                     &larr; Vissza

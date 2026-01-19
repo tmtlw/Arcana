@@ -1,4 +1,6 @@
 
+import { DeckMeta, Lesson, Spread } from "./types";
+
 export interface Card {
   id: string;
   name: string;
@@ -79,6 +81,7 @@ export interface Spread {
   isPublic?: boolean;
   downloads?: number;
   sourceId?: string; 
+  price?: number; // Marketplace price
 }
 
 export interface DrawnCard {
@@ -240,6 +243,7 @@ export interface DeckMeta {
     downloads?: number; 
     isPublic?: boolean; 
     sourceId?: string; 
+    price?: number;
 }
 
 export type LessonCategory = 'basics' | 'major' | 'minor' | 'reading' | 'symbolism';
@@ -269,6 +273,7 @@ export interface Lesson {
     isPublic?: boolean;
     downloads?: number;
     sourceId?: string; 
+    price?: number;
 }
 
 export interface User {
@@ -309,6 +314,27 @@ export interface User {
   lessonCollection?: string[];
   deckCollection?: string[];
   activeQuests?: UserQuestProgress[]; // Quest Progress Tracking
+
+  // Shop System
+  currency?: number; // Pontok (vásárlásra)
+  inventory?: string[]; // Megvásárolt item ID-k
+}
+
+export interface ShopItem {
+  id: string;
+  name: string;
+  description: string;
+  type: 'deck' | 'background' | 'cover' | 'lesson' | 'spread';
+  cost: number;
+  previewUrl?: string;
+  value?: string;
+  category?: string;
+  isPremium?: boolean;
+
+  // Extended fields for mapping
+  source?: 'system' | 'community';
+  originalData?: Spread | Lesson | DeckMeta;
+  downloads?: number;
 }
 
 export interface ThemeColors {

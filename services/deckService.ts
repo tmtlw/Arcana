@@ -3,7 +3,7 @@ import { DeckMeta } from '../types';
 import { dbService } from './dbService';
 import { db } from './firebase';
 import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, increment, setDoc, deleteDoc, where, writeBatch } from 'firebase/firestore';
-import { StorageService } from './storageService'; // Added import
+import { StorageService } from './storageService';
 
 const RIDER_WAITE: DeckMeta = { 
     id: 'rider-waite', 
@@ -12,6 +12,26 @@ const RIDER_WAITE: DeckMeta = {
     author: 'A.E. Waite & P.C. Smith',
     basePath: 'https://www.sacred-texts.com/tarot/pkt/img/', 
     extension: 'jpg'
+};
+
+const MARSEILLE: DeckMeta = {
+    id: 'deck_marseille',
+    name: 'Tarot de Marseille (Jean Dodal)',
+    description: 'Klasszikus francia Tarot pakli az 1700-as évekből. (Placeholder képekkel)',
+    author: 'Jean Dodal',
+    basePath: 'https://upload.wikimedia.org/wikipedia/commons/',
+    extension: 'jpg',
+    isSystem: true
+};
+
+const THOTH: DeckMeta = {
+    id: 'deck_thoth',
+    name: 'Thoth Tarot',
+    description: 'Aleister Crowley és Lady Frieda Harris misztikus paklija. (Placeholder képekkel)',
+    author: 'Aleister Crowley',
+    basePath: 'https://upload.wikimedia.org/wikipedia/en/',
+    extension: 'jpg',
+    isSystem: true
 };
 
 const KEYS = {
@@ -54,16 +74,35 @@ export const DeckService = {
         const localDecksJson = localStorage.getItem(KEYS.CUSTOM_DECKS);
         const userCustomDecks: DeckMeta[] = localDecksJson ? JSON.parse(localDecksJson) : [];
 
-        return [RIDER_WAITE, ...folderDecks, ...userCustomDecks];
+        // Return System Decks + Local Folder Decks + User Custom Decks
+        return [RIDER_WAITE, MARSEILLE, THOTH, ...folderDecks, ...userCustomDecks];
     },
 
     getCardImageUrl: (cardId: string, deck: DeckMeta): string => {
         if (!deck) return DeckService.getCardImageUrl(cardId, RIDER_WAITE);
+
+        // Handle Marseille Specifics
+        if (deck.id === 'deck_marseille') {
+             // NOTE: Using RWS placeholder due to lack of verified public URLs for Marseille.
+             // This ensures stability.
+             const filename = getRiderWaiteFilename(cardId);
+             return `${RIDER_WAITE.basePath}${filename}.${RIDER_WAITE.extension}`;
+        }
+
+        // Handle Thoth Specifics
+        if (deck.id === 'deck_thoth') {
+             // NOTE: Using RWS placeholder due to lack of verified public URLs.
+             const filename = getRiderWaiteFilename(cardId);
+             return `${RIDER_WAITE.basePath}${filename}.${RIDER_WAITE.extension}`;
+        }
+
         if (deck.isCustomLocal) return ''; // Handled by async fetcher
+
         if (deck.id === 'rider-waite') {
             const filename = getRiderWaiteFilename(cardId);
             return `${deck.basePath}${filename}.${deck.extension}`;
         }
+
         const path = deck.basePath.endsWith('/') ? deck.basePath : `${deck.basePath}/`;
         return `${path}${cardId}.${deck.extension}`;
     },
@@ -77,9 +116,7 @@ export const DeckService = {
         return DeckService.getCardImageUrl(cardId, deck);
     },
 
-    // Updated to support Cloud Sync
     saveCustomDeck: async (meta: DeckMeta, images: Record<string, string>, userId?: string) => {
-        // 1. Save Locally (IndexedDB & LocalStorage) for speed/offline
         const localDecksJson = localStorage.getItem(KEYS.CUSTOM_DECKS);
         const localDecks: DeckMeta[] = localDecksJson ? JSON.parse(localDecksJson) : [];
         const updatedDecks = localDecks.filter(d => d.id !== meta.id);
@@ -90,7 +127,6 @@ export const DeckService = {
             await dbService.saveImage(`deck_${meta.id}_${cardId}`, base64);
         }
 
-        // 2. Sync to Cloud if user logged in
         if (userId) {
             await StorageService.saveUserDeckToCloud(userId, meta, images);
         }
@@ -103,14 +139,12 @@ export const DeckService = {
         const updated = localDecks.filter(d => d.id !== deckId);
         localStorage.setItem(KEYS.CUSTOM_DECKS, JSON.stringify(updated));
         
-        // Remove from Public DB if exists
         if (db) {
             try {
                 await deleteDoc(doc(db, 'public_decks', deckId));
             } catch(e) {}
         }
 
-        // Remove from Private User Cloud DB
         if (userId) {
             await StorageService.deleteUserDeckFromCloud(userId, deckId);
         }
@@ -118,31 +152,32 @@ export const DeckService = {
 
     // --- Community Deck Features ---
 
-    publishDeck: async (deck: DeckMeta, userId: string) => {
+    publishDeck: async (deck: DeckMeta, userId: string, price: number = 0) => {
         if (!db) throw new Error("Nincs kapcsolat az adatbázissal.");
         
-        // 1. Get all images from IDB
         const allImages: Record<string, string> = {};
-        // Note: In a real app we'd iterate known IDs. Here assuming FULL_DECK IDs.
-        const { FULL_DECK } = await import('../constants'); // Dynamic import to avoid circular dependency
-        
-        for (const card of FULL_DECK) {
-            const img = await dbService.getImage(`deck_${deck.id}_${card.id}`);
-            if (img) allImages[card.id] = img;
+        // Use dynamic import or pass dependencies if possible, here assuming full deck logic
+        // For custom local decks, we need to load images.
+        if (deck.isCustomLocal) {
+             const { FULL_DECK } = await import('../constants/deckConstants');
+             for (const card of FULL_DECK) {
+                const img = await dbService.getImage(`deck_${deck.id}_${card.id}`);
+                if (img) allImages[card.id] = img;
+            }
         }
 
-        // 2. Upload to Firestore
         try {
             await setDoc(doc(db, 'public_decks', deck.id), {
                 ...deck,
-                userId: userId, // Track owner
+                userId: userId,
                 isPublic: true,
+                price: price, // Added Price
                 downloads: 0,
-                images: allImages // Heavy payload!
+                images: allImages
             });
         } catch (e) {
             console.error(e);
-            throw new Error("Túl nagy a pakli mérete a megosztáshoz (Firestore limit). Próbálj kisebb képeket használni.");
+            throw new Error("Hiba a pakli közzétételekor (méretkorlát?).");
         }
     },
 
@@ -153,20 +188,18 @@ export const DeckService = {
         const decks: DeckMeta[] = [];
         snap.forEach(d => {
             const data = d.data();
-            // Don't pull images yet
             const { images, ...meta } = data; 
             decks.push(meta as DeckMeta);
         });
         return decks;
     },
 
-    // Admin function
     deletePublicDeck: async (deckId: string) => {
         if (!db) return;
         try {
             await deleteDoc(doc(db, 'public_decks', deckId));
         } catch (e) {
-            console.error("Admin Error deleting deck:", e);
+            console.error(e);
             throw e;
         }
     },
@@ -181,7 +214,7 @@ export const DeckService = {
             snap.forEach(d => batch.delete(d.ref));
             await batch.commit();
         } catch (e) {
-            console.error("Error wiping user decks:", e);
+            console.error(e);
         }
     },
 
@@ -195,13 +228,13 @@ export const DeckService = {
         const meta = { 
             ...data, 
             isCustomLocal: true, 
-            id: `${data.id}_dl`,
-            sourceId: deckId // Important: Link to original for cascade delete
+            id: `${data.id}_dl_${Date.now()}`, // Unique ID for download
+            sourceId: deckId
         } as DeckMeta;
         
         delete (meta as any).images;
 
-        await DeckService.saveCustomDeck(meta, images);
+        await DeckService.saveCustomDeck(meta, images || {});
         await updateDoc(doc(db, 'public_decks', deckId), { downloads: increment(1) });
         return true;
     }
