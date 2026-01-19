@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTarot } from '../context/TarotContext';
-import { THEMES, BADGES, AVATAR_GALLERY, CARD_BACKS, QUICK_ACTION_OPTIONS, MOODS } from '../constants';
+import { THEMES, BADGES, AVATAR_GALLERY, CARD_BACKS, QUICK_ACTION_OPTIONS, MOODS, getAvatarUrl } from '../constants';
 import { CardImage } from './CardImage'; 
 import { ThemeType, CardBackType, Reading, User } from '../types';
 import { t } from '../services/i18nService';
