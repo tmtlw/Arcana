@@ -23,6 +23,7 @@ import { CommunityView } from './components/CommunityView';
 import { CommunityDecksView } from './components/CommunityDecksView'; 
 import { CommunitySpreadsView } from './components/CommunitySpreadsView'; 
 import { AdminDashboard } from './components/AdminDashboard';
+import { TranslatorDashboard } from './components/TranslatorDashboard';
 import { NumerologyView } from './components/NumerologyView'; // Still imported but used inside Analysis
 import { AstroCalendarView } from './components/AstroCalendarView';
 import { BadgesView } from './components/BadgesView';
@@ -31,7 +32,7 @@ import { MonthlySummaryView } from './components/MonthlySummaryView'; // Still i
 import { AnalysisView } from './components/AnalysisView';
 import { MarketplaceView } from './components/MarketplaceView';
 import { Spread, Card } from './types';
-import { t } from './services/i18nService';
+import { TranslationProvider, useTranslation } from './context/TranslationContext';
 import { AstroService } from './services/astroService';
 import { UpdateService, UpdateResponse } from './services/UpdateService';
 import { TutorialOverlay, TutorialStep } from './components/TutorialOverlay';
@@ -272,7 +273,8 @@ const NotificationCenter = ({ navigateTo }: { navigateTo: (v: string) => void })
 };
 
 const AppContent = () => {
-    const { currentUser, deck, isSyncing, isCloudAvailable, language, activeThemeKey, logout, userLocation, globalSettings } = useTarot();
+    const { currentUser, deck, isSyncing, isCloudAvailable, activeThemeKey, logout, userLocation, globalSettings } = useTarot();
+    const { t } = useTranslation();
     const [view, setView] = useState('dashboard');
     const [activeSpread, setActiveSpread] = useState<Spread | null>(null);
     const [readingDate, setReadingDate] = useState<Date | undefined>(undefined);
@@ -300,7 +302,18 @@ const AppContent = () => {
     if (!currentUser) return <AuthView />;
 
     if (view === 'admin') {
-        return <AdminDashboard onBack={() => setView('dashboard')} />;
+        return <AdminDashboard onBack={() => setView('dashboard')} onNavigate={navigateTo} />;
+    }
+
+    if (view === 'translator') {
+        return (
+            <div className="pt-24 pb-10">
+                <button onClick={() => setView('dashboard')} className="fixed top-24 left-4 z-50 text-white bg-black/50 px-3 py-1 rounded border border-white/20">
+                     ← {t('common.back')}
+                </button>
+                <TranslatorDashboard />
+            </div>
+        );
     }
 
     const theme = THEMES[activeThemeKey] || THEMES['mystic'];
@@ -353,12 +366,12 @@ const AppContent = () => {
     // --- MENU STRUCTURE ---
     const menuGroups = [
         {
-            title: 'Főmenü',
+            title: t('common.nav.home'), // Fallback title translation if needed, or keep hardcoded
             items: [
-                { id: 'dashboard', label: t('menu.dashboard', language), icon: '🏠' },
-                { id: 'history', label: t('menu.history', language), icon: '📜' },
-                { id: 'library', label: t('menu.library', language), icon: '📖' },
-                { id: 'profile', label: t('menu.profile', language), icon: '👤' },
+                { id: 'dashboard', label: t('menu.dashboard'), icon: '🏠' },
+                { id: 'history', label: t('menu.history'), icon: '📜' },
+                { id: 'library', label: t('menu.library'), icon: '📖' },
+                { id: 'profile', label: t('menu.profile'), icon: '👤' },
             ]
         },
         {
@@ -565,10 +578,19 @@ const AppContent = () => {
     );
 };
 
+const AppWrapper = () => {
+    const { currentUser } = useTarot();
+    return (
+        <TranslationProvider userLanguage={currentUser?.language}>
+            <AppContent />
+        </TranslationProvider>
+    );
+};
+
 const App = () => {
     return (
         <TarotProvider>
-            <AppContent />
+            <AppWrapper />
         </TarotProvider>
     );
 };

@@ -276,9 +276,12 @@ export interface Lesson {
     price?: number;
 }
 
+export type UserRole = 'member' | 'translator' | 'moderator' | 'admin';
+
 export interface User {
   id: string;
   name: string;
+  role?: UserRole;
   realName?: string; 
   birthDate?: string; 
   birthTime?: string; 

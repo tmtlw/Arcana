@@ -25,7 +25,7 @@ $action = isset($_GET['action']) ? $_GET['action'] : '';
 $file = isset($_GET['file']) ? $_GET['file'] : '';
 
 // Whitelist allowed directories/files for security
-$ALLOWED_DIRS = ['cards', 'constants', 'lessons'];
+$ALLOWED_DIRS = ['cards', 'constants', 'lessons', 'langs'];
 $BASE_DIR = __DIR__;
 
 function is_allowed($path) {
