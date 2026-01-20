@@ -299,26 +299,7 @@ const AppContent = () => {
     // Menu State
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-    if (!currentUser) return <AuthView />;
-
-    if (view === 'admin') {
-        return <AdminDashboard onBack={() => setView('dashboard')} onNavigate={navigateTo} />;
-    }
-
-    if (view === 'translator') {
-        return (
-            <div className="pt-24 pb-10">
-                <button onClick={() => setView('dashboard')} className="fixed top-24 left-4 z-50 text-white bg-black/50 px-3 py-1 rounded border border-white/20">
-                     ← {t('common.back')}
-                </button>
-                <TranslatorDashboard />
-            </div>
-        );
-    }
-
-    const theme = THEMES[activeThemeKey] || THEMES['mystic'];
-    const fontSizeClass = currentUser.fontSize === 'large' ? 'text-lg' : 'text-base';
-
+    // --- NAVIGATION HELPERS ---
     const startReading = (spread: Spread, date?: Date) => {
         setActiveSpread(spread);
         setReadingDate(date);
@@ -363,10 +344,31 @@ const AppContent = () => {
         logout();
     };
 
+    // --- AUTH & ROUTING CHECKS ---
+    if (!currentUser) return <AuthView />;
+
+    if (view === 'admin') {
+        return <AdminDashboard onBack={() => setView('dashboard')} onNavigate={navigateTo} />;
+    }
+
+    if (view === 'translator') {
+        return (
+            <div className="pt-24 pb-10">
+                <button onClick={() => setView('dashboard')} className="fixed top-24 left-4 z-50 text-white bg-black/50 px-3 py-1 rounded border border-white/20">
+                     ← {t('common.back')}
+                </button>
+                <TranslatorDashboard />
+            </div>
+        );
+    }
+
+    const theme = THEMES[activeThemeKey] || THEMES['mystic'];
+    const fontSizeClass = currentUser.fontSize === 'large' ? 'text-lg' : 'text-base';
+
     // --- MENU STRUCTURE ---
     const menuGroups = [
         {
-            title: t('common.nav.home'), // Fallback title translation if needed, or keep hardcoded
+            title: t('common.nav.home'),
             items: [
                 { id: 'dashboard', label: t('menu.dashboard'), icon: '🏠' },
                 { id: 'history', label: t('menu.history'), icon: '📜' },
@@ -377,7 +379,7 @@ const AppContent = () => {
         {
             title: 'Misztikum',
             items: [
-                { id: 'analysis', label: 'Elemzés', icon: '📊' }, // Consolidated item
+                { id: 'analysis', label: 'Elemzés', icon: '📊' },
                 { id: 'badges', label: 'Jelvények', icon: '🏆' },
                 { id: 'astro', label: 'Holdnaptár', icon: '🌙' },
                 { id: 'quiz', label: 'Tudás Próba', icon: '🎓' },
