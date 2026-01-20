@@ -578,20 +578,25 @@ const AppContent = () => {
     );
 };
 
-const AppWrapper = () => {
+const LanguageSyncer = () => {
     const { currentUser } = useTarot();
-    return (
-        <TranslationProvider userLanguage={currentUser?.language}>
-            <AppContent />
-        </TranslationProvider>
-    );
+    const { setLanguage } = useTranslation();
+    useEffect(() => {
+        if (currentUser?.language) {
+            setLanguage(currentUser.language);
+        }
+    }, [currentUser?.language, setLanguage]);
+    return null;
 };
 
 const App = () => {
     return (
-        <TarotProvider>
-            <AppWrapper />
-        </TarotProvider>
+        <TranslationProvider>
+            <TarotProvider>
+                <LanguageSyncer />
+                <AppContent />
+            </TarotProvider>
+        </TranslationProvider>
     );
 };
 

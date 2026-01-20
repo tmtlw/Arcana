@@ -251,51 +251,6 @@ export const SoulCompass = () => {
                                 );
                             })()
                         )}
-                                        <div className="text-center">
-                                            <div className="text-6xl mb-4 animate-float">🏮</div>
-                                            <h3 className="text-3xl font-serif font-bold text-red-500 mb-1">{data.name}</h3>
-                                            <div className="text-white/50 text-sm font-bold uppercase tracking-widest">Kínai Horoszkóp</div>
-                                        </div>
-                                        <div className="bg-red-900/10 border border-red-500/20 p-4 rounded-xl text-center">
-                                            <p className="text-gray-200 italic leading-relaxed">"{data.description}"</p>
-                                        </div>
-                                        {/* Simplified content for brevity, can expand if needed */}
-                                        <div className="grid grid-cols-2 gap-4 text-sm">
-                                            <div className="bg-white/5 p-3 rounded-lg">
-                                                <div className="text-xs text-gray-500">Szerencseszámok</div>
-                                                <div>{data.luckyNumbers}</div>
-                                            </div>
-                                            <div className="bg-white/5 p-3 rounded-lg">
-                                                 <div className="text-xs text-gray-500">Elem</div>
-                                                 <div>{natalInfo?.chinese.element}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })()
-                        ) : (
-                            (() => {
-                                const data = WESTERN_HOROSCOPES.find(h => h.name === zodiacModal.sign);
-                                if (!data) return <div className="text-center">Betöltés...</div>;
-                                return (
-                                    <div className="text-left space-y-6">
-                                        <div className="text-center relative">
-                                            <div className="text-6xl mb-2 animate-float">{zodiacModal.type === 'Nap' ? '☀️' : zodiacModal.type === 'Hold' ? '🌕' : '🏹'}</div>
-                                            <h3 className="text-4xl font-serif font-bold text-gold-400 mb-1 uppercase tracking-widest">{data.name}</h3>
-                                            <div className="text-gold-200/50 text-sm font-bold uppercase tracking-widest mb-1">{data.dates}</div>
-                                        </div>
-                                        <div className="bg-gold-500/10 border border-gold-500/20 p-5 rounded-xl text-center shadow-lg">
-                                            <div className="text-2xl font-serif text-gold-300 mb-2">"{data.keyword}"</div>
-                                            <p className="text-gray-200 italic leading-relaxed text-sm">
-                                                {zodiacModal.type === 'Nap' && ZODIAC_INFO[zodiacModal.sign]?.sun}
-                                                {zodiacModal.type === 'Hold' && ZODIAC_INFO[zodiacModal.sign]?.moon}
-                                                {zodiacModal.type === 'Aszcendens' && ZODIAC_INFO[zodiacModal.sign]?.ascendant}
-                                            </p>
-                                        </div>
-                                    </div>
-                                );
-                            })()
-                        )}
                     </div>
                 </div>
             )}

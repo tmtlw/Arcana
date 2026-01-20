@@ -5,6 +5,7 @@ import { DeckService } from '../services/deckService';
 import { dbService } from '../services/dbService';
 import { CommunityService } from '../services/communityService';
 import { Language } from '../services/i18nService';
+import { useTranslation } from './TranslationContext';
 import { AstroService } from '../services/astroService';
 import { db } from '../services/firebase';
 import { onSnapshot, collection, query, where, orderBy, limit } from 'firebase/firestore';
@@ -103,6 +104,7 @@ const GUEST_START_TIME_KEY = 'tarot_guest_start';
 const GUEST_TIMEOUT_MS = 60 * 60 * 1000; // 1 Hour
 
 export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
+    const { data } = useTranslation();
     // State
     const [users, setUsers] = useState<User[]>([]);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -696,7 +698,7 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
     };
 
     // Utils - Safety check for FULL_DECK
-    const deck = useMemo(() => (FULL_DECK || []).map(c => customCards[c.id] ? { ...c, ...customCards[c.id] } : c), [customCards]);
+    const deck = useMemo(() => ((data && data.cards) || FULL_DECK || []).map(c => customCards[c.id] ? { ...c, ...customCards[c.id] } : c), [customCards, data]);
     
     const activeDeck = useMemo(() => {
         if (!currentUser) return undefined;
