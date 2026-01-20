@@ -10,7 +10,7 @@ import { ContentEditor } from './ContentEditor';
 
 type AdminTab = 'users' | 'readings' | 'spreads' | 'decks' | 'lessons' | 'system' | 'content' | 'marketplace';
 
-export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
+export const AdminDashboard = ({ onBack, onNavigate }: { onBack: () => void, onNavigate?: (path: string) => void }) => {
     const { currentUser, showToast } = useTarot();
     const [activeTab, setActiveTab] = useState<AdminTab>('system');
     const [loading, setLoading] = useState(false);
@@ -198,6 +198,16 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
             loadData();
         } else {
             showToast("Hiba létrehozáskor.", "error");
+        }
+    };
+
+    const handleRoleUpdate = async (userId: string, newRole: string) => {
+        try {
+            await AdminService.updateUserRole(userId, newRole);
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole as any, isAdmin: newRole === 'admin' } : u));
+            showToast(`Szerepkör frissítve: ${newRole}`, 'success');
+        } catch (e) {
+            showToast("Hiba a frissítéskor.", 'error');
         }
     };
 
@@ -471,6 +481,13 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                     <TabButton id="system" label="Rendszer & Frissítés" icon="🖥️" />
                     <TabButton id="marketplace" label="Piactér Kezelő" icon="🏷️" />
                     <TabButton id="content" label="Tartalom Szerkesztő" icon="📝" />
+                    <button
+                        onClick={() => onNavigate && onNavigate('translator')}
+                        className={`flex items-center gap-3 px-6 py-4 text-sm font-bold uppercase tracking-wider transition-colors w-full text-left border-l-4 border-transparent text-gray-500 hover:bg-[#2a2a3c] hover:text-gray-300`}
+                    >
+                        <span className="text-lg">🌐</span>
+                        Fordító Központ
+                    </button>
                     <div className="my-4 border-t border-white/5"></div>
                     <TabButton id="readings" label="Minden Húzás" icon="📜" />
                     <TabButton id="spreads" label="Minden Kirakás" icon="💠" />
@@ -694,7 +711,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                         <tr>
                                             <th className="p-4">Megjelenített Név / ID</th>
                                             <th className="p-4">Aktivitás</th>
-                                            <th className="p-4">Státusz</th>
+                                            <th className="p-4">Szerepkör</th>
                                             <th className="p-4 text-right">Művelet</th>
                                         </tr>
                                     </thead>
@@ -710,10 +727,22 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                                     <div>Reg: {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'}</div>
                                                     <div>Login: {u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : 'N/A'}</div>
                                                 </td>
-                                                <td className="p-4 text-gray-400">
-                                                    {u.isAdmin ? <span className="text-red-400 font-bold">ADMIN</span> : (u.isAnonymous ? 'Vendég' : 'Regisztrált')}
-                                                    <br/>
-                                                    <span className="text-xs opacity-50">Lvl {u.level || 1}</span>
+                                                <td className="p-4 text-gray-400" onClick={e => e.stopPropagation()}>
+                                                    <select
+                                                        value={u.role || (u.isAdmin ? 'admin' : 'member')}
+                                                        onChange={(e) => handleRoleUpdate(u.id, e.target.value)}
+                                                        className={`bg-black/40 text-xs border border-white/10 rounded px-2 py-1 font-bold ${
+                                                            u.role === 'admin' ? 'text-red-400' :
+                                                            u.role === 'moderator' ? 'text-blue-400' :
+                                                            u.role === 'translator' ? 'text-green-400' : 'text-gray-300'
+                                                        }`}
+                                                    >
+                                                        <option value="member">Tag</option>
+                                                        <option value="translator">Fordító</option>
+                                                        <option value="moderator">Moderátor</option>
+                                                        <option value="admin">Admin</option>
+                                                    </select>
+                                                    <div className="text-[10px] opacity-50 mt-1">Lvl {u.level || 1}</div>
                                                 </td>
                                                 <td className="p-4 text-right">
                                                     {!u.isAdmin && <DeleteButton onClick={() => handleDelete(u.id, u.id, 'user', u.name)} />}

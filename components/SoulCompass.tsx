@@ -1,14 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { useTarot } from '../context/TarotContext';
+import { useTranslation } from '../context/TranslationContext';
 import { FULL_DECK, ZODIAC_INFO } from '../constants';
-import { WESTERN_HOROSCOPES } from '../constants/horoscopes_western';
-import { CHINESE_HOROSCOPES, getChineseZodiac } from '../constants/horoscopes_chinese';
 import { CardImage } from './CardImage';
 import { AstroService } from '../services/astroService';
 import { ReadingAnalysis } from './ReadingAnalysis';
 
 export const SoulCompass = () => {
     const { currentUser, readings, userLocation } = useTarot();
+    const { data } = useTranslation();
     const [zodiacModal, setZodiacModal] = useState<{ type: 'Nap'|'Hold'|'Aszcendens'|'Kínai', sign: string } | null>(null);
 
     // Filter readings for current user
@@ -62,13 +62,23 @@ export const SoulCompass = () => {
 
     // Calculate Natal Info
     const natalInfo = useMemo(() => {
-        if (!currentUser?.birthDate) return null;
+        if (!currentUser?.birthDate || !data.chineseOrder || !data.chineseElements) return null;
         const dateTimeString = `${currentUser.birthDate}T${currentUser.birthTime || "12:00"}:00`;
         const date = new Date(dateTimeString);
         const western = AstroService.getAstroData(date, userLocation || undefined);
-        const chinese = getChineseZodiac(date.getFullYear());
-        return { ...western, chinese };
-    }, [currentUser, userLocation]);
+
+        // Chinese Zodiac Logic (reimplemented to use dynamic data)
+        const year = date.getFullYear();
+        const baseYear = 1900; // Rat
+        const offset = (year - baseYear) % 12;
+        const signIndex = offset >= 0 ? offset : 12 + offset;
+        const sign = data.chineseOrder[signIndex];
+
+        const lastDigit = year % 10;
+        const element = data.chineseElements.find(e => e.years.includes(lastDigit))?.name || "Ismeretlen";
+
+        return { ...western, chinese: { sign, element } };
+    }, [currentUser, userLocation, data]);
 
     if (!currentUser) return null;
 
@@ -193,10 +203,54 @@ export const SoulCompass = () => {
 
                         {zodiacModal.type === 'Kínai' ? (
                             (() => {
-                                const data = CHINESE_HOROSCOPES.find(h => h.name === zodiacModal.sign);
-                                if (!data) return <div className="text-center p-10">Nincs adat a '{zodiacModal.sign}' jegyről.</div>;
+                                const zodiacData = data.chinese?.find(h => h.name === zodiacModal.sign);
+                                if (!zodiacData) return <div className="text-center p-10">Nincs adat a '{zodiacModal.sign}' jegyről.</div>;
                                 return (
                                     <div className="text-left space-y-6">
+                                        <div className="text-center">
+                                            <div className="text-6xl mb-4 animate-float">🏮</div>
+                                            <h3 className="text-3xl font-serif font-bold text-red-500 mb-1">{zodiacData.name}</h3>
+                                            <div className="text-white/50 text-sm font-bold uppercase tracking-widest">Kínai Horoszkóp</div>
+                                        </div>
+                                        <div className="bg-red-900/10 border border-red-500/20 p-4 rounded-xl text-center">
+                                            <p className="text-gray-200 italic leading-relaxed">"{zodiacData.description}"</p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                            <div className="bg-white/5 p-3 rounded-lg">
+                                                <div className="text-xs text-gray-500">Szerencseszámok</div>
+                                                <div>{zodiacData.luckyNumbers}</div>
+                                            </div>
+                                            <div className="bg-white/5 p-3 rounded-lg">
+                                                 <div className="text-xs text-gray-500">Elem</div>
+                                                 <div>{natalInfo?.chinese.element}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()
+                        ) : (
+                            (() => {
+                                const zodiacData = data.horoscopes?.find(h => h.name === zodiacModal.sign);
+                                if (!zodiacData) return <div className="text-center">Betöltés...</div>;
+                                return (
+                                    <div className="text-left space-y-6">
+                                        <div className="text-center relative">
+                                            <div className="text-6xl mb-2 animate-float">{zodiacModal.type === 'Nap' ? '☀️' : zodiacModal.type === 'Hold' ? '🌕' : '🏹'}</div>
+                                            <h3 className="text-4xl font-serif font-bold text-gold-400 mb-1 uppercase tracking-widest">{zodiacData.name}</h3>
+                                            <div className="text-gold-200/50 text-sm font-bold uppercase tracking-widest mb-1">{zodiacData.dates}</div>
+                                        </div>
+                                        <div className="bg-gold-500/10 border border-gold-500/20 p-5 rounded-xl text-center shadow-lg">
+                                            <div className="text-2xl font-serif text-gold-300 mb-2">"{zodiacData.keyword}"</div>
+                                            <p className="text-gray-200 italic leading-relaxed text-sm">
+                                                {zodiacModal.type === 'Nap' && ZODIAC_INFO[zodiacModal.sign]?.sun}
+                                                {zodiacModal.type === 'Hold' && ZODIAC_INFO[zodiacModal.sign]?.moon}
+                                                {zodiacModal.type === 'Aszcendens' && ZODIAC_INFO[zodiacModal.sign]?.ascendant}
+                                            </p>
+                                        </div>
+                                    </div>
+                                );
+                            })()
+                        )}
                                         <div className="text-center">
                                             <div className="text-6xl mb-4 animate-float">🏮</div>
                                             <h3 className="text-3xl font-serif font-bold text-red-500 mb-1">{data.name}</h3>

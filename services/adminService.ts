@@ -181,5 +181,18 @@ export const AdminService = {
             console.error("Admin: Error banning user", e);
             throw e;
         }
+    },
+
+    updateUserRole: async (userId: string, role: string) => {
+        if (!db) return;
+        try {
+            const userRef = doc(db, 'users', userId);
+            // Ha admin szerepkört kap, az isAdmin flag-et is beállítjuk kompatibilitás miatt
+            const isAdmin = role === 'admin';
+            await setDoc(userRef, { role, isAdmin }, { merge: true });
+        } catch (e) {
+            console.error("Admin: Error updating role", e);
+            throw e;
+        }
     }
 };
