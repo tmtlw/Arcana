@@ -538,8 +538,8 @@ const AppContent = () => {
                 {view === 'deckBuilder' && <DeckBuilder onBack={() => setView('dashboard')} />}
 
                 {/* Consolidating Views */}
-                {view === 'stats' && <StatsView onBack={() => setView('dashboard')} />} {/* Fallback route, but menu now points to analysis */}
-                {view === 'numerology' && <NumerologyView onBack={() => setView('dashboard')} />} {/* Fallback route */}
+                {view === 'stats' && <AnalysisView onBack={() => setView('dashboard')} />}
+                {view === 'numerology' && <AnalysisView onBack={() => setView('dashboard')} />}
 
                 {view === 'analysis' && <AnalysisView onBack={() => setView('dashboard')} />}
                 {view === 'monthly' && <MonthlySummaryView onBack={() => setView('dashboard')} />}

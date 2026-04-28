@@ -1,7 +1,8 @@
 
 import { useMemo } from 'react';
 import { Reading, DrawnCard, Card } from '../types';
-import { FULL_DECK, MOODS } from '../constants';
+import { FULL_DECK } from '../constants/deckConstants';
+import { MOODS } from '../constants/ui';
 
 export interface AnalyticsStats {
     totalReadings: number;
@@ -28,14 +29,12 @@ export const useAnalytics = (readings: Reading[], userId?: string) => {
     const stats = useMemo(() => {
         const filteredReadings = userId ? readings.filter(r => r.userId === userId) : readings;
 
-        // Sort by date ascending for streak
         const sortedReadings = [...filteredReadings].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         const totalReadings = sortedReadings.length;
         const allDrawnCards = sortedReadings.flatMap(r => r.cards);
         const totalCards = allDrawnCards.length;
 
-        // 1. CARD FREQUENCY
         const cardCounts: Record<string, number> = {};
         allDrawnCards.forEach(c => {
             cardCounts[c.cardId] = (cardCounts[c.cardId] || 0) + 1;
@@ -47,7 +46,6 @@ export const useAnalytics = (readings: Reading[], userId?: string) => {
                 return { card, count };
             });
 
-        // 2. SUITS & ELEMENTS
         const suits = { 'Major': 0, 'Botok': 0, 'Kelyhek': 0, 'Kardok': 0, 'Érmék': 0 };
         const elements = { 'Tűz': 0, 'Víz': 0, 'Levegő': 0, 'Föld': 0 };
 
@@ -65,13 +63,12 @@ export const useAnalytics = (readings: Reading[], userId?: string) => {
             }
         });
 
-        // 3. CHRONOTYPE
         const hours = new Array(24).fill(0);
         const weekDays = new Array(7).fill(0);
         sortedReadings.forEach(r => {
             const d = new Date(r.date);
             hours[d.getHours()]++;
-            const dayIdx = d.getDay(); // 0=Sun
+            const dayIdx = d.getDay();
             const mondayBasedIdx = dayIdx === 0 ? 6 : dayIdx - 1;
             weekDays[mondayBasedIdx]++;
         });
@@ -81,7 +78,6 @@ export const useAnalytics = (readings: Reading[], userId?: string) => {
         else if (busiestHour >= 12 && busiestHour < 18) timeLabel = "Nappali Vándor ☀️";
         else if (busiestHour >= 18 && busiestHour < 22) timeLabel = "Esti Gondolkodó 🌙";
 
-        // 4. MOON PHASE
         const moonPhases: Record<string, number> = {};
         sortedReadings.forEach(r => {
             if (r.astrology?.moonPhase) {
@@ -91,7 +87,6 @@ export const useAnalytics = (readings: Reading[], userId?: string) => {
         const favMoonArr = Object.entries(moonPhases).sort((a,b) => b[1] - a[1]);
         const favMoon = favMoonArr.length > 0 ? { name: favMoonArr[0][0], count: favMoonArr[0][1] } : null;
 
-        // 5. STREAK
         let currentStreak = 0;
         let longestStreak = 0;
         let tempStreak = 0;
@@ -121,7 +116,6 @@ export const useAnalytics = (readings: Reading[], userId?: string) => {
         const yesterdayStr = yesterday.toDateString();
         if (lastDate === todayStr || lastDate === yesterdayStr) currentStreak = tempStreak;
 
-        // 6. MOOD
         const moodCounts: Record<string, number> = {};
         sortedReadings.forEach(r => {
             if (r.mood) moodCounts[r.mood] = (moodCounts[r.mood] || 0) + 1;
@@ -129,14 +123,12 @@ export const useAnalytics = (readings: Reading[], userId?: string) => {
         const domMoodId = Object.entries(moodCounts).sort((a,b) => b[1] - a[1])[0]?.[0];
         const dominantMood = MOODS.find(m => m.id === domMoodId);
 
-        // 7. ACTIVITY MAP
         const activityMap: Record<string, number> = {};
         sortedReadings.forEach(r => {
             const dayKey = r.date.split('T')[0];
             activityMap[dayKey] = (activityMap[dayKey] || 0) + 1;
         });
 
-        // 8. NUMEROLOGY
         const numerologyCounts: Record<number, number> = {};
         allDrawnCards.forEach(dc => {
             const card = FULL_DECK.find(c => c.id === dc.cardId);
@@ -147,7 +139,6 @@ export const useAnalytics = (readings: Reading[], userId?: string) => {
         const topNumArr = Object.entries(numerologyCounts).sort((a,b) => b[1] - a[1]);
         const topNumber = topNumArr.length > 0 ? { num: topNumArr[0][0], count: topNumArr[0][1] } : null;
 
-        // 9. DAY vs NIGHT
         let dayCount = 0;
         let nightCount = 0;
         sortedReadings.forEach(r => {
