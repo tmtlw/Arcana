@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useTarot } from '../context/TarotContext';
-import { FULL_DECK, MOODS } from '../constants';
+import { MOODS } from '../constants';
 import { t } from '../services/i18nService';
 import { CardImage } from './CardImage';
 import { AnalyticsStats } from '../services/analyticsHook';
-import { Card } from '../types';
+import { Card, Reading } from '../types';
 
 const StalkerCard: React.FC<{ data: any, rank: number, onSelect: (c: Card) => void }> = ({ data, rank, onSelect }) => {
     if (!data || !data.card) return null;
@@ -27,11 +27,8 @@ const StalkerCard: React.FC<{ data: any, rank: number, onSelect: (c: Card) => vo
 const ProgressBar = ({ label, value, max, color, compareValue, compareMax }: { label: string, value: number, max: number, color: string, compareValue?: number, compareMax?: number }) => {
     const percent = Math.min(100, Math.round((value / (max || 1)) * 100));
     const compPercent = (compareValue !== undefined && compareMax !== undefined) ? Math.min(100, Math.round((compareValue / (compareMax || 1)) * 100)) : undefined;
-
     let diff = 0;
-    if (compPercent !== undefined) {
-        diff = percent - compPercent;
-    }
+    if (compPercent !== undefined) diff = percent - compPercent;
 
     return (
         <div className="mb-4">
@@ -57,7 +54,8 @@ const ProgressBar = ({ label, value, max, color, compareValue, compareMax }: { l
 };
 
 export const StatsView = ({ stats, compareStats, onSelectCard, embedded }: { stats: AnalyticsStats, compareStats?: AnalyticsStats, onSelectCard: (c: Card) => void, onBack: () => void, embedded?: boolean }) => {
-    const { currentUser, language, readings } = useTarot();
+    const { currentUser, readings, deck } = useTarot();
+    const [selectedDayReadings, setSelectedDayReadings] = useState<Reading[] | null>(null);
 
     const Heatmap = () => {
         const days = [];
@@ -71,164 +69,110 @@ export const StatsView = ({ stats, compareStats, onSelectCard, embedded }: { sta
             if (count > 0) bgClass = 'bg-gold-500/30';
             if (count > 1) bgClass = 'bg-gold-500/60';
             if (count > 3) bgClass = 'bg-gold-500';
-            days.push({ date: d, count, bgClass });
+            days.push({ date: d, count, bgClass, key });
         }
+
+        const handleCellClick = (key: string) => {
+            const dr = readings.filter(r => r.userId === currentUser?.id && r.date.startsWith(key));
+            if (dr.length > 0) setSelectedDayReadings(dr);
+        };
 
         return (
             <div className="glass-panel p-6 rounded-2xl border border-white/10 overflow-hidden h-full">
                 <h3 className="font-bold text-white mb-4 flex items-center gap-2">📅 Aktivitási Hőtérkép</h3>
                 <div className="flex flex-wrap gap-1 justify-center md:justify-start content-start">
                     {days.map((d, i) => (
-                        <div key={i} title={`${d.date.toLocaleDateString()}: ${d.count} húzás`} className={`w-3 h-3 rounded-sm ${d.bgClass} hover:ring-1 hover:ring-white transition-all`}></div>
+                        <div
+                            key={i}
+                            onClick={() => handleCellClick(d.key)}
+                            title={`${d.date.toLocaleDateString()}: ${d.count} húzás`}
+                            className={`w-3 h-3 rounded-sm ${d.bgClass} hover:ring-1 hover:ring-white transition-all cursor-pointer`}
+                        ></div>
                     ))}
                 </div>
-                <div className="flex justify-end items-center gap-2 mt-4 text-[10px] text-white/40">
-                    <span>Kevés</span>
-                    <div className="flex gap-1">
-                        <div className="w-2 h-2 bg-white/5 rounded-sm"></div>
-                        <div className="w-2 h-2 bg-gold-500/30 rounded-sm"></div>
-                        <div className="w-2 h-2 bg-gold-500/60 rounded-sm"></div>
-                        <div className="w-2 h-2 bg-gold-500 rounded-sm"></div>
-                    </div>
-                    <span>Sok</span>
-                </div>
             </div>
         );
     };
 
-    const ElementalCalendar = () => {
-        const [currentMonth, setCurrentMonth] = useState(new Date());
-
-        const getDaysInMonth = (date: Date) => {
-            const year = date.getFullYear();
-            const month = date.getMonth();
-            const days = new Date(year, month + 1, 0).getDate();
-            const firstDay = new Date(year, month, 1).getDay(); // 0 = Sun
-            const offset = firstDay === 0 ? 6 : firstDay - 1; // Mon=0
-            return { days, offset, monthName: date.toLocaleDateString('hu-HU', { month: 'long', year: 'numeric' }) };
-        };
-
-        const { days, offset, monthName } = getDaysInMonth(currentMonth);
-
-        const changeMonth = (delta: number) => {
-            const newDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + delta, 1);
-            setCurrentMonth(newDate);
-        };
-
-        const getDayColor = (day: number) => {
-             const dateStr = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day).toISOString().split('T')[0];
-             const dayReadings = readings.filter(r => r.userId === currentUser?.id && r.date.startsWith(dateStr));
-
-             if (dayReadings.length === 0) return 'bg-white/5 text-white/30';
-
-             let major = 0, fire = 0, water = 0, air = 0, earth = 0;
-             dayReadings.forEach(r => {
-                 r.cards.forEach(dc => {
-                     const card = FULL_DECK.find(c => c.id === dc.cardId);
-                     if (card) {
-                         if (card.arcana === 'Major') major += 2;
-                         else if (card.suit === 'Botok') fire++;
-                         else if (card.suit === 'Kelyhek') water++;
-                         else if (card.suit === 'Kardok') air++;
-                         else if (card.suit === 'Érmék') earth++;
-                     }
-                 });
-             });
-
-             const max = Math.max(major, fire, water, air, earth);
-             if (max === 0) return 'bg-white/20 text-white';
-             if (max === major) return 'bg-purple-600 text-white shadow-[0_0_10px_rgba(147,51,234,0.5)]';
-             if (max === fire) return 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.5)]';
-             if (max === water) return 'bg-blue-600 text-white shadow-[0_0_10px_rgba(37,99,235,0.5)]';
-             if (max === air) return 'bg-yellow-200 text-black shadow-[0_0_10px_rgba(253,224,71,0.5)]';
-             if (max === earth) return 'bg-emerald-600 text-white shadow-[0_0_10px_rgba(5,150,105,0.5)]';
-             return 'bg-gray-500 text-white';
-        };
+    const TrendChart = () => {
+        const trends = stats.elementTrends.slice(-6); // Last 6 months
+        if (trends.length < 2) return null;
+        const maxVal = Math.max(...trends.flatMap(t => [t['Tűz'], t['Víz'], t['Levegő'], t['Föld']])) || 1;
 
         return (
-            <div className="glass-panel p-6 rounded-2xl border border-white/10 h-full">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-bold text-white flex items-center gap-2">🗓️ Elemi Naptár</h3>
-                    <div className="flex items-center gap-2 bg-black/30 rounded p-1">
-                        <button onClick={() => changeMonth(-1)} className="hover:text-gold-400 px-2">◄</button>
-                        <span className="text-xs font-bold uppercase w-24 text-center">{monthName}</span>
-                        <button onClick={() => changeMonth(1)} className="hover:text-gold-400 px-2">►</button>
-                    </div>
-                </div>
-                <div className="grid grid-cols-7 gap-1 mb-1 text-center text-[10px] font-bold text-white/30 uppercase">
-                    <div>H</div><div>K</div><div>S</div><div>C</div><div>P</div><div>S</div><div>V</div>
-                </div>
-                <div className="grid grid-cols-7 gap-1">
-                    {Array.from({ length: offset }).map((_, i) => <div key={`empty-${i}`} />)}
-                    {Array.from({ length: days }).map((_, i) => {
-                        const d = i + 1;
-                        const colorClass = getDayColor(d);
-                        return (
-                            <div key={d} className={`aspect-square flex items-center justify-center rounded text-xs font-bold transition-transform hover:scale-110 cursor-default ${colorClass}`}>
-                                {d}
+            <div className="glass-panel p-6 rounded-2xl border border-white/10 mt-8">
+                <h3 className="font-bold text-white mb-6 uppercase text-xs">📈 Elemi Trendek (Havi)</h3>
+                <div className="h-32 flex items-end gap-4">
+                    {trends.map((t, i) => (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
+                            <div className="w-full flex items-end justify-center gap-0.5 h-full">
+                                <div className="w-1.5 bg-red-500 rounded-t-sm" style={{ height: `${(t['Tűz']/maxVal)*100}%` }}></div>
+                                <div className="w-1.5 bg-blue-500 rounded-t-sm" style={{ height: `${(t['Víz']/maxVal)*100}%` }}></div>
+                                <div className="w-1.5 bg-yellow-200 rounded-t-sm" style={{ height: `${(t['Levegő']/maxVal)*100}%` }}></div>
+                                <div className="w-1.5 bg-emerald-600 rounded-t-sm" style={{ height: `${(t['Föld']/maxVal)*100}%` }}></div>
                             </div>
-                        );
-                    })}
-                </div>
-                <div className="flex flex-wrap gap-2 mt-4 justify-center text-[9px] text-white/50 uppercase font-bold">
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-purple-600"></span> Nagy Á.</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-red-600"></span> Tűz</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-blue-600"></span> Víz</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-yellow-200"></span> Lev.</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-600"></span> Föld</span>
+                            <span className="text-[8px] text-white/30 font-bold uppercase">{t.month.split('-')[1]}</span>
+                        </div>
+                    ))}
                 </div>
             </div>
         );
     };
 
-    const DiffIndicator = ({ current, compare, suffix = "" }: { current: number, compare?: number, suffix?: string }) => {
-        if (compare === undefined) return null;
-        const diff = current - compare;
+    const Delta = ({ val, compVal, percent }: { val: number, compVal?: number, percent?: boolean }) => {
+        if (compVal === undefined) return null;
+        const diff = val - compVal;
         if (diff === 0) return null;
         return (
-            <span className={`text-xs ml-2 ${diff > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {diff > 0 ? '↑' : '↓'} {Math.abs(diff)}{suffix}
+            <span className={`text-[10px] font-bold ${diff > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {diff > 0 ? '↑' : '↓'} {Math.abs(diff)}{percent ? '%' : ''}
             </span>
         );
     };
 
     return (
         <div className="animate-fade-in pb-20 max-w-5xl mx-auto">
-            {!embedded && <h2 className="text-3xl font-serif font-bold text-center mb-2 text-gold-400">Lelki Irányítópult</h2>}
-            <p className="text-center text-white/40 text-sm mb-10">Az elemzett időszak energiamintázatai</p>
-
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <div className="glass-panel p-4 rounded-2xl border-t-4 border-indigo-500 text-center relative overflow-hidden group">
-                    <div className="text-3xl font-bold text-white mb-1">
-                        {stats.totalReadings}
-                        <DiffIndicator current={stats.totalReadings} compare={compareStats?.totalReadings} />
+                    <div className="flex items-center justify-center gap-2">
+                        <div className="text-3xl font-bold text-white">{stats.totalReadings}</div>
+                        <Delta val={stats.totalReadings} compVal={compareStats?.totalReadings} />
                     </div>
                     <div className="text-[10px] uppercase font-bold text-indigo-300 tracking-widest">Húzás</div>
                 </div>
                 <div className="glass-panel p-4 rounded-2xl border-t-4 border-emerald-500 text-center relative overflow-hidden group">
-                    <div className="text-3xl font-bold text-white mb-1">{stats.currentStreak} <span className="text-sm text-white/40">/ {stats.longestStreak}</span></div>
-                    <div className="text-[10px] uppercase font-bold text-emerald-300 tracking-widest">Sorozat</div>
+                    <div className="flex items-center justify-center gap-2">
+                        <div className="text-3xl font-bold text-white">{stats.currentStreak}</div>
+                        <Delta val={stats.currentStreak} compVal={compareStats?.currentStreak} />
+                    </div>
+                    <div className="text-[10px] uppercase font-bold text-emerald-300 tracking-widest">Aktuális Sorozat</div>
                 </div>
                 <div className="glass-panel p-4 rounded-2xl border-t-4 border-gold-500 text-center relative overflow-hidden group">
-                    <div className="text-3xl font-bold text-white mb-1">{currentUser?.level || 1}</div>
-                    <div className="text-[10px] uppercase font-bold text-gold-400 tracking-widest">Szint</div>
+                    <div className="flex items-center justify-center gap-2">
+                        <div className="text-3xl font-bold text-white">{stats.majorProgress}</div>
+                        <Delta val={stats.majorProgress} compVal={compareStats?.majorProgress} />
+                    </div>
+                    <div className="text-[10px] uppercase font-bold text-gold-400 tracking-widest">Felfedezett Árkánumok</div>
                 </div>
                 <div className="glass-panel p-4 rounded-2xl border-t-4 border-pink-500 text-center relative overflow-hidden group">
-                    <div className="text-3xl font-bold text-white mb-1">{stats.dominantMood?.icon || '-'}</div>
-                    <div className="text-[10px] uppercase font-bold text-pink-300 tracking-widest">{stats.dominantMood?.label || 'Hangulat'}</div>
+                    <div className="flex items-center justify-center gap-2">
+                        <div className="text-3xl font-bold text-white">{stats.reversedRatio}%</div>
+                        <Delta val={stats.reversedRatio} compVal={compareStats?.reversedRatio} percent={true} />
+                    </div>
+                    <div className="text-[10px] uppercase font-bold text-pink-300 tracking-widest">Fordított Arány</div>
                 </div>
             </div>
 
-            {stats.sortedCards.length > 0 && (
-                <div className="glass-panel p-8 rounded-3xl border border-white/10 mb-8 bg-gradient-to-b from-transparent to-black/40">
-                    <h3 className="text-xl font-serif font-bold text-center mb-8 flex items-center justify-center gap-2"><span>👻</span> Kísérő Kártyák</h3>
-                    <div className="flex justify-center gap-6 md:gap-12 flex-wrap">
-                        {stats.sortedCards.slice(0, 3).map((item, idx) => (
-                            <StalkerCard key={idx} data={item} rank={idx + 1} onSelect={onSelectCard} />
-                        ))}
-                    </div>
+            {/* VIRTUAL ALTAR */}
+            <div className="relative mb-12 py-12 px-6 rounded-[3rem] border border-gold-500/20 bg-black/40 overflow-hidden shadow-[0_0_50px_rgba(234,179,8,0.1)]">
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10"></div>
+                <h3 className="text-2xl font-serif font-bold text-center text-gold-400 mb-10 relative z-10 uppercase tracking-[0.2em]">Szakrális Oltárad</h3>
+                <div className="flex justify-center gap-4 md:gap-12 flex-wrap relative z-10">
+                    {stats.sortedCards.slice(0, 3).map((item, idx) => (
+                        <StalkerCard key={idx} data={item} rank={idx + 1} onSelect={onSelectCard} />
+                    ))}
                 </div>
-            )}
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                 <div className="glass-panel p-6 rounded-2xl border border-white/10">
@@ -250,9 +194,49 @@ export const StatsView = ({ stats, compareStats, onSelectCard, embedded }: { sta
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full items-start">
-                <ElementalCalendar />
-                <Heatmap />
+                <div className="space-y-8">
+                    <Heatmap />
+                    <TrendChart />
+                </div>
+                <div className="glass-panel p-6 rounded-2xl border border-white/10">
+                    <h3 className="font-bold text-white mb-4 text-xs uppercase">☀️ Napi Ritmus</h3>
+                    <div className="flex items-end justify-between h-20 gap-1">
+                        {stats.weekDays.map((val, i) => {
+                            const max = Math.max(...stats.weekDays) || 1;
+                            return (
+                                <div key={i} className="flex flex-col items-center gap-1 w-full group">
+                                    <div className="w-full bg-white/10 rounded-t-sm group-hover:bg-gold-500 transition-colors" style={{ height: `${Math.max(10, (val/max)*100)}%` }}></div>
+                                    <span className="text-[10px] text-white/30 font-bold">{['H', 'K', 'S', 'C', 'P', 'S', 'V'][i]}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
             </div>
+
+            {selectedDayReadings && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in" onClick={() => setSelectedDayReadings(null)}>
+                    <div className="glass-panel-dark w-full max-w-xl rounded-2xl p-6 border border-white/20" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-xl font-serif font-bold text-gold-400 mb-6">Napi Húzások</h3>
+                        <div className="space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                            {selectedDayReadings.map(r => (
+                                <div key={r.id} className="bg-white/5 p-4 rounded-xl">
+                                    <div className="text-xs text-white/40 mb-2">{new Date(r.date).toLocaleTimeString()}</div>
+                                    <div className="font-bold text-white mb-2">{r.question || "Napi húzás"}</div>
+                                    <div className="flex gap-2">
+                                        {r.cards.map(c => (
+                                            <div key={c.positionId} className="w-10 h-14 rounded overflow-hidden border border-white/10 cursor-pointer" onClick={() => { const card = deck.find(x => x.id === c.cardId); if (card) onSelectCard(card); }}>
+                                                <CardImage cardId={c.cardId} className="w-full h-full object-cover" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <button onClick={() => setSelectedDayReadings(null)} className="w-full mt-6 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-white/60 font-bold">Bezárás</button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -274,6 +274,7 @@ const NotificationCenter = ({ navigateTo }: { navigateTo: (v: string) => void })
 const AppContent = () => {
     const { currentUser, deck, isSyncing, isCloudAvailable, language, activeThemeKey, logout, userLocation, globalSettings } = useTarot();
     const [view, setView] = useState('dashboard');
+    const [analysisTab, setAnalysisTab] = useState<any>('stats');
     const [activeSpread, setActiveSpread] = useState<Spread | null>(null);
     const [readingDate, setReadingDate] = useState<Date | undefined>(undefined);
     const [selectedCard, setSelectedCard] = useState<Card | null>(null);
@@ -332,9 +333,18 @@ const AppContent = () => {
         }
 
         if(v === 'customSpread') setSpreadToEdit(undefined);
-        if(v === 'profile') setViewProfileId(param); 
-        else setViewProfileId(undefined); 
-        setView(v);
+
+        if (v === 'stats' || v === 'numerology' || v === 'analysis' || v === 'monthly' || v === 'compass') {
+            setAnalysisTab(v === 'analysis' ? 'stats' : v);
+            setView('analysis');
+        } else if (v === 'profile') {
+            setViewProfileId(param);
+            setView(v);
+        } else {
+            setViewProfileId(undefined);
+            setView(v);
+        }
+
         setIsMenuOpen(false);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -435,6 +445,7 @@ const AppContent = () => {
                             {/* Hamburger Button */}
                             <button 
                                 onClick={() => setIsMenuOpen(!isMenuOpen)} 
+                                aria-label={isMenuOpen ? "Bezárás" : "Menü"}
                                 className={`p-2 rounded-xl transition-all border ${isMenuOpen ? 'bg-gold-500 text-black border-gold-500 rotate-90' : 'bg-white/10 text-white border-white/10 hover:bg-white/20'}`}
                             >
                                 {isMenuOpen ? <Icons.Close /> : <Icons.Menu />}
@@ -538,11 +549,7 @@ const AppContent = () => {
                 {view === 'deckBuilder' && <DeckBuilder onBack={() => setView('dashboard')} />}
 
                 {/* Consolidating Views */}
-                {view === 'stats' && <AnalysisView onBack={() => setView('dashboard')} />}
-                {view === 'numerology' && <AnalysisView onBack={() => setView('dashboard')} />}
-
-                {view === 'analysis' && <AnalysisView onBack={() => setView('dashboard')} />}
-                {view === 'monthly' && <MonthlySummaryView onBack={() => setView('dashboard')} />}
+                {view === 'analysis' && <AnalysisView onBack={() => setView('dashboard')} initialTab={analysisTab} />}
 
                 {view === 'marketplace' && <MarketplaceView onBack={() => setView('dashboard')} />}
                 {view === 'quiz' && <QuizView onBack={() => setView('dashboard')} />}
