@@ -8,6 +8,7 @@ import { t } from '../services/i18nService';
 import { useTarot } from '../context/TarotContext';
 import { useAnalytics } from '../services/analyticsHook';
 import { CardModal } from './CardModal';
+import { CardImage } from './CardImage';
 import { Card } from '../types';
 import { MOODS } from '../constants/ui';
 
