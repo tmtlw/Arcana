@@ -1,12 +1,10 @@
 
-import { Reading } from '../types';
+import { Reading, Reading as ReadingType } from '../types';
 import { FULL_DECK } from '../constants';
 
 export const AnalysisService = {
     generateMonthlyReport: async (stats: any, readings: Reading[]): Promise<string> => {
-        // Heuristic Generation (Reliable and fast)
-        // In a real scenario with Gemini API configured, we would fetch here.
-
+        // Heuristic Generation
         const elementMsg = {
             'Tűz': "A cselekvés és a szenvedély tüze hajtotta ezt a hónapot. Sok energiád volt, amit alkotásra vagy konfliktusok rendezésére fordíthattál.",
             'Víz': "Érzelmileg mély időszakon vagy túl. Az intuíciód felerősödött, és a lelki béke keresése került előtérbe.",
@@ -14,22 +12,31 @@ export const AnalysisService = {
             'Föld': "A stabilitás és az anyagi ügyek voltak fókuszban. Kézzelfogható eredményeket értél el kitartó munkával."
         }[stats.dominantElement as string] || "Kiegyensúlyozott energiák jellemeztek.";
 
-        const adviceMsg = stats.topCard.advice || stats.topCard.affirmation || 'Bízz a belső hangodban és a megérzéseidben.';
+        const topCard = stats.topCard;
+        const adviceMsg = topCard.advice || topCard.affirmation || 'Bízz a belső hangodban és a megérzéseidben.';
 
         let themeText = "";
-        if (stats.dominantElement === 'Víz' || stats.topCard.suit === 'Kelyhek') {
+        if (stats.dominantElement === 'Víz' || topCard.suit === 'Kelyhek') {
             themeText = "A szíved szava és a kapcsolataid ápolása.";
-        } else if (stats.dominantElement === 'Föld' || stats.topCard.suit === 'Érmék') {
+        } else if (stats.dominantElement === 'Föld' || topCard.suit === 'Érmék') {
             themeText = "Karrier építés és az otthon stabilitásának megteremtése.";
-        } else if (stats.dominantElement === 'Tűz' || stats.topCard.suit === 'Botok') {
+        } else if (stats.dominantElement === 'Tűz' || topCard.suit === 'Botok') {
             themeText = "Önmegvalósítás és bátor kezdeményezések.";
         } else {
             themeText = "Objektív döntéshozatal és tanulás.";
         }
 
+        // Feature: Inline card images in Markdown
+        // Using a custom syntax that the MarkdownRenderer can handle or just regular markdown with IDs
+        // For now, we'll embed some HTML-like markers that we can post-process or use in the UI.
+
         return `
 ### 🔮 Összegzés
-${elementMsg} A hónap során **${stats.readingCount} alkalommal** kértél útmutatást, ami ${stats.readingCount > 5 ? "intenzív útkeresést" : "megfontolt haladást"} jelez. A(z) **${stats.topCard.name}** gyakori felbukkanása azt súgja, hogy a(z) *${stats.topCard.keywords?.[0] || 'változás'}* témaköre központi szerepet játszott.
+${elementMsg} A hónap során **${stats.readingCount} alkalommal** kértél útmutatást.
+
+### 🃏 A Hónap Lapja
+A(z) **${topCard.name}** volt a legmeghatározóbb.
+![card](${topCard.id})
 
 ### 🗝️ Főbb Témák
 *   **Fókusz:** ${themeText}

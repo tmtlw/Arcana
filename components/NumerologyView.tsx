@@ -4,8 +4,9 @@ import { useTarot } from '../context/TarotContext';
 import { NumerologyService } from '../services/numerologyService';
 import { CardImage } from './CardImage';
 import { t } from '../services/i18nService';
+import { Card } from '../types';
 
-export const NumerologyView = ({ onBack, embedded }: { onBack: () => void, embedded?: boolean }) => {
+export const NumerologyView = ({ onBack, embedded, onSelectCard }: { onBack: () => void, embedded?: boolean, onSelectCard: (c: Card) => void }) => {
     const { currentUser, deck, language } = useTarot();
     const [activeTab, setActiveTab] = useState<'profile' | 'name_analysis'>('profile');
     const [customName, setCustomName] = useState('');
@@ -51,14 +52,14 @@ export const NumerologyView = ({ onBack, embedded }: { onBack: () => void, embed
                     {NumerologyService.getDescriptionForType(type)}
                 </p>
                 {card ? (
-                    <div className="flex gap-4 items-start">
-                        <div className="w-20 rounded-lg overflow-hidden shadow-lg border border-white/10 flex-shrink-0">
+                    <div className="flex gap-4 items-start cursor-pointer group" onClick={() => onSelectCard(card)}>
+                        <div className="w-20 rounded-lg overflow-hidden shadow-lg border border-white/10 flex-shrink-0 group-hover:scale-105 transition-transform">
                             <CardImage cardId={card.id} className="w-full object-cover" />
                         </div>
                         <div>
-                            <h4 className="font-serif font-bold text-white text-lg">{card.name}</h4>
+                            <h4 className="font-serif font-bold text-white text-lg group-hover:text-gold-400 transition-colors">{card.name}</h4>
                             <p className="text-xs text-white/60 mb-2">{card.arcana} Árkánum • {card.astrology}</p>
-                            <p className="text-sm text-gray-200 leading-relaxed">{card.generalMeaning}</p>
+                            <p className="text-sm text-gray-200 leading-relaxed line-clamp-3">{card.generalMeaning}</p>
                         </div>
                     </div>
                 ) : (
@@ -96,7 +97,7 @@ export const NumerologyView = ({ onBack, embedded }: { onBack: () => void, embed
             <h2 className="text-3xl font-serif font-bold text-center mb-2 text-transparent bg-clip-text bg-gradient-to-r from-gold-400 via-white to-gold-400">
                 {activeTab === 'profile' ? 'Személyes Számmisztika' : 'Tarot Névelemző'}
             </h2>
-            <p className="text-center text-white/50 mb-10 max-w-2xl mx-auto">
+            <p className="text-center text-white/50 mb-10 max-w-2xl mx-auto text-sm">
                 {activeTab === 'profile'
                     ? 'A neved és a születési dátumod rezgései meghatározzák sorsodat.'
                     : 'Írj be bármilyen nevet, hogy felfedezd a benne rejlő energiákat és Tarot megfeleléseket.'}
@@ -108,15 +109,11 @@ export const NumerologyView = ({ onBack, embedded }: { onBack: () => void, embed
                         <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl mb-8 text-center animate-pulse">
                             <p className="text-red-200 font-bold mb-2">Hiányzó Adatok!</p>
                             <p className="text-sm text-red-200/70 mb-4">A pontos számításhoz szükség van a születési teljes nevedre.</p>
-                            <button onClick={() => alert("Kérlek menj a Profil -> Beállítások menübe és add meg a 'Valódi Neved'.")} className="px-4 py-2 bg-red-500/20 hover:bg-red-500/40 rounded-lg text-sm font-bold transition-colors">
-                                Beállítások megnyitása
-                            </button>
                         </div>
                     )}
 
                     <div className="space-y-4">
                         {hasBirthDate && <NumSection title="Sorsút" num={lifePathNum} card={lifePathCard} type="lifepath" />}
-
                         {hasRealName ? (
                             <>
                                 <NumSection title="Sorsszám" num={destinyNum} card={destinyCard} type="destiny" />
@@ -126,7 +123,7 @@ export const NumerologyView = ({ onBack, embedded }: { onBack: () => void, embed
                         ) : (
                             <div className="text-center p-8 glass-panel rounded-2xl opacity-50">
                                 <span className="text-4xl block mb-2">🔒</span>
-                                A névalapú elemzésekhez (Sorsszám, Szív Vágya, Személyiség) add meg a teljes nevedet a profilodban.
+                                A névalapú elemzésekhez add meg a teljes nevedet a profilodban.
                             </div>
                         )}
                     </div>
@@ -145,13 +142,12 @@ export const NumerologyView = ({ onBack, embedded }: { onBack: () => void, embed
                             className="w-full max-w-md bg-black/40 border-b-2 border-gold-500/50 p-3 text-center text-xl font-serif text-white focus:outline-none focus:border-gold-500 transition-colors"
                         />
                     </div>
-
                     {customName ? (
                         <div className="space-y-4">
-                            <NumSection title="Sorsszám (Teljes Név)" num={customDestinyNum} card={cDestinyCard} type="destiny" />
+                            <NumSection title="Sorsszám" num={customDestinyNum} card={cDestinyCard} type="destiny" />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <NumSection title="Szív Vágya (Magánhangzók)" num={customSoulNum} card={cSoulCard} type="soul" />
-                                <NumSection title="Személyiség (Mássalhangzók)" num={customPersonalityNum} card={cPersonalityCard} type="personality" />
+                                <NumSection title="Szív Vágya" num={customSoulNum} card={cSoulCard} type="soul" />
+                                <NumSection title="Személyiség" num={customPersonalityNum} card={cPersonalityCard} type="personality" />
                             </div>
                         </div>
                     ) : (
