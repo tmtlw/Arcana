@@ -1,10 +1,12 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useTarot } from '../context/TarotContext';
 import { Reading, Spread } from '../types';
 import { FULL_DECK } from '../constants';
 import { CardImage } from './CardImage';
 import { MarkdownRenderer } from './MarkdownSupport';
+import { CardModal } from './CardModal';
+import { DailyInsight } from './DailyInsight';
 
 interface ReadingAnalysisProps {
     reading: Reading;
@@ -13,10 +15,17 @@ interface ReadingAnalysisProps {
 }
 
 export const ReadingAnalysis = ({ reading, onClose, spread }: ReadingAnalysisProps) => {
-    const { allSpreads } = useTarot();
-    const [activeTab, setActiveTab] = useState<'table' | 'deep' | 'story' | 'stats'>('deep');
+    const { allSpreads, readings, currentUser, language, deck } = useTarot();
+    const [activeTab, setActiveTab] = useState<'table' | 'deep' | 'story' | 'stats' | 'daily'>('deep');
+    const [selectedCard, setSelectedCard] = useState<Card | null>(null);
 
     const usedSpread = spread || allSpreads.find(s => s.id === reading.spreadId);
+
+    useEffect(() => {
+        if (reading.cards.length === 1) {
+            setActiveTab('daily');
+        }
+    }, [reading.cards.length]);
 
     // --- CORE ANALYTICS ENGINE ---
     const analysis = useMemo(() => {
@@ -133,6 +142,7 @@ export const ReadingAnalysis = ({ reading, onClose, spread }: ReadingAnalysisPro
 
     // --- SUB-COMPONENTS ---
 
+
     const StatsTab = () => (
         <div className="animate-fade-in grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Pattern Scanner Alert */}
@@ -198,7 +208,10 @@ export const ReadingAnalysis = ({ reading, onClose, spread }: ReadingAnalysisPro
 
                 {/* Numerology of the Spread */}
                 {analysis.numerologyCard && (
-                    <div className="glass-panel p-4 rounded-2xl border border-white/10 flex items-center gap-4">
+                    <div
+                        className="glass-panel p-4 rounded-2xl border border-white/10 flex items-center gap-4 cursor-pointer hover:border-gold-500/30 transition-colors"
+                        onClick={() => setSelectedCard(analysis.numerologyCard!)}
+                    >
                         <div className="w-12 h-16 flex-shrink-0 rounded overflow-hidden">
                             <CardImage cardId={analysis.numerologyCard.id} className="w-full h-full object-cover" />
                         </div>
@@ -234,7 +247,10 @@ export const ReadingAnalysis = ({ reading, onClose, spread }: ReadingAnalysisPro
                     
                     {/* Card Visual */}
                     <div className="w-full md:w-48 flex-shrink-0 flex flex-col items-center pt-6 md:pt-0">
-                        <div className={`w-32 rounded-lg shadow-2xl overflow-hidden mb-3 transition-transform duration-500 group-hover:scale-105 border border-white/10 ${item.isReversed ? 'rotate-180' : ''}`}>
+                        <div
+                            className={`w-32 rounded-lg shadow-2xl overflow-hidden mb-3 transition-transform duration-500 group-hover:scale-105 border border-white/10 cursor-pointer ${item.isReversed ? 'rotate-180' : ''}`}
+                            onClick={() => setSelectedCard(item.card!)}
+                        >
                             <CardImage cardId={item.card!.id} className="w-full object-cover" />
                         </div>
                         <span className="text-sm font-bold text-white text-center">{item.card!.name}</span>
@@ -384,6 +400,7 @@ export const ReadingAnalysis = ({ reading, onClose, spread }: ReadingAnalysisPro
             <div className="flex justify-center mb-8">
                 <div className="flex gap-2 bg-black/40 p-1.5 rounded-full border border-white/10 overflow-x-auto custom-scrollbar max-w-full">
                     {[
+                        ...(reading.cards.length === 1 ? [{ id: 'daily', icon: '✨', label: 'Napi Útravaló' }] : []),
                         { id: 'deep', icon: '🧐', label: 'Elemzés' },
                         { id: 'stats', icon: '📊', label: 'Mérleg' },
                         { id: 'story', icon: '📜', label: 'Sztori' },
@@ -402,11 +419,14 @@ export const ReadingAnalysis = ({ reading, onClose, spread }: ReadingAnalysisPro
 
             {/* Content Area */}
             <div className="min-h-[500px]">
+                {activeTab === 'daily' && reading.cards.length === 1 && <DailyInsight reading={reading} onSelectCard={setSelectedCard} />}
                 {activeTab === 'deep' && <DeepDiveTab />}
                 {activeTab === 'stats' && <StatsTab />}
                 {activeTab === 'story' && <StoryTab />}
                 {activeTab === 'table' && <VisualTableTab />}
             </div>
+
+            {selectedCard && <CardModal card={selectedCard} onClose={() => setSelectedCard(null)} />}
         </div>
     );
 };
