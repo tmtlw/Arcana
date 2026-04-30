@@ -1,9 +1,9 @@
-
 import React, { useState, useMemo } from 'react';
 import { StatsView } from './StatsView';
 import { NumerologyView } from './NumerologyView';
 import { SoulCompass } from './SoulCompass';
 import { MonthlySummaryView } from './MonthlySummaryView';
+import { DailyInsight } from './DailyInsight';
 import { t } from '../services/i18nService';
 import { useTarot } from '../context/TarotContext';
 import { useAnalytics } from '../services/analyticsHook';
@@ -12,7 +12,7 @@ import { CardImage } from './CardImage';
 import { Card } from '../types';
 import { MOODS } from '../constants/ui';
 
-type Tab = 'stats' | 'numerology' | 'compass' | 'monthly' | 'insights';
+type Tab = 'stats' | 'numerology' | 'compass' | 'monthly' | 'insights' | 'daily';
 type TimeRange = '7d' | '30d' | '90d' | 'all';
 
 export const AnalysisView = ({ onBack, initialTab = 'stats' }: { onBack: () => void, initialTab?: Tab }) => {
@@ -69,6 +69,13 @@ export const AnalysisView = ({ onBack, initialTab = 'stats' }: { onBack: () => v
     const stats = useAnalytics(currentPeriodReadings, currentUser?.id, currentUser?.birthDate);
     const compareStats = useAnalytics(comparePeriodReadings, currentUser?.id, currentUser?.birthDate);
 
+    const lastDailyReading = useMemo(() => {
+        if (!readings || !currentUser) return null;
+        const dailyOnes = readings.filter(r => r.userId === currentUser.id && r.cards && r.cards.length === 1);
+        if (dailyOnes.length === 0) return null;
+        return [...dailyOnes].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    }, [readings, currentUser]);
+
     const handlePrint = () => window.print();
 
     return (
@@ -82,6 +89,9 @@ export const AnalysisView = ({ onBack, initialTab = 'stats' }: { onBack: () => v
                         </button>
 
                         <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 overflow-x-auto custom-scrollbar">
+                            {lastDailyReading && (
+                                <button onClick={() => setActiveTab('daily')} className={`px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-sm font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'daily' ? 'bg-gold-500 text-black shadow-lg scale-105' : 'text-gray-400 hover:text-white'}`}>✨ Napi Útravaló</button>
+                            )}
                             <button onClick={() => setActiveTab('stats')} className={`px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-sm font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'stats' ? 'bg-gold-500 text-black shadow-lg scale-105' : 'text-gray-400 hover:text-white'}`}>📊 Statisztika</button>
                             <button onClick={() => setActiveTab('insights')} className={`px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-sm font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'insights' ? 'bg-gold-500 text-black shadow-lg scale-105' : 'text-gray-400 hover:text-white'}`}>💡 Felismerések</button>
                             <button onClick={() => setActiveTab('numerology')} className={`px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-sm font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'numerology' ? 'bg-gold-500 text-black shadow-lg scale-105' : 'text-gray-400 hover:text-white'}`}>🔢 Számmisztika</button>
@@ -126,6 +136,7 @@ export const AnalysisView = ({ onBack, initialTab = 'stats' }: { onBack: () => v
 
             {/* Content Area */}
             <div className="max-w-5xl mx-auto px-4">
+                {activeTab === 'daily' && lastDailyReading && <DailyInsight reading={lastDailyReading} onSelectCard={setSelectedCard} />}
                 {activeTab === 'stats' && <StatsView stats={stats} compareStats={compareMode ? compareStats : undefined} onSelectCard={setSelectedCard} embedded={true} onBack={()=>{}} />}
                 {activeTab === 'insights' && <InsightsView stats={stats} onSelectCard={setSelectedCard} />}
                 {activeTab === 'numerology' && <NumerologyView onSelectCard={setSelectedCard} embedded={true} onBack={()=>{}} />}
