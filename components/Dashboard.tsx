@@ -715,17 +715,19 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                     <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-300 mb-4 flex items-center gap-2">
                         <span>📦</span> Elérhető Widgetek
                     </h3>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
                         {widgetPool.map(w => (
-                            <div key={w.id} className="bg-white/5 border border-white/10 rounded-xl p-2 flex items-center gap-3 group/pool hover:border-gold-500/30 transition-all">
-                                <span className="text-lg">{w.icon}</span>
-                                <span className="text-[10px] font-bold text-white/70">{w.name}</span>
-                                <div className="flex gap-1 ml-2">
+                            <div key={w.id} className="bg-white/5 border border-white/10 rounded-xl p-2 flex flex-col items-center gap-2 group/pool hover:border-gold-500/30 transition-all relative overflow-hidden">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm">{w.icon}</span>
+                                    <span className="text-[9px] font-bold text-white/70 uppercase tracking-tighter">{w.name}</span>
+                                </div>
+                                <div className="flex flex-wrap justify-center gap-1">
                                     {layout.map((_, i) => (
                                         <button
                                             key={i}
                                             onClick={() => addWidgetToRow(w.id, i)}
-                                            className="w-5 h-5 bg-indigo-600/50 hover:bg-indigo-600 rounded flex items-center justify-center text-[8px] font-bold"
+                                            className="w-4 h-4 bg-indigo-600/40 hover:bg-indigo-600 rounded text-[7px] font-bold flex items-center justify-center transition-colors"
                                             title={`${i+1}. sorhoz adás`}
                                         >
                                             {i+1}

@@ -320,7 +320,9 @@ export interface User {
   currency?: number; // Pontok (vásárlásra)
   inventory?: string[]; // Megvásárolt item ID-k
   dailyIntention?: { text: string, date: string };
-  lastQuizResult?: { date: string, correct: boolean };
+  lastQuizResult?: { date: string, correct: boolean, questionId?: string };
+  quizStreak?: number;
+  bestQuizStreak?: number;
 }
 
 export interface ShopItem {

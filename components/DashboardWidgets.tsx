@@ -6,6 +6,7 @@ import { useTarot } from '../context/TarotContext';
 import { CardImage } from './CardImage';
 import { MOODS } from '../constants/ui';
 import { ZODIAC_INFO } from '../constants/astro';
+import { QUIZ_QUESTIONS } from '../constants/quiz';
 
 // --- Idea 3: Personal Day Number ---
 export const PersonalNumberWidget = ({ birthDate }: { birthDate?: string }) => {
@@ -250,22 +251,29 @@ export const MoodTrendWidget = () => {
 // --- Idea 10: Active Quests ---
 export const ActiveQuestsWidget = ({ onNavigate }: { onNavigate: (v: string) => void }) => {
     const { currentUser } = useTarot();
+    const { QuestService } = require('../services/questService');
     const active = (currentUser?.activeQuests || []).filter(q => !q.isCompleted).slice(0, 2);
 
+    // Map IDs to Titles
+    const getQuestTitle = (id: string) => {
+        const allStatic = [...QuestService.DAILY_QUESTS, ...QuestService.WEEKLY_QUESTS];
+        return allStatic.find(q => q.id === id)?.title || id;
+    };
+
     return (
-        <div className="glass-panel p-4 rounded-2xl border border-white/10 h-full flex flex-col justify-between" onClick={() => onNavigate('quests')}>
+        <div className="glass-panel p-4 rounded-2xl border border-white/10 h-full flex flex-col justify-between cursor-pointer hover:border-indigo-500/30 transition-all" onClick={() => onNavigate('quests')}>
             <div>
                 <div className="text-[10px] uppercase font-bold text-indigo-400 tracking-widest mb-3">Aktív Kihívások</div>
                 <div className="space-y-2">
-                    {active.length > 0 ? active.map(q => (
-                        <div key={q.questId} className="flex items-center gap-2">
+                    {active.length > 0 ? active.map(uq => (
+                        <div key={uq.questId} className="flex items-center gap-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>
-                            <div className="text-[10px] text-gray-200 truncate">{q.questId}</div>
+                            <div className="text-[10px] text-gray-200 truncate font-serif">{getQuestTitle(uq.questId)}</div>
                         </div>
                     )) : <div className="text-xs text-white/20 italic">Minden kész! ✨</div>}
                 </div>
             </div>
-            <div className="text-[9px] text-indigo-300 font-bold uppercase mt-2 text-right cursor-pointer hover:underline">Összes megtekintése &rarr;</div>
+            <div className="text-[9px] text-indigo-300 font-bold uppercase mt-2 text-right">Részletek &rarr;</div>
         </div>
     );
 };
@@ -354,41 +362,75 @@ export const LuckyPeriodWidget = () => {
 
 // --- Idea 18: Quick Quiz ---
 export const QuickQuizWidget = () => {
-    const { deck, currentUser, updateUser } = useTarot();
+    const { currentUser, updateUser } = useTarot();
     const today = new Date().toDateString();
-    const [isAnswered, setIsAnswered] = useState(currentUser?.lastQuizResult?.date === today);
-    const [card] = useState(() => deck[Math.floor(Math.random() * deck.length)]);
-    const [options] = useState(() => {
-        const correct = card.element || card.suit || "Föld";
-        const others = ["Tűz", "Víz", "Levegő", "Föld"].filter(e => e !== correct);
-        return [correct, ...others.slice(0, 2)].sort(() => Math.random() - 0.5);
-    });
+
+    // Logic:
+    // 1. If wrong today -> blocked until tomorrow.
+    // 2. If correct today -> can do next one immediately.
+    // 3. Same question for the first time today for everyone (based on date).
+
+    const isLocked = currentUser?.lastQuizResult?.date === today && !currentUser?.lastQuizResult?.correct;
+
+    // Deterministic question of the day start index
+    const dayHash = useMemo(() => {
+        const str = today;
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        return Math.abs(hash);
+    }, [today]);
+
+    const [questionIndex, setQuestionIndex] = useState(0);
+    const currentQuestion = QUIZ_QUESTIONS[(dayHash + questionIndex) % QUIZ_QUESTIONS.length];
 
     const handleAnswer = (ans: string) => {
-        if (isAnswered) return;
-        const correct = card.element || card.suit || "Föld";
-        const isCorrect = ans === correct;
-        if (currentUser) {
-            updateUser({ ...currentUser, lastQuizResult: { date: today, correct: isCorrect }, xp: currentUser.xp + (isCorrect ? 5 : 0) });
+        if (!currentUser || isLocked) return;
+
+        const isCorrect = ans === currentQuestion.correctAnswer;
+        const newStreak = isCorrect ? (currentUser.quizStreak || 0) + 1 : 0;
+        const bestStreak = Math.max(newStreak, currentUser.bestQuizStreak || 0);
+
+        updateUser({
+            ...currentUser,
+            lastQuizResult: { date: today, correct: isCorrect, questionId: currentQuestion.id },
+            quizStreak: newStreak,
+            bestQuizStreak: bestStreak,
+            xp: currentUser.xp + (isCorrect ? 5 : 0)
+        });
+
+        if (isCorrect) {
+            setQuestionIndex(prev => prev + 1);
         }
-        setIsAnswered(true);
     };
 
     return (
-        <div className="glass-panel p-4 rounded-2xl border border-white/10 h-full flex flex-col justify-between">
+        <div className="glass-panel p-4 rounded-2xl border border-white/10 h-full flex flex-col justify-between relative overflow-hidden">
+            {/* Streak display in corner */}
+            <div className="absolute top-2 right-2 flex flex-col items-end">
+                <div className="text-[8px] uppercase font-bold text-gold-500 opacity-60">Best: {currentUser?.bestQuizStreak || 0}</div>
+                <div className="text-[10px] font-bold text-white">🔥 {currentUser?.quizStreak || 0}</div>
+            </div>
+
             <div>
                 <div className="text-[10px] uppercase font-bold text-emerald-400 tracking-widest mb-2">Villám Kvíz</div>
-                <div className="text-[11px] text-gray-200 mb-3">Milyen elemhez tartozik: <span className="font-bold text-gold-400">{card.name}</span>?</div>
+                <div className="text-xs text-gray-200 mb-3 pr-8 leading-tight">{currentQuestion.question}</div>
             </div>
-            {!isAnswered ? (
-                <div className="grid grid-cols-3 gap-1">
-                    {options.map(opt => (
-                        <button key={opt} onClick={() => handleAnswer(opt)} className="bg-white/5 hover:bg-white/10 p-1.5 rounded text-[10px] text-white border border-white/10 transition-colors">{opt}</button>
-                    ))}
+
+            {isLocked ? (
+                <div className="text-center text-[10px] font-bold p-3 rounded bg-red-500/20 text-red-300 animate-fade-in border border-red-500/20">
+                    ✗ Sajnos hibás! Holnap újult erővel várunk.
                 </div>
             ) : (
-                <div className={`text-center text-[10px] font-bold p-2 rounded ${currentUser?.lastQuizResult?.correct ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
-                    {currentUser?.lastQuizResult?.correct ? '✓ Helyes válasz! (+5 XP)' : '✗ Majd legközelebb!'}
+                <div className="grid grid-cols-2 gap-2">
+                    {currentQuestion.options.map(opt => (
+                        <button
+                            key={opt}
+                            onClick={() => handleAnswer(opt)}
+                            className="bg-white/5 hover:bg-white/10 p-2 rounded text-[10px] text-white border border-white/10 transition-all active:scale-95"
+                        >
+                            {opt}
+                        </button>
+                    ))}
                 </div>
             )}
         </div>
