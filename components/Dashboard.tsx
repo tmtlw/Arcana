@@ -27,7 +27,8 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
     const [now, setNow] = useState(new Date());
     // Zodiac Modal State
     const [zodiacModal, setZodiacModal] = useState<{ type: 'Nap'|'Hold'|'Aszcendens'|'Kínai', sign: string, detail?: any } | null>(null);
-    
+    const [astroModal, setAstroModal] = useState<{ type: 'moon' | 'sun' | 'lunar' | 'planetary', date: Date } | null>(null);
+
     // Spread Category Tab State
     const [activeCategory, setActiveCategory] = useState<SpreadCategory | 'all' | 'favorites'>('favorites');
 
@@ -148,7 +149,7 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
     // --- Dynamic Quick Actions ---
     const activeActionIds = currentUser.quickActions && currentUser.quickActions.length > 0 
         ? currentUser.quickActions 
-        : ['community', 'customSpread', 'astro', 'numerology', 'stats']; // Default if none selected
+        : ['community', 'customSpread', 'astro', 'numerology', 'analysis']; // Default if none selected
 
     const activeActions = activeActionIds
         .map(id => QUICK_ACTION_OPTIONS.find(opt => opt.id === id))
@@ -250,26 +251,26 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                                     </button>
                                 </div>
                                 <div className="grid grid-cols-4 divide-x divide-white/5 bg-white/5">
-                                    <div className="p-3 text-center">
+                                    <button onClick={() => setAstroModal({ type: 'moon', date: now })} className="p-3 text-center hover:bg-white/10 transition-colors">
                                         <div className="text-[9px] uppercase text-white/40 mb-1">{t('dashboard.phase', language)}</div>
                                         <div className="text-xs font-bold text-white">{astroData.moonPhase}</div>
                                         <div className="text-[9px] text-white/30">{Math.round(astroData.illumination * 100)}%</div>
-                                    </div>
-                                    <div className="p-3 text-center">
+                                    </button>
+                                    <button onClick={() => setAstroModal({ type: 'sun', date: now })} className="p-3 text-center hover:bg-white/10 transition-colors">
                                         <div className="text-[9px] uppercase text-white/40 mb-1">{t('dashboard.sunrise', language)}</div>
                                         <div className="text-xs font-bold text-gold-200">🌅 {astroData.sunrise}</div>
                                         <div className="text-xs font-bold text-orange-300">🌇 {astroData.sunset}</div>
-                                    </div>
-                                    <div className="p-3 text-center">
+                                    </button>
+                                    <button onClick={() => setAstroModal({ type: 'lunar', date: now })} className="p-3 text-center hover:bg-white/10 transition-colors">
                                         <div className="text-[9px] uppercase text-white/40 mb-1">{t('dashboard.moonrise', language)}</div>
                                         <div className="text-xs font-bold text-blue-200">☾ {astroData.moonrise}</div>
                                         <div className="text-xs font-bold text-indigo-300">— {astroData.moonset}</div>
-                                    </div>
-                                    <div className="p-3 text-center">
+                                    </button>
+                                    <button onClick={() => setAstroModal({ type: 'planetary', date: now })} className="p-3 text-center hover:bg-white/10 transition-colors">
                                         <div className="text-[9px] uppercase text-white/40 mb-1">{t('dashboard.planet_hour', language)}</div>
                                         <div className="text-xs font-bold text-pink-300">🪐 {astroData.planetHour}</div>
                                         <div className="text-[9px] text-white/30">Uralom</div>
-                                    </div>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -554,6 +555,153 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                             <button id="btn-daily-reading" onClick={handleAddReadingForDate} className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl font-bold text-white shadow-lg hover:shadow-indigo-500/50 transition-all flex items-center justify-center gap-3 transform hover:-translate-y-1">
                                 <span className="text-xl">✨</span> {t('dashboard.day_reading', language)}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Astro Detail Modal */}
+            {astroModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={() => setAstroModal(null)}>
+                    <div className="glass-panel-dark w-full max-w-2xl rounded-2xl border border-white/20 relative shadow-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+
+                        {/* Header */}
+                        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5 relative overflow-hidden rounded-t-2xl">
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={() => {
+                                        const d = new Date(astroModal.date);
+                                        if (astroModal.type === 'planetary') d.setDate(d.getDate() - 1);
+                                        else d.setMonth(d.getMonth() - 1);
+                                        setAstroModal({ ...astroModal, date: d });
+                                    }}
+                                    className="p-2 hover:bg-white/10 rounded-lg text-white/50 hover:text-white transition-colors"
+                                >
+                                    ◄
+                                </button>
+                                <div className="text-center">
+                                    <h3 className="text-xl font-serif font-bold text-gold-400 capitalize">
+                                        {astroModal.type === 'moon' && 'Holdfázisok'}
+                                        {astroModal.type === 'sun' && 'Napkelte & Nyugta'}
+                                        {astroModal.type === 'lunar' && 'Holdkelte & Nyugta'}
+                                        {astroModal.type === 'planetary' && 'Planétás Órák'}
+                                    </h3>
+                                    <div className="text-[10px] text-white/40 uppercase tracking-widest font-bold">
+                                        {astroModal.type === 'planetary'
+                                            ? astroModal.date.toLocaleDateString(language === 'hu' ? 'hu-HU' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                                            : astroModal.date.toLocaleDateString(language === 'hu' ? 'hu-HU' : 'en-US', { year: 'numeric', month: 'long' })
+                                        }
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        const d = new Date(astroModal.date);
+                                        if (astroModal.type === 'planetary') d.setDate(d.getDate() + 1);
+                                        else d.setMonth(d.getMonth() + 1);
+                                        setAstroModal({ ...astroModal, date: d });
+                                    }}
+                                    className="p-2 hover:bg-white/10 rounded-lg text-white/50 hover:text-white transition-colors"
+                                >
+                                    ►
+                                </button>
+                            </div>
+                            <button onClick={() => setAstroModal(null)} className="text-white/50 hover:text-white text-xl p-2">✕</button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6 overflow-y-auto custom-scrollbar">
+                            {astroModal.type === 'moon' && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {AstroService.getMoonPhasesForMonth(astroModal.date.getFullYear(), astroModal.date.getMonth()).map(m => (
+                                        <div key={m.day} className={`p-3 rounded-xl border flex items-center justify-between ${m.day === now.getDate() && astroModal.date.getMonth() === now.getMonth() ? 'bg-gold-500/10 border-gold-500/50' : 'bg-white/5 border-white/5'}`}>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-white/30 text-xs font-mono w-6">{m.day}.</span>
+                                                <span className="text-xl">{m.icon}</span>
+                                                <span className="text-sm font-bold text-gray-200">{m.phase}</span>
+                                            </div>
+                                            <span className="text-[10px] text-white/40 font-mono">{Math.round(m.illumination * 100)}%</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {astroModal.type === 'sun' && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {AstroService.getSolarTimesForMonth(astroModal.date.getFullYear(), astroModal.date.getMonth(), userLocation?.lat, userLocation?.lng).map(s => (
+                                        <div key={s.day} className={`p-3 rounded-xl border flex items-center justify-between ${s.day === now.getDate() && astroModal.date.getMonth() === now.getMonth() ? 'bg-gold-500/10 border-gold-500/50' : 'bg-white/5 border-white/5'}`}>
+                                            <span className="text-white/30 text-xs font-mono w-6">{s.day}.</span>
+                                            <div className="flex-1 flex justify-around">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-lg">🌅</span>
+                                                    <span className="text-sm font-bold text-gold-200">{s.sunrise}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-lg">🌇</span>
+                                                    <span className="text-sm font-bold text-orange-300">{s.sunset}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {astroModal.type === 'lunar' && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {AstroService.getLunarTimesForMonth(astroModal.date.getFullYear(), astroModal.date.getMonth(), userLocation?.lat, userLocation?.lng).map(l => (
+                                        <div key={l.day} className={`p-3 rounded-xl border flex items-center justify-between ${l.day === now.getDate() && astroModal.date.getMonth() === now.getMonth() ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-white/5 border-white/5'}`}>
+                                            <span className="text-white/30 text-xs font-mono w-6">{l.day}.</span>
+                                            <div className="flex-1 flex justify-around">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-lg">☾</span>
+                                                    <span className="text-sm font-bold text-blue-200">{l.moonrise}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-lg text-white/20">—</span>
+                                                    <span className="text-sm font-bold text-indigo-300">{l.moonset}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {astroModal.type === 'planetary' && (
+                                <div className="space-y-2">
+                                    {AstroService.getPlanetaryHoursForDay(astroModal.date, userLocation?.lat, userLocation?.lng).map(h => {
+                                        // Simple current hour highlighting logic
+                                        const hourDate = new Date(astroModal.date);
+                                        const isToday = hourDate.toDateString() === now.toDateString();
+                                        const nowMin = now.getHours() * 60 + now.getMinutes();
+                                        const [sh, sm] = h.start.split(':').map(Number);
+                                        const [eh, em] = h.end.split(':').map(Number);
+                                        const startMin = sh * 60 + sm;
+                                        let endMin = eh * 60 + em;
+                                        if (endMin < startMin) endMin += 1440;
+                                        const isCurrent = isToday && (nowMin >= startMin && nowMin < endMin);
+
+                                        return (
+                                            <div key={h.index} className={`p-3 rounded-xl border flex items-center gap-4 transition-all ${isCurrent ? 'bg-pink-500/20 border-pink-500 shadow-[0_0_15px_rgba(236,72,153,0.3)] scale-[1.02] z-10' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}>
+                                                <div className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-[10px] font-bold text-white/40 border border-white/5">
+                                                    {h.index}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-lg">{h.isNight ? '🌙' : '☀️'}</span>
+                                                        <span className={`font-bold ${isCurrent ? 'text-pink-300' : 'text-gray-200'}`}>🪐 {h.planet}</span>
+                                                        {isCurrent && <span className="text-[8px] bg-pink-500 text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter animate-pulse">Most</span>}
+                                                    </div>
+                                                    <div className="text-[10px] text-white/30 font-mono">
+                                                        {h.start} – {h.end}
+                                                    </div>
+                                                </div>
+                                                <div className="text-[10px] uppercase font-bold text-white/20 tracking-widest">
+                                                    {h.isNight ? 'Éjszakai óra' : 'Nappali óra'}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -180,15 +180,127 @@ export const AstroService = {
         return { moonrise: formatTime(mr), moonset: formatTime(ms) };
     },
 
-    getPlanetaryHour: (date: Date) => {
-        const planetsOrder = ["Nap", "Hold", "Mars", "Merkúr", "Jupiter", "Vénusz", "Szaturnusz"];
-        const dayRulerIndex = date.getDay();
-        const chaldeanSequence = [6, 4, 2, 0, 5, 3, 1];
-        const startIdx = chaldeanSequence.indexOf(dayRulerIndex);
-        let hoursSinceSunrise = date.getHours() - 6;
-        if (hoursSinceSunrise < 0) hoursSinceSunrise += 24;
-        const currentPlanetIdx = chaldeanSequence[(startIdx + hoursSinceSunrise) % 7];
-        return planetsOrder[currentPlanetIdx];
+    getPlanetaryHour: (date: Date, lat: number = DEFAULT_LAT, lng: number = DEFAULT_LNG) => {
+        const hours = AstroService.getPlanetaryHoursForDay(date, lat, lng);
+        const nowMin = date.getHours() * 60 + date.getMinutes();
+
+        // Find the hour that contains the current time
+        const currentHour = hours.find(h => {
+            const [startH, startM] = h.start.split(':').map(Number);
+            const [endH, endM] = h.end.split(':').map(Number);
+            const startTotal = startH * 60 + startM;
+            let endTotal = endH * 60 + endM;
+
+            if (endTotal < startTotal) endTotal += 1440; // Crosses midnight
+
+            let checkTime = nowMin;
+            if (checkTime < startTotal && endTotal > 1440) checkTime += 1440;
+
+            return checkTime >= startTotal && checkTime < endTotal;
+        });
+
+        return currentHour?.planet || "Ismeretlen";
+    },
+
+    getPlanetaryHoursForDay: (date: Date, lat: number = DEFAULT_LAT, lng: number = DEFAULT_LNG) => {
+        const planetsOrder = ["Vasárnap", "Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat"]; // Just for reference
+        const planets = ["Nap", "Vénusz", "Merkúr", "Hold", "Szaturnusz", "Jupiter", "Mars"]; // Chaldean order (reversed for hours)
+        // Wait, standard order for hours is: Sun, Venus, Mercury, Moon, Saturn, Jupiter, Mars
+        const hourPlanets = ["Nap", "Vénusz", "Merkúr", "Hold", "Szaturnusz", "Jupiter", "Mars"];
+        const dayRulers = ["Nap", "Hold", "Mars", "Merkúr", "Jupiter", "Vénusz", "Szaturnusz"];
+
+        const solar = AstroService.getSolarTimes(date, lat, lng);
+        const tomorrow = new Date(date);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const solarTomorrow = AstroService.getSolarTimes(tomorrow, lat, lng);
+
+        const parseToMin = (s: string) => {
+            const [h, m] = s.split(':').map(Number);
+            return h * 60 + m;
+        };
+
+        const sunrise = parseToMin(solar.sunrise);
+        const sunset = parseToMin(solar.sunset);
+        const nextSunrise = parseToMin(solarTomorrow.sunrise) + 1440;
+
+        const dayLength = sunset - sunrise;
+        const nightLength = nextSunrise - sunset;
+
+        const dayHourLen = dayLength / 12;
+        const nightHourLen = nightLength / 12;
+
+        const dayRuler = dayRulers[date.getDay()];
+        const startIndex = hourPlanets.indexOf(dayRuler);
+
+        const hours = [];
+        const formatMin = (m: number) => {
+            let total = m % 1440;
+            const hr = Math.floor(total / 60);
+            const min = Math.floor(total % 60);
+            return `${hr}:${min.toString().padStart(2, '0')}`;
+        };
+
+        // Day Hours
+        for (let i = 0; i < 12; i++) {
+            const start = sunrise + (i * dayHourLen);
+            const end = sunrise + ((i + 1) * dayHourLen);
+            hours.push({
+                index: i + 1,
+                isNight: false,
+                planet: hourPlanets[(startIndex + i) % 7],
+                start: formatMin(start),
+                end: formatMin(end)
+            });
+        }
+
+        // Night Hours
+        for (let i = 0; i < 12; i++) {
+            const start = sunset + (i * nightHourLen);
+            const end = sunset + ((i + 1) * nightHourLen);
+            hours.push({
+                index: i + 13,
+                isNight: true,
+                planet: hourPlanets[(startIndex + 12 + i) % 7],
+                start: formatMin(start),
+                end: formatMin(end)
+            });
+        }
+
+        return hours;
+    },
+
+    getMoonPhasesForMonth: (year: number, month: number) => {
+        const days = new Date(year, month + 1, 0).getDate();
+        const phases = [];
+        for (let d = 1; d <= days; d++) {
+            const date = new Date(year, month, d);
+            const moon = AstroService.calculateMoonPhase(date);
+            phases.push({ day: d, ...moon });
+        }
+        return phases;
+    },
+
+    getSolarTimesForMonth: (year: number, month: number, lat: number = DEFAULT_LAT, lng: number = DEFAULT_LNG) => {
+        const days = new Date(year, month + 1, 0).getDate();
+        const times = [];
+        for (let d = 1; d <= days; d++) {
+            const date = new Date(year, month, d);
+            const solar = AstroService.getSolarTimes(date, lat, lng);
+            times.push({ day: d, ...solar });
+        }
+        return times;
+    },
+
+    getLunarTimesForMonth: (year: number, month: number, lat: number = DEFAULT_LAT, lng: number = DEFAULT_LNG) => {
+        const days = new Date(year, month + 1, 0).getDate();
+        const times = [];
+        for (let d = 1; d <= days; d++) {
+            const date = new Date(year, month, d);
+            const moon = AstroService.calculateMoonPhase(date);
+            const lunar = AstroService.getLunarTimes(date, moon.age, lat, lng);
+            times.push({ day: d, ...lunar });
+        }
+        return times;
     },
 
     getWiccanHoliday: (date: Date) => {
@@ -234,7 +346,7 @@ export const AstroService = {
         const num = AstroService.calculateNumerology(validDate);
         const solarTimes = AstroService.getSolarTimes(validDate, lat, lng);
         const lunarTimes = AstroService.getLunarTimes(validDate, moon.age, lat, lng);
-        const planetHour = AstroService.getPlanetaryHour(validDate);
+        const planetHour = AstroService.getPlanetaryHour(validDate, lat, lng);
         return {
             moonPhase: moon.phase,
             illumination: moon.illumination,

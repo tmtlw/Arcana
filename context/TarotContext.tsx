@@ -294,7 +294,7 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
                                 fontSize: 'normal',
                                 isAnonymous: firebaseUser.isAnonymous,
                                 isAdmin,
-                                quickActions: ['community', 'customSpread', 'astro', 'numerology', 'stats'], // Default 5
+                                quickActions: ['community', 'customSpread', 'astro', 'numerology', 'analysis'], // Default 5
                                 lessonCollection: [],
                                 deckCollection: [],
                                 favoriteCards: [],
