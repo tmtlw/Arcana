@@ -174,7 +174,7 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
         { id: 'all', label: 'Összes', icon: '♾️' }
     ];
 
-    const layout = currentUser.dashboardLayout || [
+    const layoutRaw = currentUser.dashboardLayout || [
         { id: 'row1', widgets: ['hero'] },
         { id: 'row2', widgets: ['actions'] },
         { id: 'row3', widgets: ['personalNumber', 'sabbat'] },
@@ -182,6 +182,15 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
         { id: 'row5', widgets: ['pulse', 'breathing'] },
         { id: 'row6', widgets: ['spreads'] }
     ];
+
+    // Migration / Safety check: if it is a simple array of strings, wrap them
+    const layout = useMemo(() => {
+        if (!Array.isArray(layoutRaw)) return [];
+        if (layoutRaw.length > 0 && typeof layoutRaw[0] === 'string') {
+            return (layoutRaw as any).map((w: string, i: number) => ({ id: `migrated_${i}`, widgets: [w] }));
+        }
+        return layoutRaw;
+    }, [layoutRaw]);
 
     const ALL_WIDGETS = ['hero', 'actions', 'personalNumber', 'sabbat', 'crystal', 'sacredElement', 'pulse', 'breathing', 'spreads'];
 
@@ -236,6 +245,7 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
 
     const renderWidget = (id: string, rowIndex: number, widgetIndex: number) => {
         const row = layout[rowIndex];
+        if (!row) return null;
         const controls = isLayoutEditing && (
             <div className="absolute top-1 left-1 right-1 z-30 flex justify-between opacity-0 group-hover/widget:opacity-100 transition-opacity">
                 <div className="flex gap-1">
@@ -610,7 +620,7 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                             </div>
                         )}
 
-                        <div className={`grid gap-4 ${row.widgets.some(w => ['hero', 'actions', 'spreads'].includes(w)) ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6'}`}>
+                        <div className={`grid gap-4 ${(row.widgets || []).some(w => ['hero', 'actions', 'spreads'].includes(w)) ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6'}`}>
                             {row.widgets.map((wId, wIdx) => (
                                 <div key={wId} className="relative group/widget">
                                     {renderWidget(wId, idx, wIdx)}
