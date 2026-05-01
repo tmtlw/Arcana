@@ -17,11 +17,12 @@ const PROMPTS = [
     "Milyen ellenállást érzek a lappal kapcsolatban?"
 ];
 
-export const HistoryView = ({ deck }: any) => {
+export const HistoryView = ({ deck, onBack }: any) => {
     const { readings, currentUser, deleteReading, updateReading, toggleFavorite, availableDecks, allSpreads, showToast, updateUser } = useTarot();
     
     // Filters
     const [search, setSearch] = useState("");
+    const [sortOrder, setSortOrder] = useState<'desc' | 'asc' | 'mood' | 'alpha'>('desc');
     const [filterFav, setFilterFav] = useState(false);
     const [filterDate, setFilterDate] = useState("");
     const [filterTag, setFilterTag] = useState("");
@@ -47,24 +48,38 @@ export const HistoryView = ({ deck }: any) => {
     // View Mode
     const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
 
-    const myReadings = readings.filter(r => r.userId === currentUser?.id);
     const userFolders = currentUser?.folders || [];
 
-    const filtered = myReadings.filter(r => {
-        const cardNames = r.cards.map(c => deck.find((d: any) => d.id === c.cardId)?.name || '').join(' ').toLowerCase();
-        const searchTerm = search.toLowerCase();
-        
-        const matchesSearch = (
-            r.question?.toLowerCase().includes(searchTerm) || 
-            r.notes.toLowerCase().includes(searchTerm) ||
-            cardNames.includes(searchTerm)
-        );
-        
-        const matchesFav = filterFav ? r.isFavorite : true;
-        const matchesDate = filterDate ? r.date.startsWith(filterDate) : true;
-        const matchesTag = filterTag ? (r.tags || []).includes(filterTag) : true;
-        return matchesSearch && matchesFav && matchesDate && matchesTag;
-    });
+    const filtered = useMemo(() => {
+        const myReadings = readings.filter(r => r.userId === currentUser?.id);
+        const result = myReadings.filter(r => {
+            const cardNames = r.cards.map(c => deck.find((d: any) => d.id === c.cardId)?.name || '').join(' ').toLowerCase();
+            const searchTerm = search.toLowerCase();
+
+            const matchesSearch = (
+                r.question?.toLowerCase().includes(searchTerm) ||
+                r.notes.toLowerCase().includes(searchTerm) ||
+                cardNames.includes(searchTerm)
+            );
+
+            const matchesFav = filterFav ? r.isFavorite : true;
+            const matchesDate = filterDate ? r.date.startsWith(filterDate) : true;
+            const matchesTag = filterTag ? (r.tags || []).includes(filterTag) : true;
+            return matchesSearch && matchesFav && matchesDate && matchesTag;
+        });
+
+        return [...result].sort((a, b) => {
+            if (sortOrder === 'mood') {
+                return (a.mood || '').localeCompare(b.mood || '');
+            }
+            if (sortOrder === 'alpha') {
+                return (a.question || '').localeCompare(b.question || '');
+            }
+            const dateA = new Date(a.date).getTime();
+            const dateB = new Date(b.date).getTime();
+            return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+        });
+    }, [readings, currentUser?.id, search, filterFav, filterDate, filterTag, sortOrder, deck]);
 
     const startEdit = (r: any) => {
         setEditingId(r.id);
@@ -174,11 +189,19 @@ export const HistoryView = ({ deck }: any) => {
         return <ReadingAnalysis reading={selectedReadingForAnalysis} onClose={() => setSelectedReadingForAnalysis(null)} />;
     }
 
+    if (viewMode === 'map') {
+        const myReadings = readings.filter(r => r.userId === currentUser?.id);
+        return <HistoryHeatmap readings={myReadings} onSelectReading={(r) => { setViewMode('list'); setSelectedReadingForAnalysis(r); }} />;
+    }
+
     return (
         <>
-            <div className="space-y-8 pb-20 animate-fade-in max-w-5xl mx-auto">
-                <div className="flex justify-between items-center mb-8">
-                    <h2 className="text-3xl font-serif font-bold">Az Idő Fonalai</h2>
+            <div className="space-y-6 pb-20 animate-fade-in max-w-5xl mx-auto">
+                <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center">
+                        <button onClick={onBack} className="mr-4 p-2 hover:bg-white/10 rounded-full transition-colors" title="Vissza a főoldalra">←</button>
+                        <h2 className="text-3xl font-serif font-bold">Az Idő Fonalai</h2>
+                    </div>
                     <div className="flex gap-2">
                         <div className="bg-black/30 p-1 rounded-lg flex border border-white/10">
                             <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 rounded text-xs font-bold transition ${viewMode === 'list' ? 'bg-white/20 text-white' : 'text-gray-500'}`}>Lista</button>
@@ -231,12 +254,8 @@ export const HistoryView = ({ deck }: any) => {
                     </div>
                 )}
 
-                {viewMode === 'map' && (
-                    <HistoryHeatmap readings={myReadings} onSelectReading={(r) => { setViewMode('list'); setSelectedReadingForAnalysis(r); }} />
-                )}
-
                 {/* Filter Panel */}
-                <div className="glass-panel p-4 rounded-xl mb-8 no-print">
+                <div className="glass-panel p-4 rounded-xl mb-4 no-print">
                     <div className="flex flex-col sm:flex-row gap-4 mb-4">
                         <input 
                             type="text" 
@@ -250,6 +269,12 @@ export const HistoryView = ({ deck }: any) => {
                         </button>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-4">
+                        <select className="bg-black/30 border border-white/10 p-2 rounded text-white" value={sortOrder} onChange={e => setSortOrder(e.target.value as any)}>
+                            <option value="desc">🕒 Legújabb elől</option>
+                            <option value="asc">🕒 Legrégebbi elől</option>
+                            <option value="mood">🎭 Hangulat szerint</option>
+                            <option value="alpha">🔤 ABC sorrend (Kérdés)</option>
+                        </select>
                         <input type="month" className="bg-black/30 border border-white/10 p-2 rounded text-white" value={filterDate} onChange={e => setFilterDate(e.target.value)} />
                         <select className="bg-black/30 border border-white/10 p-2 rounded text-white flex-1" value={filterTag} onChange={e => setFilterTag(e.target.value)}>
                             <option value="">-- Minden Mappa --</option>
@@ -258,7 +283,7 @@ export const HistoryView = ({ deck }: any) => {
                     </div>
                 </div>
                 
-                <div className="space-y-12">
+                <div className="space-y-6">
                     {filtered.map(r => {
                         const spreadInfo = allSpreads.find(s => s.id === r.spreadId);
                         const spreadName = spreadInfo ? spreadInfo.name : 'Ismeretlen';
@@ -270,7 +295,7 @@ export const HistoryView = ({ deck }: any) => {
                             <div 
                                 key={r.id} 
                                 onClick={() => isCompareMode && handleCompareToggle(r.id)}
-                                className={`glass-panel p-6 md:p-8 rounded-2xl transition-all group border relative print:border-black print:text-black print:bg-white 
+                                className={`glass-panel p-4 md:p-5 rounded-2xl transition-all group border relative print:border-black print:text-black print:bg-white
                                     ${isCompareMode ? 'cursor-pointer hover:bg-white/10' : 'hover:bg-white/5'}
                                     ${isSelected ? 'border-gold-500 ring-2 ring-gold-500/50 bg-gold-500/5' : 'border-white/5'}
                                 `}
@@ -323,7 +348,7 @@ export const HistoryView = ({ deck }: any) => {
 
                                     {/* Action Buttons */}
                                     {!isCompareMode && (
-                                        <div className="flex flex-wrap gap-2 md:gap-3 absolute top-6 right-6 md:static no-print bg-black/40 p-2 rounded-xl backdrop-blur-md border border-white/10 shadow-xl">
+                                        <div className="flex flex-wrap gap-1.5 absolute top-4 right-4 md:static no-print bg-black/40 p-2 rounded-xl backdrop-blur-md border border-white/10 shadow-xl">
                                                 {/* NEW: Open Detailed Analysis */}
                                                 <button onClick={(e) => { e.stopPropagation(); setSelectedReadingForAnalysis(r); }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gold-500/20 text-gold-400 hover:text-gold-200 transition-all border border-gold-500/30" title="Részletes Elemzés">
                                                     🔍
@@ -344,12 +369,12 @@ export const HistoryView = ({ deck }: any) => {
                                     )}
                                 </div>
                                 
-                                <div className="mb-8 cursor-pointer" onClick={() => setSelectedReadingForAnalysis(r)}>
+                                <div className="mb-4 cursor-pointer" onClick={() => setSelectedReadingForAnalysis(r)}>
                                     <div className="text-xs font-bold uppercase text-white/30 mb-2 tracking-widest print:text-black/50">A Kérdés</div>
-                                    <div className="font-serif text-2xl md:text-3xl italic text-white leading-tight print:text-black">"{r.question || "Csendes elmélkedés..."}"</div>
+                                    <div className="font-serif text-xl md:text-2xl italic text-white leading-tight print:text-black">"{r.question || "Csendes elmélkedés..."}"</div>
                                 </div>
                                 
-                                <div className="mb-8">
+                                <div className="mb-4">
                                     {isSingleCard ? (
                                         <div className="flex flex-col md:flex-row gap-6 md:gap-10 items-start">
                                             {r.cards.map((c: any) => {
@@ -357,7 +382,7 @@ export const HistoryView = ({ deck }: any) => {
                                                 if(!card) return null;
                                                 return (
                                                     <React.Fragment key={c.positionId}>
-                                                        <div className="w-full md:w-1/3 flex-shrink-0">
+                                                        <div className="w-full md:w-48 flex-shrink-0">
                                                             <div className={`relative aspect-[2/3] rounded-xl shadow-2xl transition-transform duration-500 hover:scale-105 ${c.isReversed ? 'rotate-180' : ''}`}>
                                                                 <img src={getCardImage(c.cardId, activeDeckImageSource)} className="w-full h-full object-cover rounded-xl border border-white/20 print:border-black" loading="lazy" />
                                                             </div>
@@ -377,7 +402,7 @@ export const HistoryView = ({ deck }: any) => {
                                             })}
                                         </div>
                                     ) : (
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
                                                 {r.cards.sort((a: any, b: any) => a.positionId - b.positionId).map((c: any) => {
                                                     const card = deck.find((d: any) => d.id === c.cardId);
                                                     const pos = spreadInfo?.positions.find(p => p.id === c.positionId);
