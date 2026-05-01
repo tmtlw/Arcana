@@ -17,14 +17,6 @@ const PROMPTS = [
     "Milyen ellenállást érzek a lappal kapcsolatban?"
 ];
 
-const QUESTION_TEMPLATES = [
-    "Mire fókuszáljak ma?",
-    "Mi a legfontosabb lecke a kapcsolatomhoz?",
-    "Hogyan javíthatnám a pénzügyeimet?",
-    "Mi gátol a haladásban?",
-    "Mit üzen a tudatalattim?"
-];
-
 export const HistoryView = ({ deck, onBack }: any) => {
     const { readings, currentUser, deleteReading, updateReading, toggleFavorite, availableDecks, allSpreads, showToast, updateUser } = useTarot();
     
@@ -34,10 +26,12 @@ export const HistoryView = ({ deck, onBack }: any) => {
     const [filterFav, setFilterFav] = useState(false);
     const [filterDate, setFilterDate] = useState(""); // ISO YYYY-MM-DD
     const [filterTag, setFilterTag] = useState("");
+    const [filterSunSign, setFilterSunSign] = useState("");
+    const [filterMoonSign, setFilterMoonSign] = useState("");
     const [showArchived, setShowArchived] = useState(false);
 
     // View Mode
-    const [viewMode, setViewMode] = useState<'list' | 'map' | 'gallery'>('list');
+    const [viewMode, setViewMode] = useState<'list' | 'gallery' | 'map'>('list');
 
     // Selection State
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -56,6 +50,11 @@ export const HistoryView = ({ deck, onBack }: any) => {
     const [isManagingFolders, setIsManagingFolders] = useState(false);
     const [newFolderName, setNewFolderName] = useState("");
 
+    // Custom Tags with Colors State
+    const [isManagingTags, setIsManagingTags] = useState(false);
+    const [newTagName, setNewTagName] = useState("");
+    const [newTagColor, setNewTagColor] = useState("#fbbf24"); // Default gold
+
     // Comparison State
     const [isCompareMode, setIsCompareMode] = useState(false);
     const [selectedForCompare, setSelectedForCompare] = useState<string[]>([]);
@@ -63,6 +62,9 @@ export const HistoryView = ({ deck, onBack }: any) => {
 
     // Stats Modal
     const [showStats, setShowStats] = useState(false);
+
+    // Share as Image State
+    const [sharingReading, setSharingReading] = useState<Reading | null>(null);
 
     const userFolders = currentUser?.folders || [];
 
@@ -85,9 +87,11 @@ export const HistoryView = ({ deck, onBack }: any) => {
             const matchesDate = filterDate ? r.date.includes(filterDate) : true;
 
             const matchesTag = filterTag ? (r.tags || []).includes(filterTag) : true;
+            const matchesSun = filterSunSign ? r.astrology?.sunSign === filterSunSign : true;
+            const matchesMoon = filterMoonSign ? r.astrology?.moonSign === filterMoonSign : true;
             const matchesArchive = showArchived ? r.isArchived : !r.isArchived;
 
-            return matchesSearch && matchesFav && matchesDate && matchesTag && matchesArchive;
+            return matchesSearch && matchesFav && matchesDate && matchesTag && matchesSun && matchesMoon && matchesArchive;
         });
 
         return [...result].sort((a, b) => {
@@ -99,24 +103,36 @@ export const HistoryView = ({ deck, onBack }: any) => {
         });
     }, [myReadings, search, filterFav, filterDate, filterTag, sortOrder, deck, showArchived]);
 
-    // "Ezen a napon" húzások
+    // "Ezen a napon" húzások (Évfordulók és Havi fordulók)
     const onThisDay = useMemo(() => {
         const today = new Date();
         return myReadings.filter(r => {
             const d = new Date(r.date);
-            return d.getMonth() === today.getMonth() && d.getDate() === today.getDate() && d.getFullYear() < today.getFullYear();
+            const isYearly = d.getMonth() === today.getMonth() && d.getDate() === today.getDate() && d.getFullYear() < today.getFullYear();
+            const isMonthly = d.getDate() === today.getDate() && d.getMonth() < today.getMonth() && d.getFullYear() === today.getFullYear();
+            return isYearly || isMonthly;
         });
     }, [myReadings]);
 
     // Statisztikák (Gyakoriság, Elemi balance, Év kártyája)
     const stats = useMemo(() => {
         const counts: Record<string, number> = {};
+        const monthlyCounts: Record<string, number> = {};
         const elements: Record<string, number> = { 'Tűz': 0, 'Víz': 0, 'Levegő': 0, 'Föld': 0 };
         const moonPhases: Record<string, number> = {};
 
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+
         myReadings.forEach(r => {
+            const rDate = new Date(r.date);
+            const isThisMonth = rDate.getMonth() === currentMonth && rDate.getFullYear() === currentYear;
+
             r.cards.forEach(c => {
                 counts[c.cardId] = (counts[c.cardId] || 0) + 1;
+                if (isThisMonth) {
+                    monthlyCounts[c.cardId] = (monthlyCounts[c.cardId] || 0) + 1;
+                }
                 const card = deck.find((d: any) => d.id === c.cardId);
                 if (card?.element) {
                     const el = card.element.includes('Tűz') ? 'Tűz' : card.element.includes('Víz') ? 'Víz' : card.element.includes('Levegő') ? 'Levegő' : 'Föld';
@@ -129,7 +145,8 @@ export const HistoryView = ({ deck, onBack }: any) => {
         });
 
         const sortedCards = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-        return { sortedCards, elements, moonPhases };
+        const sortedMonthlyCards = Object.entries(monthlyCounts).sort((a, b) => b[1] - a[1]);
+        return { sortedCards, sortedMonthlyCards, elements, moonPhases };
     }, [myReadings, deck]);
 
     const handleBulkDelete = () => {
@@ -149,6 +166,35 @@ export const HistoryView = ({ deck, onBack }: any) => {
         setSelectedIds([]);
         setIsMultiSelectMode(false);
         showToast(showArchived ? "Visszaállítva." : "Archiválva.");
+    };
+
+    const handleCalendarExport = (r: Reading) => {
+        const spreadInfo = allSpreads.find(s => s.id === r.spreadId);
+        const title = `Tarot: ${r.question || spreadInfo?.name || "Napi húzás"}`;
+        const description = `Jegyzet: ${r.notes}\nKártyák: ${r.cards.map(c => deck.find((d: any) => d.id === c.cardId)?.name).join(', ')}`;
+
+        const startDate = new Date(r.date).toISOString().replace(/-|:|\.\d+/g, "");
+        const endDate = new Date(new Date(r.date).getTime() + 30 * 60000).toISOString().replace(/-|:|\.\d+/g, ""); // 30 min event
+
+        const icsContent = [
+            "BEGIN:VCALENDAR",
+            "VERSION:2.0",
+            "BEGIN:VEVENT",
+            `DTSTART:${startDate}`,
+            `DTEND:${endDate}`,
+            `SUMMARY:${title}`,
+            `DESCRIPTION:${description}`,
+            "END:VEVENT",
+            "END:VCALENDAR"
+        ].join("\r\n");
+
+        const blob = new Blob([icsContent], { type: 'text/calendar' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `tarot_event_${r.id.slice(0,5)}.ics`;
+        a.click();
+        showToast("Naptár bejegyzés letöltve.");
     };
 
     const handleExport = () => {
@@ -231,8 +277,13 @@ export const HistoryView = ({ deck, onBack }: any) => {
         return <ReadingAnalysis reading={selectedReadingForAnalysis} onClose={() => setSelectedReadingForAnalysis(null)} />;
     }
 
-    if (viewMode === 'map') {
-        return <HistoryHeatmap readings={myReadings} onSelectReading={(r) => { setViewMode('list'); setSelectedReadingForAnalysis(r); }} />;
+    if ((viewMode as string) === 'map') {
+        return (
+            <div className="space-y-4">
+                <button onClick={() => setViewMode('list')} className="bg-white/10 px-4 py-2 rounded-lg text-sm font-bold">← Vissza a listához</button>
+                <HistoryHeatmap readings={myReadings} onSelectReading={(r) => { setViewMode('list'); setSelectedReadingForAnalysis(r); }} />
+            </div>
+        );
     }
 
     return (
@@ -260,8 +311,43 @@ export const HistoryView = ({ deck, onBack }: any) => {
                         <button onClick={() => setShowArchived(!showArchived)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${showArchived ? 'bg-amber-600/50 text-white' : 'bg-white/10 text-white/60'}`}>
                             📦 {showArchived ? 'Archiváltak' : 'Archívum'}
                         </button>
+                        <button onClick={() => setIsManagingTags(!isManagingTags)} className="bg-white/10 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-white/20">🏷️ Címkék</button>
                     </div>
                 </div>
+
+                {/* Tag Management Panel */}
+                {isManagingTags && (
+                    <div className="glass-panel p-4 rounded-xl border border-white/10 animate-slide-down">
+                        <h3 className="text-sm font-bold mb-4 flex items-center gap-2">🏷️ Címkék Kezelése</h3>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            {(currentUser?.folders || []).map(tag => (
+                                <div key={tag} className="flex items-center gap-1 bg-white/5 border border-white/10 px-2 py-1 rounded text-xs">
+                                    <span>{tag}</span>
+                                    <button onClick={() => updateUser({ ...currentUser!, folders: currentUser?.folders?.filter(f => f !== tag) })} className="text-red-400 hover:text-red-200 ml-1">×</button>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex gap-2">
+                            <input
+                                value={newTagName}
+                                onChange={e => setNewTagName(e.target.value)}
+                                placeholder="Új címke neve..."
+                                className="bg-black/30 border border-white/10 rounded px-3 py-1 text-sm flex-1"
+                            />
+                            <button
+                                onClick={() => {
+                                    if(newTagName && !currentUser?.folders?.includes(newTagName)) {
+                                        updateUser({ ...currentUser!, folders: [...(currentUser?.folders || []), newTagName] });
+                                        setNewTagName("");
+                                    }
+                                }}
+                                className="bg-gold-500 text-black font-bold px-4 py-1 rounded text-sm"
+                            >
+                                Hozzáadás
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* On This Day Highlight */}
                 {onThisDay.length > 0 && !showArchived && (
@@ -325,19 +411,17 @@ export const HistoryView = ({ deck, onBack }: any) => {
                             <option value="">-- Minden Mappa --</option>
                             {userFolders.map(f => <option key={f} value={f}>📁 {f}</option>)}
                         </select>
+                        <select className="bg-black/30 border border-white/10 p-2 rounded text-white text-sm" value={filterSunSign} onChange={e => setFilterSunSign(e.target.value)}>
+                            <option value="">☀️ Bármely Napjegy</option>
+                            {["Kos", "Bika", "Ikrek", "Rák", "Oroszlán", "Szűz", "Mérleg", "Skorpió", "Nyilas", "Bak", "Vízöntő", "Halak"].map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        <select className="bg-black/30 border border-white/10 p-2 rounded text-white text-sm" value={filterMoonSign} onChange={e => setFilterMoonSign(e.target.value)}>
+                            <option value="">🌙 Bármely Holdjegy</option>
+                            {["Kos", "Bika", "Ikrek", "Rák", "Oroszlán", "Szűz", "Mérleg", "Skorpió", "Nyilas", "Bak", "Vízöntő", "Halak"].map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
                     </div>
                 </div>
 
-                {/* Question Templates for Search quick-start */}
-                {!search && !filterDate && (
-                    <div className="flex gap-2 overflow-x-auto pb-4 no-print custom-scrollbar">
-                        {QUESTION_TEMPLATES.map(t => (
-                            <button key={t} onClick={() => setSearch(t)} className="whitespace-nowrap text-[10px] bg-white/5 border border-white/10 px-3 py-1 rounded-full hover:bg-white/10 transition-colors opacity-60">
-                                {t}
-                            </button>
-                        ))}
-                    </div>
-                )}
 
                 {viewMode === 'gallery' ? (
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
@@ -393,6 +477,13 @@ export const HistoryView = ({ deck, onBack }: any) => {
                                                     </span>
                                                     <span className="text-xl" title={`Hangulat: ${moodInfo.label}`}>{moodInfo.icon}</span>
                                                     <span className="text-xl" title={`Domináns elem: ${dominantElement}`}>{elementIcons[dominantElement]}</span>
+                                                    {r.astrology && (
+                                                        <div className="flex items-center gap-1 bg-black/30 px-2 py-0.5 rounded border border-white/5 text-[10px]">
+                                                            {r.astrology.sunSign && <span title={`Nap: ${r.astrology.sunSign}`}>☀️ {r.astrology.sunSign}</span>}
+                                                            {r.astrology.moonSign && <span title={`Hold: ${r.astrology.moonSign}`}>🌙 {r.astrology.moonSign}</span>}
+                                                            {r.astrology.moonPhase && <span title={r.astrology.moonPhase} className="opacity-70">{r.astrology.icon || '🌑'}</span>}
+                                                        </div>
+                                                    )}
                                                     {r.importance && (
                                                         <span className="text-gold-400 text-xs font-bold">{'★'.repeat(r.importance)}</span>
                                                     )}
@@ -410,17 +501,54 @@ export const HistoryView = ({ deck, onBack }: any) => {
                                         {!isMultiSelectMode && (
                                             <div className="flex flex-wrap gap-1.5 absolute top-4 right-4 md:static no-print bg-black/40 p-2 rounded-xl backdrop-blur-md border border-white/10 shadow-xl">
                                                 <button onClick={(e) => { e.stopPropagation(); setSelectedReadingForAnalysis(r); }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gold-500/20 text-gold-400 hover:text-gold-200 transition-all border border-gold-500/30" title="Részletes Elemzés">🔍</button>
+                                                <button onClick={(e) => { e.stopPropagation(); setSharingReading(r); }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-gray-400" title="Megosztás képként">🖼️</button>
                                                 <button onClick={(e) => { e.stopPropagation(); updateReading({ ...r, isFulfilled: !r.isFulfilled }); showToast(r.isFulfilled ? "Mégse teljesült." : "Beteljesültnek jelölve!"); }} className={`w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-all ${r.isFulfilled ? 'text-green-400' : 'text-gray-400'}`} title="Beteljesülés jelölése">✅</button>
+                                                <button onClick={(e) => { e.stopPropagation(); updateReading({ ...r, isPublic: !r.isPublic }); showToast(r.isPublic ? "Priváttá tétel" : "Publikussá tétel"); }} className={`w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-all ${r.isPublic ? 'text-blue-400' : 'text-gray-400'}`} title={r.isPublic ? "Publikus" : "Privát"}>{r.isPublic ? '🌍' : '🔒'}</button>
                                                 <button onClick={(e) => { e.stopPropagation(); handleCopyToClipboard(r, spreadName); }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-all text-gray-400 hover:text-white" title="Másolás">📋</button>
                                                 <button onClick={(e) => { e.stopPropagation(); toggleFavorite(r.id); }} className={`w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-all ${r.isFavorite ? 'text-gold-400' : 'text-gray-400'}`} title="Kedvenc">★</button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleCalendarExport(r); }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-gray-400" title="Naptárba">📅</button>
                                                 <button onClick={(e) => { e.stopPropagation(); updateReading({ ...r, isArchived: !r.isArchived }); }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-gray-400" title={r.isArchived ? "Visszaállítás" : "Archiválás"}>📦</button>
+                                                <button onClick={(e) => { e.stopPropagation(); if(confirm('Törlöd ezt a bejegyzést?')) deleteReading(r.id); }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-500/20 text-red-400" title="Törlés">🗑️</button>
                                             </div>
                                         )}
                                     </div>
 
-                                    <div className="mb-4 cursor-pointer" onClick={() => !isMultiSelectMode && setSelectedReadingForAnalysis(r)}>
-                                        <div className="text-xs font-bold uppercase text-white/30 mb-2 tracking-widest">A Kérdés</div>
-                                        <div className="font-serif text-xl md:text-2xl italic text-white leading-tight">"{r.question || "Csendes elmélkedés..."}"</div>
+                                    <div className="mb-4">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="text-xs font-bold uppercase text-white/30 tracking-widest">A Kérdés</div>
+                                            {editingId !== r.id && (
+                                                <button onClick={(e) => { e.stopPropagation(); startEdit(r); }} className="text-[10px] text-gold-500/60 hover:text-gold-500">Szerkesztés ✎</button>
+                                            )}
+                                        </div>
+                                        {editingId === r.id ? (
+                                            <div className="space-y-3" onClick={e => e.stopPropagation()}>
+                                                <input
+                                                    value={editQuestion}
+                                                    onChange={e => setEditQuestion(e.target.value)}
+                                                    className="w-full bg-black/40 border border-gold-500/30 rounded-lg p-2 text-white font-serif italic"
+                                                    placeholder="Kérdés..."
+                                                />
+                                                <textarea
+                                                    value={editNote}
+                                                    onChange={e => setEditNote(e.target.value)}
+                                                    className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-sm h-24"
+                                                    placeholder="Jegyzetek, megérzések..."
+                                                />
+                                                <div className="flex justify-end gap-2">
+                                                    <button onClick={() => setEditingId(null)} className="text-xs px-3 py-1 bg-white/10 rounded">Mégse</button>
+                                                    <button onClick={() => saveEdit(r)} className="text-xs px-3 py-1 bg-gold-500 text-black font-bold rounded">Mentés</button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="cursor-pointer" onClick={() => !isMultiSelectMode && setSelectedReadingForAnalysis(r)}>
+                                                <div className="font-serif text-xl md:text-2xl italic text-white leading-tight mb-2">"{r.question || "Csendes elmélkedés..."}"</div>
+                                                {r.notes && (
+                                                    <div className="bg-white/5 p-3 rounded-xl border border-white/5 text-sm text-gray-300 italic line-clamp-2">
+                                                        {r.notes}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="mb-4">
@@ -504,7 +632,7 @@ export const HistoryView = ({ deck, onBack }: any) => {
                         <div className="space-y-10">
                             {/* Év Kártyája (Gyakoriság alapján) */}
                             <div>
-                                <h3 className="text-sm font-bold uppercase tracking-widest text-white/40 mb-4">Az Te Időszakod Vezér-Íve</h3>
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-white/40 mb-4">A Te Időszakod Vezér-Íve</h3>
                                 {stats.sortedCards[0] ? (
                                     <div className="flex items-center gap-6 bg-white/5 p-4 rounded-2xl border border-gold-500/20">
                                         <img src={getCardImage(stats.sortedCards[0][0], activeDeckImageSource)} className="w-20 md:w-32 rounded-lg shadow-xl" />
@@ -546,9 +674,24 @@ export const HistoryView = ({ deck, onBack }: any) => {
                                 </div>
                             </div>
 
-                            {/* Top 5 kártya lista */}
+                            {/* Havi Gyakoriság */}
                             <div>
-                                <h3 className="text-sm font-bold uppercase tracking-widest text-white/40 mb-4">Leggyakoribb Lapok</h3>
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-white/40 mb-4">Ebben a hónapban leggyakoribb</h3>
+                                {stats.sortedMonthlyCards.length > 0 ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                        {stats.sortedMonthlyCards.slice(0, 4).map(([id, count]) => (
+                                            <div key={id} className="flex items-center justify-between text-xs bg-indigo-500/10 p-2 rounded-lg border border-indigo-500/20">
+                                                <span className="truncate">{deck.find(d => d.id === id)?.name}</span>
+                                                <span className="font-bold text-indigo-400">{count}x</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : <div className="text-xs italic opacity-30">Még nincs húzás ebben a hónapban.</div>}
+                            </div>
+
+                            {/* Összesített kártya lista */}
+                            <div>
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-white/40 mb-4">Leggyakoribb Lapok (Összesen)</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                     {stats.sortedCards.slice(0, 6).map(([id, count]) => (
                                         <div key={id} className="flex items-center justify-between text-xs bg-black/20 p-2 rounded-lg">
@@ -562,6 +705,49 @@ export const HistoryView = ({ deck, onBack }: any) => {
 
                         <div className="mt-10 flex justify-center">
                             <button onClick={() => setShowStats(false)} className="bg-gold-500 text-black px-10 py-3 rounded-full font-bold shadow-lg hover:scale-105 transition-all">Visszatérés</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Share as Image Modal (Mockup view for screenshotting) */}
+            {sharingReading && (
+                <div className="fixed inset-0 z-[110] bg-black flex items-center justify-center p-4 overflow-y-auto" onClick={() => setSharingReading(null)}>
+                    <div className="bg-[#1a1a2e] w-full max-w-md rounded-3xl p-8 border-4 border-gold-500/30 shadow-[0_0_50px_rgba(251,191,36,0.2)] text-center relative" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => setSharingReading(null)} className="absolute top-4 right-4 text-white/30 hover:text-white">✕</button>
+
+                        <div className="mb-6">
+                            <h3 className="text-gold-400 font-serif text-3xl font-bold italic mb-2">Arkánum</h3>
+                            <div className="h-px bg-gradient-to-r from-transparent via-gold-500/50 to-transparent w-full"></div>
+                        </div>
+
+                        <div className="mb-8">
+                            <div className="text-[10px] text-white/40 uppercase tracking-[0.2em] mb-4">{new Date(sharingReading.date).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                            <div className="font-serif text-2xl text-white italic leading-tight">"{sharingReading.question || "Napi Üzenet"}"</div>
+                        </div>
+
+                        <div className="flex justify-center gap-4 mb-8">
+                            {sharingReading.cards.map((c, i) => (
+                                <div key={i} className={`relative w-24 aspect-[2/3] rounded-lg shadow-2xl border border-white/10 ${c.isReversed ? 'rotate-180' : ''}`}>
+                                    <img src={getCardImage(c.cardId, activeDeckImageSource)} className="w-full h-full object-cover rounded-lg" />
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="space-y-4">
+                            {sharingReading.cards.length === 1 && (
+                                <div className="text-gold-400 font-serif font-bold text-xl">
+                                    {deck.find(d => d.id === sharingReading.cards[0].cardId)?.name}
+                                </div>
+                            )}
+                            <div className="text-xs text-white/50 italic px-4">
+                                {sharingReading.notes ? sharingReading.notes.slice(0, 150) + (sharingReading.notes.length > 150 ? "..." : "") : "A sors kereke sosem áll meg."}
+                            </div>
+                        </div>
+
+                        <div className="mt-12 flex flex-col items-center gap-4 no-print">
+                            <div className="text-[10px] text-gold-500/40 font-bold uppercase">Készíts képernyőképet a megosztáshoz!</div>
+                            <button onClick={() => window.print()} className="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-full text-sm font-bold border border-white/10 transition-all">🖨️ Nyomtatás / PDF mentés</button>
                         </div>
                     </div>
                 </div>
