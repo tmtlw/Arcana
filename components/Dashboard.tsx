@@ -9,9 +9,11 @@ import { CardImage } from './CardImage';
 import { CommunityService } from '../services/communityService';
 import { AstroService } from '../services/astroService';
 import { t } from '../services/i18nService';
+import { PersonalNumberWidget, SabbatCountdownWidget, DailyCrystalWidget, CommunityPulseWidget, BreathingHelperWidget, SacredElementWidget } from './DashboardWidgets';
+import { CardModal } from './CardModal';
 
 export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => {
-    const { currentUser, readings, allSpreads, deleteCustomSpread, deck, activeDeck, showToast, userLocation, language, activeThemeKey, toggleFavoriteSpread, communityEvents } = useTarot();
+    const { currentUser, readings, allSpreads, deleteCustomSpread, deck, activeDeck, showToast, userLocation, language, activeThemeKey, toggleFavoriteSpread, communityEvents, updateDashboardLayout } = useTarot();
     
     // Fix: Use activeThemeKey resolved in context with safe fallback
     const theme = THEMES[activeThemeKey] || THEMES['mystic'] || THEMES['auto'];
@@ -28,6 +30,8 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
     // Zodiac Modal State
     const [zodiacModal, setZodiacModal] = useState<{ type: 'Nap'|'Hold'|'Aszcendens'|'Kínai', sign: string, detail?: any } | null>(null);
     const [astroModal, setAstroModal] = useState<{ type: 'moon' | 'sun' | 'lunar' | 'planetary', date: Date } | null>(null);
+    const [selectedCardForPulse, setSelectedCardForPulse] = useState<any>(null);
+    const [isLayoutEditing, setIsLayoutEditing] = useState(false);
 
     // Spread Category Tab State
     const [activeCategory, setActiveCategory] = useState<SpreadCategory | 'all' | 'favorites'>('favorites');
@@ -170,6 +174,18 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
         { id: 'all', label: 'Összes', icon: '♾️' }
     ];
 
+    const layout = currentUser.dashboardLayout || ['hero', 'actions', 'personalNumber', 'sabbat', 'crystal', 'sacredElement', 'pulse', 'breathing', 'spreads'];
+
+    const moveWidget = (id: string, direction: 'up' | 'down') => {
+        const idx = layout.indexOf(id);
+        const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+        if (newIdx >= 0 && newIdx < layout.length) {
+            const newLayout = [...layout];
+            [newLayout[idx], newLayout[newIdx]] = [newLayout[newIdx], newLayout[idx]];
+            updateDashboardLayout(newLayout);
+        }
+    };
+
     const filteredSpreads = allSpreads.filter(s => {
         if (activeCategory === 'favorites') return (currentUser.favoriteSpreads || []).includes(s.id);
         if (activeCategory === 'all') return true;
@@ -181,11 +197,18 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
         toggleFavoriteSpread(id);
     };
 
-    return (
-        <>
-            <div className="space-y-8 animate-fade-in relative">
-                
-                {/* Hero Section */}
+    const renderWidget = (id: string) => {
+        const controls = isLayoutEditing && (
+            <div className="absolute top-2 right-2 z-20 flex gap-1">
+                <button onClick={() => moveWidget(id, 'up')} className="w-8 h-8 bg-black/80 rounded-lg flex items-center justify-center hover:bg-gold-500 transition-colors">▲</button>
+                <button onClick={() => moveWidget(id, 'down')} className="w-8 h-8 bg-black/80 rounded-lg flex items-center justify-center hover:bg-gold-500 transition-colors">▼</button>
+            </div>
+        );
+
+        switch (id) {
+            case 'hero': return (
+                <div key="hero" className="relative group/widget">
+                    {controls}
                 <div className={`relative overflow-hidden rounded-3xl p-6 md:p-8 border border-white/10 shadow-2xl ${cardBg} group`}>
                     <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2"></div>
                     
@@ -384,8 +407,12 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                     </div>
                 </div>
 
-                {/* Quick Actions Strip (Dynamic 6 items) */}
-                <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3`}>
+                </div>
+            );
+            case 'actions': return (
+                <div key="actions" className="relative group/widget">
+                    {controls}
+                    <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3`}>
                     {activeActions.map((item: any) => (
                         <button 
                             key={item.id}
@@ -396,10 +423,48 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                             <span className="font-bold text-sm text-gray-200 group-hover:text-white truncate">{item.label}</span>
                         </button>
                     ))}
+                    </div>
                 </div>
-
-                {/* Spreads Horizontal Scroll */}
-                <div id="spread-selector-container">
+            );
+            case 'personalNumber': return (
+                <div key="personalNumber" className="relative group/widget">
+                    {controls}
+                    <PersonalNumberWidget birthDate={currentUser.birthDate} />
+                </div>
+            );
+            case 'sabbat': return (
+                <div key="sabbat" className="relative group/widget">
+                    {controls}
+                    <SabbatCountdownWidget />
+                </div>
+            );
+            case 'crystal': return (
+                <div key="crystal" className="relative group/widget">
+                    {controls}
+                    <DailyCrystalWidget />
+                </div>
+            );
+            case 'sacredElement': return (
+                <div key="sacredElement" className="relative group/widget">
+                    {controls}
+                    <SacredElementWidget />
+                </div>
+            );
+            case 'pulse': return (
+                <div key="pulse" className="relative group/widget">
+                    {controls}
+                    <CommunityPulseWidget onSelectCard={setSelectedCardForPulse} />
+                </div>
+            );
+            case 'breathing': return (
+                <div key="breathing" className="relative group/widget">
+                    {controls}
+                    <BreathingHelperWidget />
+                </div>
+            );
+            case 'spreads': return (
+                <div key="spreads" id="spread-selector-container" className="relative group/widget">
+                    {controls}
                     <div className="flex items-center gap-4 mb-4">
                         <div className="h-px bg-white/10 flex-1"></div>
                         <h3 className="text-xl font-serif font-bold text-gold-400 uppercase tracking-widest flex items-center gap-2">
@@ -465,8 +530,25 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                                 {activeCategory === 'favorites' ? 'Még nincsenek kedvenc kirakásaid.' : 'Ebben a kategóriában még nincsenek kirakások.'}
                             </div>
                         )}
-                    </div>
                 </div>
+            );
+            default: return null;
+        }
+    };
+
+    return (
+        <>
+            <div className="flex justify-end mb-4">
+                <button
+                    onClick={() => setIsLayoutEditing(!isLayoutEditing)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all border ${isLayoutEditing ? 'bg-gold-500 text-black border-gold-500 shadow-lg' : 'bg-white/5 text-white/40 border-white/10 hover:border-white/30'}`}
+                >
+                    {isLayoutEditing ? '✔️ Elrendezés Mentése' : '⚙️ Főoldal Szerkesztése'}
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-8 animate-fade-in relative">
+                {layout.map(id => renderWidget(id))}
             </div>
 
             {/* Day Details Modal - Fixed Center Z-100 */}
@@ -707,6 +789,8 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                     </div>
                 </div>
             )}
+
+            {selectedCardForPulse && <CardModal card={selectedCardForPulse} onClose={() => setSelectedCardForPulse(null)} />}
 
             {/* Zodiac Info Modal - Detailed - Fixed Center Z-100 */}
             {zodiacModal && (

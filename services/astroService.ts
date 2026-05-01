@@ -334,6 +334,72 @@ export const AstroService = {
         return null;
     },
 
+    getNextSabbat: (date: Date) => {
+        const currentYear = date.getFullYear();
+        const sabbats = [
+            { name: "Imbolc", month: 2, day: 1 },
+            { name: "Ostara", month: 3, day: 20 },
+            { name: "Beltane", month: 5, day: 1 },
+            { name: "Litha", month: 6, day: 21 },
+            { name: "Lammas", month: 8, day: 1 },
+            { name: "Mabon", month: 9, day: 22 },
+            { name: "Samhain", month: 10, day: 31 },
+            { name: "Yule", month: 12, day: 21 }
+        ];
+
+        const sortedSabbats = sabbats.map(s => {
+            let d = new Date(currentYear, s.month - 1, s.day);
+            if (d.getTime() < date.getTime()) {
+                d = new Date(currentYear + 1, s.month - 1, s.day);
+            }
+            return { ...s, date: d };
+        }).sort((a, b) => a.date.getTime() - b.date.getTime());
+
+        const next = sortedSabbats[0];
+        const diffTime = next.date.getTime() - date.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        return { ...next, daysUntil: diffDays };
+    },
+
+    getPersonalDayNumber: (birthDate: string, targetDate: Date) => {
+        if (!birthDate) return null;
+        const b = new Date(birthDate);
+        if (isNaN(b.getTime())) return null;
+
+        const sumDigits = (n: number | string) => n.toString().split('').reduce((acc, d) => acc + parseInt(d), 0);
+        const reduceToSingle = (n: number) => {
+            let res = n;
+            while (res > 9 && res !== 11 && res !== 22) { // Keep master numbers if desired, but usually 1-9 for day
+                res = sumDigits(res);
+            }
+            return res;
+        };
+
+        const bDay = b.getDate();
+        const bMonth = b.getMonth() + 1;
+        const tYear = targetDate.getFullYear();
+        const tMonth = targetDate.getMonth() + 1;
+        const tDay = targetDate.getDate();
+
+        // Numerology: Birth Month + Birth Day + Current Year + Current Month + Current Day
+        const total = sumDigits(bDay) + sumDigits(bMonth) + sumDigits(tYear) + sumDigits(tMonth) + sumDigits(tDay);
+        return reduceToSingle(total);
+    },
+
+    getElementForPlanet: (planet: string) => {
+        const mapping: Record<string, string> = {
+            "Nap": "Tűz",
+            "Hold": "Víz",
+            "Mars": "Tűz",
+            "Merkúr": "Levegő",
+            "Jupiter": "Levegő",
+            "Vénusz": "Föld",
+            "Szaturnusz": "Föld"
+        };
+        return mapping[planet] || "Ismeretlen";
+    },
+
     getAstroData: (date: Date = new Date(), location?: {lat: number, lng: number}): AstrologyData & { sunrise: string, sunset: string, moonrise: string, moonset: string } => {
         const validDate = isNaN(date.getTime()) ? new Date() : date;
         const lat = location?.lat || DEFAULT_LAT;

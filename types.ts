@@ -314,6 +314,7 @@ export interface User {
   lessonCollection?: string[];
   deckCollection?: string[];
   activeQuests?: UserQuestProgress[]; // Quest Progress Tracking
+  dashboardLayout?: string[]; // Widget IDs order
 
   // Shop System
   currency?: number; // Pontok (vásárlásra)
