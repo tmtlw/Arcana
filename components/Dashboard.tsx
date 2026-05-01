@@ -147,9 +147,10 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
     const selectedEvents = selectedDay ? getEventsForDay(selectedDay.day) : [];
 
     // --- Dynamic Quick Actions ---
-    const activeActionIds = currentUser.quickActions && currentUser.quickActions.length > 0 
+    const activeActionIds = (currentUser.quickActions && currentUser.quickActions.length > 0
         ? currentUser.quickActions 
-        : ['community', 'customSpread', 'astro', 'numerology', 'analysis']; // Default if none selected
+        : ['community', 'customSpread', 'astro', 'numerology', 'analysis', 'history']) // Default 6
+        .map(id => id === 'stats' ? 'analysis' : id);
 
     const activeActions = activeActionIds
         .map(id => QUICK_ACTION_OPTIONS.find(opt => opt.id === id))

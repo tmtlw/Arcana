@@ -130,7 +130,10 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
 
     const toggleQuickAction = (actionId: string) => {
         if (!currentUser) return;
-        const current = currentUser.quickActions || ['community', 'customSpread', 'astro', 'numerology', 'analysis']; // Default changed to analysis
+        // Migration: Ensure 'stats' is converted to 'analysis' and invalid ones are filtered
+        const raw = currentUser.quickActions || ['community', 'customSpread', 'astro', 'numerology', 'analysis', 'history'];
+        const current = raw.map(id => id === 'stats' ? 'analysis' : id).filter(id => QUICK_ACTION_OPTIONS.some(opt => opt.id === id));
+
         let newActions;
         
         if (current.includes(actionId)) {
@@ -147,7 +150,9 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
 
     const moveQuickAction = (index: number, direction: 'up' | 'down') => {
         if (!currentUser) return;
-        const current = [...(currentUser.quickActions || ['community', 'customSpread', 'astro', 'numerology', 'analysis'])];
+        const raw = currentUser.quickActions || ['community', 'customSpread', 'astro', 'numerology', 'analysis', 'history'];
+        const current = raw.map(id => id === 'stats' ? 'analysis' : id).filter(id => QUICK_ACTION_OPTIONS.some(opt => opt.id === id));
+
         const newIndex = direction === 'up' ? index - 1 : index + 1;
         
         if (newIndex >= 0 && newIndex < current.length) {
@@ -172,7 +177,9 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
 
     if (!viewedUser) return <div className="p-10 text-center">Betöltés...</div>;
 
-    const currentActions = currentUser?.quickActions || ['community', 'customSpread', 'astro', 'numerology', 'analysis'];
+    const currentActions = (currentUser?.quickActions || ['community', 'customSpread', 'astro', 'numerology', 'analysis', 'history'])
+        .map(id => id === 'stats' ? 'analysis' : id)
+        .filter(id => QUICK_ACTION_OPTIONS.some(opt => opt.id === id));
 
     return (
         <div className="animate-fade-in max-w-6xl mx-auto pb-20 relative">
