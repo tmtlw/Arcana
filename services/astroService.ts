@@ -387,6 +387,46 @@ export const AstroService = {
         return reduceToSingle(total);
     },
 
+    getZodiacProgression: (date: Date) => {
+        const sunLong = AstroService.getSunLongitude(date);
+        const index = Math.floor(sunLong / 30);
+        const progress = ((sunLong % 30) / 30) * 100;
+
+        // Season boundaries (approximate)
+        const currentYear = date.getFullYear();
+        const startMonth = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2][index];
+        const startDay = [21, 20, 21, 21, 23, 23, 23, 23, 22, 22, 20, 19][index];
+
+        return {
+            sign: ZODIAC[index],
+            progress: Math.round(progress),
+            startDate: `${startMonth}.${startDay}.`,
+        };
+    },
+
+    getNextSignificantMoon: (date: Date) => {
+        // Iterate day by day until Full or New Moon
+        let checkDate = new Date(date);
+        for (let i = 0; i < 31; i++) {
+            const data = AstroService.calculateMoonPhase(checkDate);
+            if (data.phase === "Telihold" || data.phase === "Újhold") {
+                const diffTime = checkDate.getTime() - date.getTime();
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                const diffHours = Math.floor((diffTime / (1000 * 60 * 60)) % 24);
+                return {
+                    type: data.phase,
+                    icon: data.icon,
+                    date: checkDate,
+                    days: diffDays,
+                    hours: diffHours
+                };
+            }
+            checkDate.setDate(checkDate.getDate() + 1);
+            checkDate.setHours(0, 0, 0, 0); // Check center of days
+        }
+        return null;
+    },
+
     getElementForPlanet: (planet: string) => {
         const mapping: Record<string, string> = {
             "Nap": "Tűz",

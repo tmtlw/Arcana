@@ -396,6 +396,92 @@ export const QuickQuizWidget = () => {
 };
 
 // --- Idea 20: Sacred Geometry ---
+// --- Missing: Zodiac Progression ---
+export const ZodiacProgressionWidget = () => {
+    const data = AstroService.getZodiacProgression(new Date());
+    return (
+        <div className="glass-panel p-4 rounded-2xl border border-white/10 h-full flex flex-col justify-between">
+            <div className="flex justify-between items-start mb-2">
+                <div>
+                    <div className="text-[10px] uppercase font-bold text-gold-400 tracking-widest">Zodiákus Szezon</div>
+                    <div className="text-lg font-serif font-bold text-white">{data.sign}</div>
+                </div>
+                <div className="text-xl">☀️</div>
+            </div>
+            <div className="space-y-1">
+                <div className="flex justify-between text-[8px] uppercase font-bold text-white/30">
+                    <span>{data.startDate}</span>
+                    <span>{data.progress}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-gold-600 to-gold-400" style={{ width: `${data.progress}%` }}></div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- Missing: Moon Countdown ---
+export const MoonCountdownWidget = () => {
+    const next = AstroService.getNextSignificantMoon(new Date());
+    if (!next) return null;
+    return (
+        <div className="glass-panel p-4 rounded-2xl border border-white/10 h-full flex items-center gap-4">
+            <div className="text-3xl filter drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">{next.icon}</div>
+            <div>
+                <div className="text-[10px] uppercase font-bold text-blue-300 tracking-widest">Következő {next.type}</div>
+                <div className="text-sm font-bold text-white">
+                    {next.days > 0 && `${next.days} nap `}
+                    {next.hours} óra múlva
+                </div>
+                <div className="text-[9px] text-white/20 italic">{next.date.toLocaleDateString()}</div>
+            </div>
+        </div>
+    );
+};
+
+// --- Missing: Dominant Element ---
+export const DominantElementWidget = () => {
+    const { readings, currentUser, deck } = useTarot();
+    const lastReadings = readings.filter(r => r.userId === currentUser?.id).slice(0, 10);
+    const elementCounts: Record<string, number> = { 'Tűz': 0, 'Víz': 0, 'Levegő': 0, 'Föld': 0 };
+
+    lastReadings.forEach(r => r.cards.forEach(c => {
+        const card = deck.find(x => x.id === c.cardId);
+        if (card?.element && elementCounts[card.element] !== undefined) elementCounts[card.element]++;
+    }));
+
+    const total = Object.values(elementCounts).reduce((a, b) => a + b, 0);
+    const sorted = Object.entries(elementCounts).sort((a, b) => b[1] - a[1]);
+    const dominant = sorted[0];
+    const icons: Record<string, string> = { "Tűz": "🔥", "Víz": "💧", "Levegő": "🌬️", "Föld": "🌱" };
+
+    return (
+        <div className="glass-panel p-4 rounded-2xl border border-white/10 h-full flex flex-col justify-between">
+            <div className="text-[10px] uppercase font-bold text-emerald-400 tracking-widest mb-2">Domináns Elemek (10 húzás)</div>
+            <div className="flex-1 flex flex-col justify-center">
+                {total > 0 ? (
+                    <div className="space-y-2">
+                        {sorted.map(([el, count]) => {
+                            const pct = Math.round((count / total) * 100);
+                            if (pct === 0) return null;
+                            return (
+                                <div key={el} className="flex items-center gap-2">
+                                    <span className="text-xs w-4">{icons[el]}</span>
+                                    <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
+                                        <div className="h-full bg-emerald-500/50" style={{ width: `${pct}%` }}></div>
+                                    </div>
+                                    <span className="text-[8px] font-mono text-white/40">{pct}%</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : <div className="text-[10px] text-white/20 italic">Húzz kártyát az elemzéshez!</div>}
+            </div>
+        </div>
+    );
+};
+
 export const SacredGeometryWidget = () => {
     const day = new Date().getDate() % 5;
     const symbols = [

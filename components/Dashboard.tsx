@@ -13,7 +13,8 @@ import {
     PersonalNumberWidget, SabbatCountdownWidget, DailyCrystalWidget, CommunityPulseWidget,
     BreathingHelperWidget, SacredElementWidget, DailyIntentionWidget, MoodTrendWidget,
     ActiveQuestsWidget, RulingPlanetWidget, AuraColorWidget, LuckyPeriodWidget,
-    QuickQuizWidget, SacredGeometryWidget
+    QuickQuizWidget, SacredGeometryWidget, ZodiacProgressionWidget, MoonCountdownWidget,
+    DominantElementWidget
 } from './DashboardWidgets';
 import { CardModal } from './CardModal';
 
@@ -214,7 +215,10 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
         { id: 'auraColor', name: 'Aura', icon: '✨' },
         { id: 'luckyPeriod', name: 'Szerencse', icon: '🍀' },
         { id: 'quickQuiz', name: 'Kvíz', icon: '🎓' },
-        { id: 'geometry', name: 'Geometria', icon: '🌀' }
+        { id: 'geometry', name: 'Geometria', icon: '🌀' },
+        { id: 'zodiacProgression', name: 'Zodiákus', icon: '♈' },
+        { id: 'moonCountdown', name: 'Holdidő', icon: '🌗' },
+        { id: 'dominantElement', name: 'Dominancia', icon: '🧪' }
     ];
 
     const moveRow = (index: number, direction: 'up' | 'down') => {
@@ -606,6 +610,24 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                 <div key="geometry" className="relative group/widget h-full">
                     {controls}
                     <SacredGeometryWidget />
+                </div>
+            );
+            case 'zodiacProgression': return (
+                <div key="zodiacProgression" className="relative group/widget h-full">
+                    {controls}
+                    <ZodiacProgressionWidget />
+                </div>
+            );
+            case 'moonCountdown': return (
+                <div key="moonCountdown" className="relative group/widget h-full">
+                    {controls}
+                    <MoonCountdownWidget />
+                </div>
+            );
+            case 'dominantElement': return (
+                <div key="dominantElement" className="relative group/widget h-full">
+                    {controls}
+                    <DominantElementWidget />
                 </div>
             );
             case 'spreads': return (
