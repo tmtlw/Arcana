@@ -251,12 +251,12 @@ export const MoodTrendWidget = () => {
 // --- Idea 10: Active Quests ---
 export const ActiveQuestsWidget = ({ onNavigate }: { onNavigate: (v: string) => void }) => {
     const { currentUser } = useTarot();
-    const { QuestService } = require('../services/questService');
+    const questModule = require('../services/questService');
     const active = (currentUser?.activeQuests || []).filter(q => !q.isCompleted).slice(0, 2);
 
     // Map IDs to Titles
     const getQuestTitle = (id: string) => {
-        const allStatic = [...QuestService.DAILY_QUESTS, ...QuestService.WEEKLY_QUESTS];
+        const allStatic = [...(questModule.DAILY_QUESTS || []), ...(questModule.WEEKLY_QUESTS || [])];
         return allStatic.find(q => q.id === id)?.title || id;
     };
 
