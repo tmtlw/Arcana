@@ -1,6 +1,4 @@
 
-import { DeckMeta, Lesson, Spread } from "./types";
-
 export interface Card {
   id: string;
   name: string;
@@ -146,6 +144,12 @@ export interface Reading {
   likedBy?: string[]; 
   comments?: Comment[]; 
   tags?: string[]; 
+
+  // Spirituális Napló bővítés
+  isFulfilled?: boolean;
+  isArchived?: boolean;
+  importance?: number; // 1-5
+  sequenceId?: string;
 }
 
 export interface QuizResult {
