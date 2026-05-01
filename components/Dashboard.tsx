@@ -174,14 +174,51 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
         { id: 'all', label: 'Összes', icon: '♾️' }
     ];
 
-    const layout = currentUser.dashboardLayout || ['hero', 'actions', 'personalNumber', 'sabbat', 'crystal', 'sacredElement', 'pulse', 'breathing', 'spreads'];
+    const layout = currentUser.dashboardLayout || [
+        { id: 'row1', widgets: ['hero'] },
+        { id: 'row2', widgets: ['actions'] },
+        { id: 'row3', widgets: ['personalNumber', 'sabbat'] },
+        { id: 'row4', widgets: ['crystal', 'sacredElement'] },
+        { id: 'row5', widgets: ['pulse', 'breathing'] },
+        { id: 'row6', widgets: ['spreads'] }
+    ];
 
-    const moveWidget = (id: string, direction: 'up' | 'down') => {
-        const idx = layout.indexOf(id);
-        const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+    const ALL_WIDGETS = ['hero', 'actions', 'personalNumber', 'sabbat', 'crystal', 'sacredElement', 'pulse', 'breathing', 'spreads'];
+
+    const moveRow = (index: number, direction: 'up' | 'down') => {
+        const newIdx = direction === 'up' ? index - 1 : index + 1;
         if (newIdx >= 0 && newIdx < layout.length) {
             const newLayout = [...layout];
-            [newLayout[idx], newLayout[newIdx]] = [newLayout[newIdx], newLayout[idx]];
+            [newLayout[index], newLayout[newIdx]] = [newLayout[newIdx], newLayout[index]];
+            updateDashboardLayout(newLayout);
+        }
+    };
+
+    const addRow = () => {
+        const newLayout = [...layout, { id: 'row_' + Date.now(), widgets: [] }];
+        updateDashboardLayout(newLayout);
+    };
+
+    const removeRow = (index: number) => {
+        if (layout.length <= 2) return;
+        const newLayout = layout.filter((_, i) => i !== index);
+        updateDashboardLayout(newLayout);
+    };
+
+    const moveWidgetBetweenRows = (widgetId: string, fromRowIdx: number, toRowIdx: number) => {
+        const newLayout = [...layout];
+        newLayout[fromRowIdx] = { ...newLayout[fromRowIdx], widgets: newLayout[fromRowIdx].widgets.filter(w => w !== widgetId) };
+        newLayout[toRowIdx] = { ...newLayout[toRowIdx], widgets: [...newLayout[toRowIdx].widgets, widgetId] };
+        updateDashboardLayout(newLayout);
+    };
+
+    const moveWidgetInRow = (rowIndex: number, widgetIndex: number, direction: 'left' | 'right') => {
+        const newLayout = [...layout];
+        const widgets = [...newLayout[rowIndex].widgets];
+        const newIdx = direction === 'left' ? widgetIndex - 1 : widgetIndex + 1;
+        if (newIdx >= 0 && newIdx < widgets.length) {
+            [widgets[widgetIndex], widgets[newIdx]] = [widgets[newIdx], widgets[widgetIndex]];
+            newLayout[rowIndex] = { ...newLayout[rowIndex], widgets };
             updateDashboardLayout(newLayout);
         }
     };
@@ -197,11 +234,25 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
         toggleFavoriteSpread(id);
     };
 
-    const renderWidget = (id: string) => {
+    const renderWidget = (id: string, rowIndex: number, widgetIndex: number) => {
+        const row = layout[rowIndex];
         const controls = isLayoutEditing && (
-            <div className="absolute top-2 right-2 z-20 flex gap-1">
-                <button onClick={() => moveWidget(id, 'up')} className="w-8 h-8 bg-black/80 rounded-lg flex items-center justify-center hover:bg-gold-500 transition-colors">▲</button>
-                <button onClick={() => moveWidget(id, 'down')} className="w-8 h-8 bg-black/80 rounded-lg flex items-center justify-center hover:bg-gold-500 transition-colors">▼</button>
+            <div className="absolute top-1 left-1 right-1 z-30 flex justify-between opacity-0 group-hover/widget:opacity-100 transition-opacity">
+                <div className="flex gap-1">
+                    {layout.length > 1 && (
+                        <select
+                            value={rowIndex}
+                            onChange={(e) => moveWidgetBetweenRows(id, rowIndex, parseInt(e.target.value))}
+                            className="bg-indigo-600 text-[8px] font-bold text-white rounded px-1 border border-white/20 outline-none"
+                        >
+                            {layout.map((_, i) => <option key={i} value={i}>Sor {i+1}</option>)}
+                        </select>
+                    )}
+                </div>
+                <div className="flex gap-1">
+                    <button onClick={() => moveWidgetInRow(rowIndex, widgetIndex, 'left')} className="w-5 h-5 bg-black/80 rounded flex items-center justify-center text-[8px] hover:bg-gold-500">◀</button>
+                    <button onClick={() => moveWidgetInRow(rowIndex, widgetIndex, 'right')} className="w-5 h-5 bg-black/80 rounded flex items-center justify-center text-[8px] hover:bg-gold-500">▶</button>
+                </div>
             </div>
         );
 
@@ -406,8 +457,7 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                         </div>
                     </div>
                 </div>
-
-                </div>
+            </div>
             );
             case 'actions': return (
                 <div key="actions" className="relative group/widget">
@@ -530,6 +580,7 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                                 {activeCategory === 'favorites' ? 'Még nincsenek kedvenc kirakásaid.' : 'Ebben a kategóriában még nincsenek kirakások.'}
                             </div>
                         )}
+                    </div>
                 </div>
             );
             default: return null;
@@ -547,8 +598,36 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-8 animate-fade-in relative">
-                {layout.map(id => renderWidget(id))}
+            <div className="flex flex-col gap-8 animate-fade-in relative">
+                {layout.map((row, idx) => (
+                    <div key={row.id} className={`relative group/row ${isLayoutEditing ? 'border-2 border-dashed border-white/10 p-4 rounded-3xl' : ''}`}>
+                        {isLayoutEditing && (
+                            <div className="absolute -top-3 left-4 flex gap-2 z-30">
+                                <div className="bg-indigo-600 text-[10px] font-bold px-2 py-0.5 rounded-full text-white shadow-lg">SOR {idx + 1}</div>
+                                <button onClick={() => moveRow(idx, 'up')} className="w-6 h-6 bg-black/80 rounded-full flex items-center justify-center text-[10px] hover:bg-gold-500">▲</button>
+                                <button onClick={() => moveRow(idx, 'down')} className="w-6 h-6 bg-black/80 rounded-full flex items-center justify-center text-[10px] hover:bg-gold-500">▼</button>
+                                <button onClick={() => removeRow(idx)} className="w-6 h-6 bg-red-600/80 rounded-full flex items-center justify-center text-[10px] hover:bg-red-500">✕</button>
+                            </div>
+                        )}
+
+                        <div className={`grid gap-4 ${row.widgets.some(w => ['hero', 'actions', 'spreads'].includes(w)) ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6'}`}>
+                            {row.widgets.map((wId, wIdx) => (
+                                <div key={wId} className="relative group/widget">
+                                    {renderWidget(wId, idx, wIdx)}
+                                </div>
+                            ))}
+                            {isLayoutEditing && row.widgets.length === 0 && (
+                                <div className="py-10 text-center text-white/20 italic border border-dashed border-white/5 rounded-2xl w-full">Üres sor - húzz ide widgetet</div>
+                            )}
+                        </div>
+                    </div>
+                ))}
+
+                {isLayoutEditing && (
+                    <button onClick={addRow} className="w-full py-4 border-2 border-dashed border-white/10 rounded-3xl text-white/40 font-bold hover:bg-white/5 transition-all">
+                        ➕ Új Sor Hozzáadása
+                    </button>
+                )}
             </div>
 
             {/* Day Details Modal - Fixed Center Z-100 */}

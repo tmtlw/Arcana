@@ -314,7 +314,7 @@ export interface User {
   lessonCollection?: string[];
   deckCollection?: string[];
   activeQuests?: UserQuestProgress[]; // Quest Progress Tracking
-  dashboardLayout?: string[]; // Widget IDs order
+  dashboardLayout?: DashboardRow[]; // Widget IDs order
 
   // Shop System
   currency?: number; // Pontok (vásárlásra)
@@ -439,4 +439,9 @@ export interface UserQuestProgress {
     isCompleted: boolean;
     claimed: boolean;
     expiresAt?: string; // For daily/weekly rotation
+}
+
+export interface DashboardRow {
+    id: string;
+    widgets: string[];
 }

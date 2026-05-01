@@ -79,7 +79,7 @@ interface TarotContextType {
     logout: () => Promise<void>;
     toggleLessonInCollection: (lessonId: string) => void;
     toggleDeckInCollection: (deckId: string) => void;
-    updateDashboardLayout: (layout: string[]) => Promise<void>;
+    updateDashboardLayout: (layout: any[]) => Promise<void>;
 
     // Eseménykezelés
     addCommunityEvent: (e: CommunityEvent) => Promise<boolean>;
@@ -296,7 +296,14 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
                                 isAnonymous: firebaseUser.isAnonymous,
                                 isAdmin,
                                 quickActions: ['community', 'customSpread', 'astro', 'numerology', 'analysis', 'history'], // Default 6
-                                dashboardLayout: ['hero', 'actions', 'personalNumber', 'sabbat', 'crystal', 'sacredElement', 'pulse', 'breathing', 'spreads'],
+                                dashboardLayout: [
+                                    { id: 'row1', widgets: ['hero'] },
+                                    { id: 'row2', widgets: ['actions'] },
+                                    { id: 'row3', widgets: ['personalNumber', 'sabbat'] },
+                                    { id: 'row4', widgets: ['crystal', 'sacredElement'] },
+                                    { id: 'row5', widgets: ['pulse', 'breathing'] },
+                                    { id: 'row6', widgets: ['spreads'] }
+                                ],
                                 lessonCollection: [],
                                 deckCollection: [],
                                 favoriteCards: [],
@@ -697,7 +704,7 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
         if(currentUser) CommunityService.markAllNotificationsAsRead(currentUser.id);
     };
 
-    const updateDashboardLayout = async (layout: string[]) => {
+    const updateDashboardLayout = async (layout: any[]) => {
         if (!currentUser) return;
         const updated = { ...currentUser, dashboardLayout: layout };
         await updateUser(updated);
