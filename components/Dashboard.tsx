@@ -9,7 +9,12 @@ import { CardImage } from './CardImage';
 import { CommunityService } from '../services/communityService';
 import { AstroService } from '../services/astroService';
 import { t } from '../services/i18nService';
-import { PersonalNumberWidget, SabbatCountdownWidget, DailyCrystalWidget, CommunityPulseWidget, BreathingHelperWidget, SacredElementWidget } from './DashboardWidgets';
+import {
+    PersonalNumberWidget, SabbatCountdownWidget, DailyCrystalWidget, CommunityPulseWidget,
+    BreathingHelperWidget, SacredElementWidget, DailyIntentionWidget, MoodTrendWidget,
+    ActiveQuestsWidget, RulingPlanetWidget, AuraColorWidget, LuckyPeriodWidget,
+    QuickQuizWidget, SacredGeometryWidget
+} from './DashboardWidgets';
 import { CardModal } from './CardModal';
 
 export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => {
@@ -192,7 +197,25 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
         return layoutRaw;
     }, [layoutRaw]);
 
-    const ALL_WIDGETS = ['hero', 'actions', 'personalNumber', 'sabbat', 'crystal', 'sacredElement', 'pulse', 'breathing', 'spreads'];
+    const WIDGET_CATALOG = [
+        { id: 'hero', name: 'Kozmikus HUD', icon: '🔮' },
+        { id: 'actions', name: 'Gyorsmenü', icon: '⚡' },
+        { id: 'spreads', name: 'Kirakások', icon: '🎴' },
+        { id: 'personalNumber', name: 'Napi Szám', icon: '🔢' },
+        { id: 'sabbat', name: 'Sabbat', icon: '🌿' },
+        { id: 'crystal', name: 'Kristály', icon: '💎' },
+        { id: 'sacredElement', name: 'Elem', icon: '🔥' },
+        { id: 'pulse', name: 'Közösség', icon: '🌍' },
+        { id: 'breathing', name: 'Légzés', icon: '🌬️' },
+        { id: 'intention', name: 'Szándék', icon: '🎯' },
+        { id: 'moodTrend', name: 'Hangulat', icon: '📊' },
+        { id: 'activeQuests', name: 'Kihívások', icon: '⚔️' },
+        { id: 'rulingPlanet', name: 'Bolygó', icon: '🪐' },
+        { id: 'auraColor', name: 'Aura', icon: '✨' },
+        { id: 'luckyPeriod', name: 'Szerencse', icon: '🍀' },
+        { id: 'quickQuiz', name: 'Kvíz', icon: '🎓' },
+        { id: 'geometry', name: 'Geometria', icon: '🌀' }
+    ];
 
     const moveRow = (index: number, direction: 'up' | 'down') => {
         const newIdx = direction === 'up' ? index - 1 : index + 1;
@@ -209,8 +232,22 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
     };
 
     const removeRow = (index: number) => {
-        if (layout.length <= 2) return;
+        // Return widgets to layout logic if needed?
+        // Better: when row is removed, its widgets move to pool
+        const row = layout[index];
         const newLayout = layout.filter((_, i) => i !== index);
+        updateDashboardLayout(newLayout);
+    };
+
+    const removeWidgetFromLayout = (widgetId: string, rowIndex: number) => {
+        const newLayout = [...layout];
+        newLayout[rowIndex] = { ...newLayout[rowIndex], widgets: newLayout[rowIndex].widgets.filter(w => w !== widgetId) };
+        updateDashboardLayout(newLayout);
+    };
+
+    const addWidgetToRow = (widgetId: string, rowIndex: number) => {
+        const newLayout = [...layout];
+        newLayout[rowIndex] = { ...newLayout[rowIndex], widgets: [...newLayout[rowIndex].widgets, widgetId] };
         updateDashboardLayout(newLayout);
     };
 
@@ -247,8 +284,9 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
         const row = layout[rowIndex];
         if (!row) return null;
         const controls = isLayoutEditing && (
-            <div className="absolute top-1 left-1 right-1 z-30 flex justify-between opacity-0 group-hover/widget:opacity-100 transition-opacity">
+            <div className="absolute top-1 left-1 right-1 z-30 flex justify-between opacity-0 group-hover/widget:opacity-100 transition-opacity p-1">
                 <div className="flex gap-1">
+                    <button onClick={() => removeWidgetFromLayout(id, rowIndex)} className="w-5 h-5 bg-red-600 rounded flex items-center justify-center text-[8px] hover:bg-red-500">✕</button>
                     {layout.length > 1 && (
                         <select
                             value={rowIndex}
@@ -517,9 +555,57 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                 </div>
             );
             case 'breathing': return (
-                <div key="breathing" className="relative group/widget">
+                <div key="breathing" className="relative group/widget h-full">
                     {controls}
                     <BreathingHelperWidget />
+                </div>
+            );
+            case 'intention': return (
+                <div key="intention" className="relative group/widget h-full">
+                    {controls}
+                    <DailyIntentionWidget />
+                </div>
+            );
+            case 'moodTrend': return (
+                <div key="moodTrend" className="relative group/widget h-full">
+                    {controls}
+                    <MoodTrendWidget />
+                </div>
+            );
+            case 'activeQuests': return (
+                <div key="activeQuests" className="relative group/widget h-full">
+                    {controls}
+                    <ActiveQuestsWidget onNavigate={onNavigate} />
+                </div>
+            );
+            case 'rulingPlanet': return (
+                <div key="rulingPlanet" className="relative group/widget h-full">
+                    {controls}
+                    <RulingPlanetWidget />
+                </div>
+            );
+            case 'auraColor': return (
+                <div key="auraColor" className="relative group/widget h-full">
+                    {controls}
+                    <AuraColorWidget />
+                </div>
+            );
+            case 'luckyPeriod': return (
+                <div key="luckyPeriod" className="relative group/widget h-full">
+                    {controls}
+                    <LuckyPeriodWidget />
+                </div>
+            );
+            case 'quickQuiz': return (
+                <div key="quickQuiz" className="relative group/widget h-full">
+                    {controls}
+                    <QuickQuizWidget />
+                </div>
+            );
+            case 'geometry': return (
+                <div key="geometry" className="relative group/widget h-full">
+                    {controls}
+                    <SacredGeometryWidget />
                 </div>
             );
             case 'spreads': return (
@@ -597,8 +683,40 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
         }
     };
 
+    const activeWidgetIds = layout.flatMap(r => r.widgets);
+    const widgetPool = WIDGET_CATALOG.filter(w => !activeWidgetIds.includes(w.id));
+
     return (
         <>
+            {isLayoutEditing && (
+                <div className="mb-8 glass-panel-dark p-6 rounded-3xl border border-indigo-500/30 animate-fade-in">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-300 mb-4 flex items-center gap-2">
+                        <span>📦</span> Elérhető Widgetek
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                        {widgetPool.map(w => (
+                            <div key={w.id} className="bg-white/5 border border-white/10 rounded-xl p-2 flex items-center gap-3 group/pool hover:border-gold-500/30 transition-all">
+                                <span className="text-lg">{w.icon}</span>
+                                <span className="text-[10px] font-bold text-white/70">{w.name}</span>
+                                <div className="flex gap-1 ml-2">
+                                    {layout.map((_, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => addWidgetToRow(w.id, i)}
+                                            className="w-5 h-5 bg-indigo-600/50 hover:bg-indigo-600 rounded flex items-center justify-center text-[8px] font-bold"
+                                            title={`${i+1}. sorhoz adás`}
+                                        >
+                                            {i+1}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                        {widgetPool.length === 0 && <div className="text-xs text-white/20 italic">Minden widget aktív.</div>}
+                    </div>
+                </div>
+            )}
+
             <div className="flex justify-end mb-4">
                 <button
                     onClick={() => setIsLayoutEditing(!isLayoutEditing)}

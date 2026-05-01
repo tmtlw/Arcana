@@ -319,6 +319,8 @@ export interface User {
   // Shop System
   currency?: number; // Pontok (vásárlásra)
   inventory?: string[]; // Megvásárolt item ID-k
+  dailyIntention?: { text: string, date: string };
+  lastQuizResult?: { date: string, correct: boolean };
 }
 
 export interface ShopItem {
