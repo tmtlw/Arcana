@@ -689,6 +689,24 @@ export const CommunityService = {
     },
 
     // --- Global Settings (Admin) ---
+    getCommunityCardStats: async () => {
+        if (!db) return {};
+        try {
+            const q = query(collection(db, 'public_readings'), limit(100));
+            const snap = await getDocs(q);
+            const stats: Record<string, number> = {};
+            snap.forEach(d => {
+                const r = d.data() as Reading;
+                r.cards.forEach(c => {
+                    stats[c.cardId] = (stats[c.cardId] || 0) + 1;
+                });
+            });
+            return stats;
+        } catch (e) {
+            return {};
+        }
+    },
+
     getGlobalSettings: async () => {
         if (!db) return null;
         try {

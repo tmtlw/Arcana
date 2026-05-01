@@ -9,9 +9,17 @@ import { CardImage } from './CardImage';
 import { CommunityService } from '../services/communityService';
 import { AstroService } from '../services/astroService';
 import { t } from '../services/i18nService';
+import {
+    PersonalNumberWidget, SabbatCountdownWidget, DailyCrystalWidget, CommunityPulseWidget,
+    BreathingHelperWidget, SacredElementWidget, DailyIntentionWidget, MoodTrendWidget,
+    ActiveQuestsWidget, RulingPlanetWidget, AuraColorWidget, LuckyPeriodWidget,
+    QuickQuizWidget, SacredGeometryWidget, ZodiacProgressionWidget, MoonCountdownWidget,
+    DominantElementWidget
+} from './DashboardWidgets';
+import { CardModal } from './CardModal';
 
 export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => {
-    const { currentUser, readings, allSpreads, deleteCustomSpread, deck, activeDeck, showToast, userLocation, language, activeThemeKey, toggleFavoriteSpread, communityEvents } = useTarot();
+    const { currentUser, readings, allSpreads, deleteCustomSpread, deck, activeDeck, showToast, userLocation, language, activeThemeKey, toggleFavoriteSpread, communityEvents, updateDashboardLayout } = useTarot();
     
     // Fix: Use activeThemeKey resolved in context with safe fallback
     const theme = THEMES[activeThemeKey] || THEMES['mystic'] || THEMES['auto'];
@@ -27,7 +35,10 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
     const [now, setNow] = useState(new Date());
     // Zodiac Modal State
     const [zodiacModal, setZodiacModal] = useState<{ type: 'Nap'|'Hold'|'Aszcendens'|'Kínai', sign: string, detail?: any } | null>(null);
-    
+    const [astroModal, setAstroModal] = useState<{ type: 'moon' | 'sun' | 'lunar' | 'planetary', date: Date } | null>(null);
+    const [selectedCardForPulse, setSelectedCardForPulse] = useState<any>(null);
+    const [isLayoutEditing, setIsLayoutEditing] = useState(false);
+
     // Spread Category Tab State
     const [activeCategory, setActiveCategory] = useState<SpreadCategory | 'all' | 'favorites'>('favorites');
 
@@ -146,9 +157,10 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
     const selectedEvents = selectedDay ? getEventsForDay(selectedDay.day) : [];
 
     // --- Dynamic Quick Actions ---
-    const activeActionIds = currentUser.quickActions && currentUser.quickActions.length > 0 
+    const activeActionIds = (currentUser.quickActions && currentUser.quickActions.length > 0
         ? currentUser.quickActions 
-        : ['community', 'customSpread', 'astro', 'numerology', 'stats']; // Default if none selected
+        : ['community', 'customSpread', 'astro', 'numerology', 'analysis', 'history']) // Default 6
+        .map(id => id === 'stats' ? 'analysis' : id);
 
     const activeActions = activeActionIds
         .map(id => QUICK_ACTION_OPTIONS.find(opt => opt.id === id))
@@ -168,6 +180,99 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
         { id: 'all', label: 'Összes', icon: '♾️' }
     ];
 
+    const layoutRaw = currentUser.dashboardLayout || [
+        { id: 'row1', widgets: ['hero'] },
+        { id: 'row2', widgets: ['actions'] },
+        { id: 'row3', widgets: ['personalNumber', 'sabbat'] },
+        { id: 'row4', widgets: ['crystal', 'sacredElement'] },
+        { id: 'row5', widgets: ['pulse', 'breathing'] },
+        { id: 'row6', widgets: ['spreads'] }
+    ];
+
+    // Migration / Safety check: if it is a simple array of strings, wrap them
+    const layout = useMemo(() => {
+        if (!Array.isArray(layoutRaw)) return [];
+        if (layoutRaw.length > 0 && typeof layoutRaw[0] === 'string') {
+            return (layoutRaw as any).map((w: string, i: number) => ({ id: `migrated_${i}`, widgets: [w] }));
+        }
+        return layoutRaw;
+    }, [layoutRaw]);
+
+    const WIDGET_CATALOG = [
+        { id: 'hero', name: 'Kozmikus HUD', icon: '🔮' },
+        { id: 'actions', name: 'Gyorsmenü', icon: '⚡' },
+        { id: 'spreads', name: 'Kirakások', icon: '🎴' },
+        { id: 'personalNumber', name: 'Napi Szám', icon: '🔢' },
+        { id: 'sabbat', name: 'Sabbat', icon: '🌿' },
+        { id: 'crystal', name: 'Kristály', icon: '💎' },
+        { id: 'sacredElement', name: 'Elem', icon: '🔥' },
+        { id: 'pulse', name: 'Közösség', icon: '🌍' },
+        { id: 'breathing', name: 'Légzés', icon: '🌬️' },
+        { id: 'intention', name: 'Szándék', icon: '🎯' },
+        { id: 'moodTrend', name: 'Hangulat', icon: '📊' },
+        { id: 'activeQuests', name: 'Kihívások', icon: '⚔️' },
+        { id: 'rulingPlanet', name: 'Bolygó', icon: '🪐' },
+        { id: 'auraColor', name: 'Aura', icon: '✨' },
+        { id: 'luckyPeriod', name: 'Szerencse', icon: '🍀' },
+        { id: 'quickQuiz', name: 'Kvíz', icon: '🎓' },
+        { id: 'geometry', name: 'Geometria', icon: '🌀' },
+        { id: 'zodiacProgression', name: 'Zodiákus', icon: '♈' },
+        { id: 'moonCountdown', name: 'Holdidő', icon: '🌗' },
+        { id: 'dominantElement', name: 'Dominancia', icon: '🧪' }
+    ];
+
+    const moveRow = (index: number, direction: 'up' | 'down') => {
+        const newIdx = direction === 'up' ? index - 1 : index + 1;
+        if (newIdx >= 0 && newIdx < layout.length) {
+            const newLayout = [...layout];
+            [newLayout[index], newLayout[newIdx]] = [newLayout[newIdx], newLayout[index]];
+            updateDashboardLayout(newLayout);
+        }
+    };
+
+    const addRow = () => {
+        const newLayout = [...layout, { id: 'row_' + Date.now(), widgets: [] }];
+        updateDashboardLayout(newLayout);
+    };
+
+    const removeRow = (index: number) => {
+        // Return widgets to layout logic if needed?
+        // Better: when row is removed, its widgets move to pool
+        const row = layout[index];
+        const newLayout = layout.filter((_, i) => i !== index);
+        updateDashboardLayout(newLayout);
+    };
+
+    const removeWidgetFromLayout = (widgetId: string, rowIndex: number) => {
+        const newLayout = [...layout];
+        newLayout[rowIndex] = { ...newLayout[rowIndex], widgets: newLayout[rowIndex].widgets.filter(w => w !== widgetId) };
+        updateDashboardLayout(newLayout);
+    };
+
+    const addWidgetToRow = (widgetId: string, rowIndex: number) => {
+        const newLayout = [...layout];
+        newLayout[rowIndex] = { ...newLayout[rowIndex], widgets: [...newLayout[rowIndex].widgets, widgetId] };
+        updateDashboardLayout(newLayout);
+    };
+
+    const moveWidgetBetweenRows = (widgetId: string, fromRowIdx: number, toRowIdx: number) => {
+        const newLayout = [...layout];
+        newLayout[fromRowIdx] = { ...newLayout[fromRowIdx], widgets: newLayout[fromRowIdx].widgets.filter(w => w !== widgetId) };
+        newLayout[toRowIdx] = { ...newLayout[toRowIdx], widgets: [...newLayout[toRowIdx].widgets, widgetId] };
+        updateDashboardLayout(newLayout);
+    };
+
+    const moveWidgetInRow = (rowIndex: number, widgetIndex: number, direction: 'left' | 'right') => {
+        const newLayout = [...layout];
+        const widgets = [...newLayout[rowIndex].widgets];
+        const newIdx = direction === 'left' ? widgetIndex - 1 : widgetIndex + 1;
+        if (newIdx >= 0 && newIdx < widgets.length) {
+            [widgets[widgetIndex], widgets[newIdx]] = [widgets[newIdx], widgets[widgetIndex]];
+            newLayout[rowIndex] = { ...newLayout[rowIndex], widgets };
+            updateDashboardLayout(newLayout);
+        }
+    };
+
     const filteredSpreads = allSpreads.filter(s => {
         if (activeCategory === 'favorites') return (currentUser.favoriteSpreads || []).includes(s.id);
         if (activeCategory === 'all') return true;
@@ -179,11 +284,34 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
         toggleFavoriteSpread(id);
     };
 
-    return (
-        <>
-            <div className="space-y-8 animate-fade-in relative">
-                
-                {/* Hero Section */}
+    const renderWidget = (id: string, rowIndex: number, widgetIndex: number) => {
+        const row = layout[rowIndex];
+        if (!row) return null;
+        const controls = isLayoutEditing && (
+            <div className="absolute top-1 left-1 right-1 z-30 flex justify-between opacity-0 group-hover/widget:opacity-100 transition-opacity p-1">
+                <div className="flex gap-1">
+                    <button onClick={() => removeWidgetFromLayout(id, rowIndex)} className="w-5 h-5 bg-red-600 rounded flex items-center justify-center text-[8px] hover:bg-red-500">✕</button>
+                    {layout.length > 1 && (
+                        <select
+                            value={rowIndex}
+                            onChange={(e) => moveWidgetBetweenRows(id, rowIndex, parseInt(e.target.value))}
+                            className="bg-indigo-600 text-[8px] font-bold text-white rounded px-1 border border-white/20 outline-none"
+                        >
+                            {layout.map((_, i) => <option key={i} value={i}>Sor {i+1}</option>)}
+                        </select>
+                    )}
+                </div>
+                <div className="flex gap-1">
+                    <button onClick={() => moveWidgetInRow(rowIndex, widgetIndex, 'left')} className="w-5 h-5 bg-black/80 rounded flex items-center justify-center text-[8px] hover:bg-gold-500">◀</button>
+                    <button onClick={() => moveWidgetInRow(rowIndex, widgetIndex, 'right')} className="w-5 h-5 bg-black/80 rounded flex items-center justify-center text-[8px] hover:bg-gold-500">▶</button>
+                </div>
+            </div>
+        );
+
+        switch (id) {
+            case 'hero': return (
+                <div key="hero" className="relative group/widget">
+                    {controls}
                 <div className={`relative overflow-hidden rounded-3xl p-6 md:p-8 border border-white/10 shadow-2xl ${cardBg} group`}>
                     <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2"></div>
                     
@@ -250,26 +378,26 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                                     </button>
                                 </div>
                                 <div className="grid grid-cols-4 divide-x divide-white/5 bg-white/5">
-                                    <div className="p-3 text-center">
+                                    <button onClick={() => setAstroModal({ type: 'moon', date: now })} className="p-3 text-center hover:bg-white/10 transition-colors">
                                         <div className="text-[9px] uppercase text-white/40 mb-1">{t('dashboard.phase', language)}</div>
                                         <div className="text-xs font-bold text-white">{astroData.moonPhase}</div>
                                         <div className="text-[9px] text-white/30">{Math.round(astroData.illumination * 100)}%</div>
-                                    </div>
-                                    <div className="p-3 text-center">
+                                    </button>
+                                    <button onClick={() => setAstroModal({ type: 'sun', date: now })} className="p-3 text-center hover:bg-white/10 transition-colors">
                                         <div className="text-[9px] uppercase text-white/40 mb-1">{t('dashboard.sunrise', language)}</div>
                                         <div className="text-xs font-bold text-gold-200">🌅 {astroData.sunrise}</div>
                                         <div className="text-xs font-bold text-orange-300">🌇 {astroData.sunset}</div>
-                                    </div>
-                                    <div className="p-3 text-center">
+                                    </button>
+                                    <button onClick={() => setAstroModal({ type: 'lunar', date: now })} className="p-3 text-center hover:bg-white/10 transition-colors">
                                         <div className="text-[9px] uppercase text-white/40 mb-1">{t('dashboard.moonrise', language)}</div>
                                         <div className="text-xs font-bold text-blue-200">☾ {astroData.moonrise}</div>
                                         <div className="text-xs font-bold text-indigo-300">— {astroData.moonset}</div>
-                                    </div>
-                                    <div className="p-3 text-center">
+                                    </button>
+                                    <button onClick={() => setAstroModal({ type: 'planetary', date: now })} className="p-3 text-center hover:bg-white/10 transition-colors">
                                         <div className="text-[9px] uppercase text-white/40 mb-1">{t('dashboard.planet_hour', language)}</div>
                                         <div className="text-xs font-bold text-pink-300">🪐 {astroData.planetHour}</div>
                                         <div className="text-[9px] text-white/30">Uralom</div>
-                                    </div>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -381,9 +509,12 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                         </div>
                     </div>
                 </div>
-
-                {/* Quick Actions Strip (Dynamic 6 items) */}
-                <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3`}>
+            </div>
+            );
+            case 'actions': return (
+                <div key="actions" className="relative group/widget">
+                    {controls}
+                    <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3`}>
                     {activeActions.map((item: any) => (
                         <button 
                             key={item.id}
@@ -394,10 +525,114 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                             <span className="font-bold text-sm text-gray-200 group-hover:text-white truncate">{item.label}</span>
                         </button>
                     ))}
+                    </div>
                 </div>
-
-                {/* Spreads Horizontal Scroll */}
-                <div id="spread-selector-container">
+            );
+            case 'personalNumber': return (
+                <div key="personalNumber" className="relative group/widget">
+                    {controls}
+                    <PersonalNumberWidget birthDate={currentUser.birthDate} />
+                </div>
+            );
+            case 'sabbat': return (
+                <div key="sabbat" className="relative group/widget">
+                    {controls}
+                    <SabbatCountdownWidget />
+                </div>
+            );
+            case 'crystal': return (
+                <div key="crystal" className="relative group/widget">
+                    {controls}
+                    <DailyCrystalWidget />
+                </div>
+            );
+            case 'sacredElement': return (
+                <div key="sacredElement" className="relative group/widget">
+                    {controls}
+                    <SacredElementWidget />
+                </div>
+            );
+            case 'pulse': return (
+                <div key="pulse" className="relative group/widget">
+                    {controls}
+                    <CommunityPulseWidget onSelectCard={setSelectedCardForPulse} />
+                </div>
+            );
+            case 'breathing': return (
+                <div key="breathing" className="relative group/widget h-full">
+                    {controls}
+                    <BreathingHelperWidget />
+                </div>
+            );
+            case 'intention': return (
+                <div key="intention" className="relative group/widget h-full">
+                    {controls}
+                    <DailyIntentionWidget />
+                </div>
+            );
+            case 'moodTrend': return (
+                <div key="moodTrend" className="relative group/widget h-full">
+                    {controls}
+                    <MoodTrendWidget />
+                </div>
+            );
+            case 'activeQuests': return (
+                <div key="activeQuests" className="relative group/widget h-full">
+                    {controls}
+                    <ActiveQuestsWidget onNavigate={onNavigate} />
+                </div>
+            );
+            case 'rulingPlanet': return (
+                <div key="rulingPlanet" className="relative group/widget h-full">
+                    {controls}
+                    <RulingPlanetWidget />
+                </div>
+            );
+            case 'auraColor': return (
+                <div key="auraColor" className="relative group/widget h-full">
+                    {controls}
+                    <AuraColorWidget />
+                </div>
+            );
+            case 'luckyPeriod': return (
+                <div key="luckyPeriod" className="relative group/widget h-full">
+                    {controls}
+                    <LuckyPeriodWidget />
+                </div>
+            );
+            case 'quickQuiz': return (
+                <div key="quickQuiz" className="relative group/widget h-full">
+                    {controls}
+                    <QuickQuizWidget />
+                </div>
+            );
+            case 'geometry': return (
+                <div key="geometry" className="relative group/widget h-full">
+                    {controls}
+                    <SacredGeometryWidget />
+                </div>
+            );
+            case 'zodiacProgression': return (
+                <div key="zodiacProgression" className="relative group/widget h-full">
+                    {controls}
+                    <ZodiacProgressionWidget />
+                </div>
+            );
+            case 'moonCountdown': return (
+                <div key="moonCountdown" className="relative group/widget h-full">
+                    {controls}
+                    <MoonCountdownWidget />
+                </div>
+            );
+            case 'dominantElement': return (
+                <div key="dominantElement" className="relative group/widget h-full">
+                    {controls}
+                    <DominantElementWidget />
+                </div>
+            );
+            case 'spreads': return (
+                <div key="spreads" id="spread-selector-container" className="relative group/widget">
+                    {controls}
                     <div className="flex items-center gap-4 mb-4">
                         <div className="h-px bg-white/10 flex-1"></div>
                         <h3 className="text-xl font-serif font-bold text-gold-400 uppercase tracking-widest flex items-center gap-2">
@@ -465,6 +700,86 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                         )}
                     </div>
                 </div>
+            );
+            default: return null;
+        }
+    };
+
+    const activeWidgetIds = layout.flatMap(r => r.widgets);
+    const widgetPool = WIDGET_CATALOG.filter(w => !activeWidgetIds.includes(w.id));
+
+    return (
+        <>
+            {isLayoutEditing && (
+                <div className="mb-8 glass-panel-dark p-6 rounded-3xl border border-indigo-500/30 animate-fade-in">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-300 mb-4 flex items-center gap-2">
+                        <span>📦</span> Elérhető Widgetek
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                        {widgetPool.map(w => (
+                            <div key={w.id} className="bg-white/5 border border-white/10 rounded-xl p-2 flex flex-col items-center gap-2 group/pool hover:border-gold-500/30 transition-all relative overflow-hidden">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm">{w.icon}</span>
+                                    <span className="text-[9px] font-bold text-white/70 uppercase tracking-tighter">{w.name}</span>
+                                </div>
+                                <div className="flex flex-wrap justify-center gap-1">
+                                    {layout.map((_, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => addWidgetToRow(w.id, i)}
+                                            className="w-4 h-4 bg-indigo-600/40 hover:bg-indigo-600 rounded text-[7px] font-bold flex items-center justify-center transition-colors"
+                                            title={`${i+1}. sorhoz adás`}
+                                        >
+                                            {i+1}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                        {widgetPool.length === 0 && <div className="text-xs text-white/20 italic">Minden widget aktív.</div>}
+                    </div>
+                </div>
+            )}
+
+            <div className="flex justify-end mb-4">
+                <button
+                    onClick={() => setIsLayoutEditing(!isLayoutEditing)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all border ${isLayoutEditing ? 'bg-gold-500 text-black border-gold-500 shadow-lg' : 'bg-white/5 text-white/40 border-white/10 hover:border-white/30'}`}
+                >
+                    {isLayoutEditing ? '✔️ Elrendezés Mentése' : '⚙️ Főoldal Szerkesztése'}
+                </button>
+            </div>
+
+            <div className="flex flex-col gap-8 animate-fade-in relative">
+                {layout.map((row, idx) => (
+                    <div key={row.id} className={`relative group/row ${isLayoutEditing ? 'border-2 border-dashed border-white/10 p-4 rounded-3xl' : ''}`}>
+                        {isLayoutEditing && (
+                            <div className="absolute -top-3 left-4 flex gap-2 z-30">
+                                <div className="bg-indigo-600 text-[10px] font-bold px-2 py-0.5 rounded-full text-white shadow-lg">SOR {idx + 1}</div>
+                                <button onClick={() => moveRow(idx, 'up')} className="w-6 h-6 bg-black/80 rounded-full flex items-center justify-center text-[10px] hover:bg-gold-500">▲</button>
+                                <button onClick={() => moveRow(idx, 'down')} className="w-6 h-6 bg-black/80 rounded-full flex items-center justify-center text-[10px] hover:bg-gold-500">▼</button>
+                                <button onClick={() => removeRow(idx)} className="w-6 h-6 bg-red-600/80 rounded-full flex items-center justify-center text-[10px] hover:bg-red-500">✕</button>
+                            </div>
+                        )}
+
+                        <div className={`flex flex-wrap gap-4 w-full ${row.widgets.some(w => ['hero', 'actions', 'spreads'].includes(w)) ? '' : 'md:flex-nowrap'}`}>
+                            {row.widgets.map((wId, wIdx) => (
+                                <div key={wId} className={`relative group/widget h-full ${row.widgets.some(w => ['hero', 'actions', 'spreads'].includes(w)) ? 'w-full' : 'w-full flex-1 min-w-full md:min-w-0'}`}>
+                                    {renderWidget(wId, idx, wIdx)}
+                                </div>
+                            ))}
+                            {isLayoutEditing && row.widgets.length === 0 && (
+                                <div className="py-10 text-center text-white/20 italic border border-dashed border-white/5 rounded-2xl w-full">Üres sor - húzz ide widgetet</div>
+                            )}
+                        </div>
+                    </div>
+                ))}
+
+                {isLayoutEditing && (
+                    <button onClick={addRow} className="w-full py-4 border-2 border-dashed border-white/10 rounded-3xl text-white/40 font-bold hover:bg-white/5 transition-all">
+                        ➕ Új Sor Hozzáadása
+                    </button>
+                )}
             </div>
 
             {/* Day Details Modal - Fixed Center Z-100 */}
@@ -558,6 +873,155 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                     </div>
                 </div>
             )}
+
+            {/* Astro Detail Modal */}
+            {astroModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={() => setAstroModal(null)}>
+                    <div className="glass-panel-dark w-full max-w-2xl rounded-2xl border border-white/20 relative shadow-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+
+                        {/* Header */}
+                        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5 relative overflow-hidden rounded-t-2xl">
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={() => {
+                                        const d = new Date(astroModal.date);
+                                        if (astroModal.type === 'planetary') d.setDate(d.getDate() - 1);
+                                        else d.setMonth(d.getMonth() - 1);
+                                        setAstroModal({ ...astroModal, date: d });
+                                    }}
+                                    className="p-2 hover:bg-white/10 rounded-lg text-white/50 hover:text-white transition-colors"
+                                >
+                                    ◄
+                                </button>
+                                <div className="text-center">
+                                    <h3 className="text-xl font-serif font-bold text-gold-400 capitalize">
+                                        {astroModal.type === 'moon' && 'Holdfázisok'}
+                                        {astroModal.type === 'sun' && 'Napkelte & Nyugta'}
+                                        {astroModal.type === 'lunar' && 'Holdkelte & Nyugta'}
+                                        {astroModal.type === 'planetary' && 'Planétás Órák'}
+                                    </h3>
+                                    <div className="text-[10px] text-white/40 uppercase tracking-widest font-bold">
+                                        {astroModal.type === 'planetary'
+                                            ? astroModal.date.toLocaleDateString(language === 'hu' ? 'hu-HU' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                                            : astroModal.date.toLocaleDateString(language === 'hu' ? 'hu-HU' : 'en-US', { year: 'numeric', month: 'long' })
+                                        }
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        const d = new Date(astroModal.date);
+                                        if (astroModal.type === 'planetary') d.setDate(d.getDate() + 1);
+                                        else d.setMonth(d.getMonth() + 1);
+                                        setAstroModal({ ...astroModal, date: d });
+                                    }}
+                                    className="p-2 hover:bg-white/10 rounded-lg text-white/50 hover:text-white transition-colors"
+                                >
+                                    ►
+                                </button>
+                            </div>
+                            <button onClick={() => setAstroModal(null)} className="text-white/50 hover:text-white text-xl p-2">✕</button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6 overflow-y-auto custom-scrollbar">
+                            {astroModal.type === 'moon' && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {AstroService.getMoonPhasesForMonth(astroModal.date.getFullYear(), astroModal.date.getMonth()).map(m => (
+                                        <div key={m.day} className={`p-3 rounded-xl border flex items-center justify-between ${m.day === now.getDate() && astroModal.date.getMonth() === now.getMonth() ? 'bg-gold-500/10 border-gold-500/50' : 'bg-white/5 border-white/5'}`}>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-white/30 text-xs font-mono w-6">{m.day}.</span>
+                                                <span className="text-xl">{m.icon}</span>
+                                                <span className="text-sm font-bold text-gray-200">{m.phase}</span>
+                                            </div>
+                                            <span className="text-[10px] text-white/40 font-mono">{Math.round(m.illumination * 100)}%</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {astroModal.type === 'sun' && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {AstroService.getSolarTimesForMonth(astroModal.date.getFullYear(), astroModal.date.getMonth(), userLocation?.lat, userLocation?.lng).map(s => (
+                                        <div key={s.day} className={`p-3 rounded-xl border flex items-center justify-between ${s.day === now.getDate() && astroModal.date.getMonth() === now.getMonth() ? 'bg-gold-500/10 border-gold-500/50' : 'bg-white/5 border-white/5'}`}>
+                                            <span className="text-white/30 text-xs font-mono w-6">{s.day}.</span>
+                                            <div className="flex-1 flex justify-around">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-lg">🌅</span>
+                                                    <span className="text-sm font-bold text-gold-200">{s.sunrise}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-lg">🌇</span>
+                                                    <span className="text-sm font-bold text-orange-300">{s.sunset}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {astroModal.type === 'lunar' && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {AstroService.getLunarTimesForMonth(astroModal.date.getFullYear(), astroModal.date.getMonth(), userLocation?.lat, userLocation?.lng).map(l => (
+                                        <div key={l.day} className={`p-3 rounded-xl border flex items-center justify-between ${l.day === now.getDate() && astroModal.date.getMonth() === now.getMonth() ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-white/5 border-white/5'}`}>
+                                            <span className="text-white/30 text-xs font-mono w-6">{l.day}.</span>
+                                            <div className="flex-1 flex justify-around">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-lg">☾</span>
+                                                    <span className="text-sm font-bold text-blue-200">{l.moonrise}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-lg text-white/20">—</span>
+                                                    <span className="text-sm font-bold text-indigo-300">{l.moonset}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {astroModal.type === 'planetary' && (
+                                <div className="space-y-2">
+                                    {AstroService.getPlanetaryHoursForDay(astroModal.date, userLocation?.lat, userLocation?.lng).map(h => {
+                                        // Simple current hour highlighting logic
+                                        const hourDate = new Date(astroModal.date);
+                                        const isToday = hourDate.toDateString() === now.toDateString();
+                                        const nowMin = now.getHours() * 60 + now.getMinutes();
+                                        const [sh, sm] = h.start.split(':').map(Number);
+                                        const [eh, em] = h.end.split(':').map(Number);
+                                        const startMin = sh * 60 + sm;
+                                        let endMin = eh * 60 + em;
+                                        if (endMin < startMin) endMin += 1440;
+                                        const isCurrent = isToday && (nowMin >= startMin && nowMin < endMin);
+
+                                        return (
+                                            <div key={h.index} className={`p-3 rounded-xl border flex items-center gap-4 transition-all ${isCurrent ? 'bg-pink-500/20 border-pink-500 shadow-[0_0_15px_rgba(236,72,153,0.3)] scale-[1.02] z-10' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}>
+                                                <div className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-[10px] font-bold text-white/40 border border-white/5">
+                                                    {h.index}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-lg">{h.isNight ? '🌙' : '☀️'}</span>
+                                                        <span className={`font-bold ${isCurrent ? 'text-pink-300' : 'text-gray-200'}`}>🪐 {h.planet}</span>
+                                                        {isCurrent && <span className="text-[8px] bg-pink-500 text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter animate-pulse">Most</span>}
+                                                    </div>
+                                                    <div className="text-[10px] text-white/30 font-mono">
+                                                        {h.start} – {h.end}
+                                                    </div>
+                                                </div>
+                                                <div className="text-[10px] uppercase font-bold text-white/20 tracking-widest">
+                                                    {h.isNight ? 'Éjszakai óra' : 'Nappali óra'}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {selectedCardForPulse && <CardModal card={selectedCardForPulse} onClose={() => setSelectedCardForPulse(null)} />}
 
             {/* Zodiac Info Modal - Detailed - Fixed Center Z-100 */}
             {zodiacModal && (

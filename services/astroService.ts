@@ -180,15 +180,127 @@ export const AstroService = {
         return { moonrise: formatTime(mr), moonset: formatTime(ms) };
     },
 
-    getPlanetaryHour: (date: Date) => {
-        const planetsOrder = ["Nap", "Hold", "Mars", "Merkúr", "Jupiter", "Vénusz", "Szaturnusz"];
-        const dayRulerIndex = date.getDay();
-        const chaldeanSequence = [6, 4, 2, 0, 5, 3, 1];
-        const startIdx = chaldeanSequence.indexOf(dayRulerIndex);
-        let hoursSinceSunrise = date.getHours() - 6;
-        if (hoursSinceSunrise < 0) hoursSinceSunrise += 24;
-        const currentPlanetIdx = chaldeanSequence[(startIdx + hoursSinceSunrise) % 7];
-        return planetsOrder[currentPlanetIdx];
+    getPlanetaryHour: (date: Date, lat: number = DEFAULT_LAT, lng: number = DEFAULT_LNG) => {
+        const hours = AstroService.getPlanetaryHoursForDay(date, lat, lng);
+        const nowMin = date.getHours() * 60 + date.getMinutes();
+
+        // Find the hour that contains the current time
+        const currentHour = hours.find(h => {
+            const [startH, startM] = h.start.split(':').map(Number);
+            const [endH, endM] = h.end.split(':').map(Number);
+            const startTotal = startH * 60 + startM;
+            let endTotal = endH * 60 + endM;
+
+            if (endTotal < startTotal) endTotal += 1440; // Crosses midnight
+
+            let checkTime = nowMin;
+            if (checkTime < startTotal && endTotal > 1440) checkTime += 1440;
+
+            return checkTime >= startTotal && checkTime < endTotal;
+        });
+
+        return currentHour?.planet || "Ismeretlen";
+    },
+
+    getPlanetaryHoursForDay: (date: Date, lat: number = DEFAULT_LAT, lng: number = DEFAULT_LNG) => {
+        const planetsOrder = ["Vasárnap", "Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat"]; // Just for reference
+        const planets = ["Nap", "Vénusz", "Merkúr", "Hold", "Szaturnusz", "Jupiter", "Mars"]; // Chaldean order (reversed for hours)
+        // Wait, standard order for hours is: Sun, Venus, Mercury, Moon, Saturn, Jupiter, Mars
+        const hourPlanets = ["Nap", "Vénusz", "Merkúr", "Hold", "Szaturnusz", "Jupiter", "Mars"];
+        const dayRulers = ["Nap", "Hold", "Mars", "Merkúr", "Jupiter", "Vénusz", "Szaturnusz"];
+
+        const solar = AstroService.getSolarTimes(date, lat, lng);
+        const tomorrow = new Date(date);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const solarTomorrow = AstroService.getSolarTimes(tomorrow, lat, lng);
+
+        const parseToMin = (s: string) => {
+            const [h, m] = s.split(':').map(Number);
+            return h * 60 + m;
+        };
+
+        const sunrise = parseToMin(solar.sunrise);
+        const sunset = parseToMin(solar.sunset);
+        const nextSunrise = parseToMin(solarTomorrow.sunrise) + 1440;
+
+        const dayLength = sunset - sunrise;
+        const nightLength = nextSunrise - sunset;
+
+        const dayHourLen = dayLength / 12;
+        const nightHourLen = nightLength / 12;
+
+        const dayRuler = dayRulers[date.getDay()];
+        const startIndex = hourPlanets.indexOf(dayRuler);
+
+        const hours = [];
+        const formatMin = (m: number) => {
+            let total = m % 1440;
+            const hr = Math.floor(total / 60);
+            const min = Math.floor(total % 60);
+            return `${hr}:${min.toString().padStart(2, '0')}`;
+        };
+
+        // Day Hours
+        for (let i = 0; i < 12; i++) {
+            const start = sunrise + (i * dayHourLen);
+            const end = sunrise + ((i + 1) * dayHourLen);
+            hours.push({
+                index: i + 1,
+                isNight: false,
+                planet: hourPlanets[(startIndex + i) % 7],
+                start: formatMin(start),
+                end: formatMin(end)
+            });
+        }
+
+        // Night Hours
+        for (let i = 0; i < 12; i++) {
+            const start = sunset + (i * nightHourLen);
+            const end = sunset + ((i + 1) * nightHourLen);
+            hours.push({
+                index: i + 13,
+                isNight: true,
+                planet: hourPlanets[(startIndex + 12 + i) % 7],
+                start: formatMin(start),
+                end: formatMin(end)
+            });
+        }
+
+        return hours;
+    },
+
+    getMoonPhasesForMonth: (year: number, month: number) => {
+        const days = new Date(year, month + 1, 0).getDate();
+        const phases = [];
+        for (let d = 1; d <= days; d++) {
+            const date = new Date(year, month, d);
+            const moon = AstroService.calculateMoonPhase(date);
+            phases.push({ day: d, ...moon });
+        }
+        return phases;
+    },
+
+    getSolarTimesForMonth: (year: number, month: number, lat: number = DEFAULT_LAT, lng: number = DEFAULT_LNG) => {
+        const days = new Date(year, month + 1, 0).getDate();
+        const times = [];
+        for (let d = 1; d <= days; d++) {
+            const date = new Date(year, month, d);
+            const solar = AstroService.getSolarTimes(date, lat, lng);
+            times.push({ day: d, ...solar });
+        }
+        return times;
+    },
+
+    getLunarTimesForMonth: (year: number, month: number, lat: number = DEFAULT_LAT, lng: number = DEFAULT_LNG) => {
+        const days = new Date(year, month + 1, 0).getDate();
+        const times = [];
+        for (let d = 1; d <= days; d++) {
+            const date = new Date(year, month, d);
+            const moon = AstroService.calculateMoonPhase(date);
+            const lunar = AstroService.getLunarTimes(date, moon.age, lat, lng);
+            times.push({ day: d, ...lunar });
+        }
+        return times;
     },
 
     getWiccanHoliday: (date: Date) => {
@@ -222,6 +334,112 @@ export const AstroService = {
         return null;
     },
 
+    getNextSabbat: (date: Date) => {
+        const currentYear = date.getFullYear();
+        const sabbats = [
+            { name: "Imbolc", month: 2, day: 1 },
+            { name: "Ostara", month: 3, day: 20 },
+            { name: "Beltane", month: 5, day: 1 },
+            { name: "Litha", month: 6, day: 21 },
+            { name: "Lammas", month: 8, day: 1 },
+            { name: "Mabon", month: 9, day: 22 },
+            { name: "Samhain", month: 10, day: 31 },
+            { name: "Yule", month: 12, day: 21 }
+        ];
+
+        const sortedSabbats = sabbats.map(s => {
+            let d = new Date(currentYear, s.month - 1, s.day);
+            if (d.getTime() < date.getTime()) {
+                d = new Date(currentYear + 1, s.month - 1, s.day);
+            }
+            return { ...s, date: d };
+        }).sort((a, b) => a.date.getTime() - b.date.getTime());
+
+        const next = sortedSabbats[0];
+        const diffTime = next.date.getTime() - date.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        return { ...next, daysUntil: diffDays };
+    },
+
+    getPersonalDayNumber: (birthDate: string, targetDate: Date) => {
+        if (!birthDate) return null;
+        const b = new Date(birthDate);
+        if (isNaN(b.getTime())) return null;
+
+        const sumDigits = (n: number | string) => n.toString().split('').reduce((acc, d) => acc + parseInt(d), 0);
+        const reduceToSingle = (n: number) => {
+            let res = n;
+            while (res > 9 && res !== 11 && res !== 22) { // Keep master numbers if desired, but usually 1-9 for day
+                res = sumDigits(res);
+            }
+            return res;
+        };
+
+        const bDay = b.getDate();
+        const bMonth = b.getMonth() + 1;
+        const tYear = targetDate.getFullYear();
+        const tMonth = targetDate.getMonth() + 1;
+        const tDay = targetDate.getDate();
+
+        // Numerology: Birth Month + Birth Day + Current Year + Current Month + Current Day
+        const total = sumDigits(bDay) + sumDigits(bMonth) + sumDigits(tYear) + sumDigits(tMonth) + sumDigits(tDay);
+        return reduceToSingle(total);
+    },
+
+    getZodiacProgression: (date: Date) => {
+        const sunLong = AstroService.getSunLongitude(date);
+        const index = Math.floor(sunLong / 30);
+        const progress = ((sunLong % 30) / 30) * 100;
+
+        // Season boundaries (approximate)
+        const currentYear = date.getFullYear();
+        const startMonth = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2][index];
+        const startDay = [21, 20, 21, 21, 23, 23, 23, 23, 22, 22, 20, 19][index];
+
+        return {
+            sign: ZODIAC[index],
+            progress: Math.round(progress),
+            startDate: `${startMonth}.${startDay}.`,
+        };
+    },
+
+    getNextSignificantMoon: (date: Date) => {
+        // Iterate day by day until Full or New Moon
+        let checkDate = new Date(date);
+        for (let i = 0; i < 31; i++) {
+            const data = AstroService.calculateMoonPhase(checkDate);
+            if (data.phase === "Telihold" || data.phase === "Újhold") {
+                const diffTime = checkDate.getTime() - date.getTime();
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                const diffHours = Math.floor((diffTime / (1000 * 60 * 60)) % 24);
+                return {
+                    type: data.phase,
+                    icon: data.icon,
+                    date: checkDate,
+                    days: diffDays,
+                    hours: diffHours
+                };
+            }
+            checkDate.setDate(checkDate.getDate() + 1);
+            checkDate.setHours(0, 0, 0, 0); // Check center of days
+        }
+        return null;
+    },
+
+    getElementForPlanet: (planet: string) => {
+        const mapping: Record<string, string> = {
+            "Nap": "Tűz",
+            "Hold": "Víz",
+            "Mars": "Tűz",
+            "Merkúr": "Levegő",
+            "Jupiter": "Levegő",
+            "Vénusz": "Föld",
+            "Szaturnusz": "Föld"
+        };
+        return mapping[planet] || "Ismeretlen";
+    },
+
     getAstroData: (date: Date = new Date(), location?: {lat: number, lng: number}): AstrologyData & { sunrise: string, sunset: string, moonrise: string, moonset: string } => {
         const validDate = isNaN(date.getTime()) ? new Date() : date;
         const lat = location?.lat || DEFAULT_LAT;
@@ -234,7 +452,7 @@ export const AstroService = {
         const num = AstroService.calculateNumerology(validDate);
         const solarTimes = AstroService.getSolarTimes(validDate, lat, lng);
         const lunarTimes = AstroService.getLunarTimes(validDate, moon.age, lat, lng);
-        const planetHour = AstroService.getPlanetaryHour(validDate);
+        const planetHour = AstroService.getPlanetaryHour(validDate, lat, lng);
         return {
             moonPhase: moon.phase,
             illumination: moon.illumination,

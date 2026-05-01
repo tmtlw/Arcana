@@ -314,10 +314,15 @@ export interface User {
   lessonCollection?: string[];
   deckCollection?: string[];
   activeQuests?: UserQuestProgress[]; // Quest Progress Tracking
+  dashboardLayout?: DashboardRow[]; // Widget IDs order
 
   // Shop System
   currency?: number; // Pontok (vásárlásra)
   inventory?: string[]; // Megvásárolt item ID-k
+  dailyIntention?: { text: string, date: string };
+  lastQuizResult?: { date: string, correct: boolean, questionId?: string };
+  quizStreak?: number;
+  bestQuizStreak?: number;
 }
 
 export interface ShopItem {
@@ -438,4 +443,9 @@ export interface UserQuestProgress {
     isCompleted: boolean;
     claimed: boolean;
     expiresAt?: string; // For daily/weekly rotation
+}
+
+export interface DashboardRow {
+    id: string;
+    widgets: string[];
 }
