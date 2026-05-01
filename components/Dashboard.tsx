@@ -620,9 +620,9 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
                             </div>
                         )}
 
-                        <div className={`grid gap-4 ${(row.widgets || []).some(w => ['hero', 'actions', 'spreads'].includes(w)) ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6'}`}>
+                        <div className={`flex flex-wrap gap-4 w-full ${row.widgets.some(w => ['hero', 'actions', 'spreads'].includes(w)) ? '' : 'md:flex-nowrap'}`}>
                             {row.widgets.map((wId, wIdx) => (
-                                <div key={wId} className="relative group/widget">
+                                <div key={wId} className={`relative group/widget h-full ${row.widgets.some(w => ['hero', 'actions', 'spreads'].includes(w)) ? 'w-full' : 'w-full flex-1 min-w-full md:min-w-0'}`}>
                                     {renderWidget(wId, idx, wIdx)}
                                 </div>
                             ))}
