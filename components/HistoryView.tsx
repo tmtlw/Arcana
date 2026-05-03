@@ -31,7 +31,7 @@ export const HistoryView = ({ deck, onBack }: any) => {
     const [showArchived, setShowArchived] = useState(false);
 
     // View Mode
-    const [viewMode, setViewMode] = useState<'list' | 'gallery' | 'map'>('list');
+    const [viewMode, setViewMode] = useState<'list' | 'gallery'>('list');
 
     // Selection State
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -45,6 +45,17 @@ export const HistoryView = ({ deck, onBack }: any) => {
     
     // Detail / Analysis State
     const [selectedReadingForAnalysis, setSelectedReadingForAnalysis] = useState<Reading | null>(null);
+
+    const clearAllFilters = () => {
+        setSearch("");
+        setFilterFav(false);
+        setFilterDate("");
+        setFilterTag("");
+        setFilterSunSign("");
+        setFilterMoonSign("");
+        setSortOrder("desc");
+        setShowArchived(false);
+    };
 
     // Sequence Management State
     const [isManagingSequences, setIsManagingSequences] = useState(false);
@@ -70,35 +81,39 @@ export const HistoryView = ({ deck, onBack }: any) => {
 
     const filtered = useMemo(() => {
         const result = myReadings.filter(r => {
+            const matchesArchive = showArchived ? r.isArchived : !r.isArchived;
+            if (!matchesArchive) return false;
+
             const cardNames = r.cards.map(c => deck.find((d: any) => d.id === c.cardId)?.name || '').join(' ').toLowerCase();
             const searchTerm = search.toLowerCase();
 
-            const matchesSearch = (
+            const matchesSearch = !search || (
                 r.question?.toLowerCase().includes(searchTerm) ||
                 r.notes.toLowerCase().includes(searchTerm) ||
                 cardNames.includes(searchTerm)
             );
+            if (!matchesSearch) return false;
 
             const matchesFav = filterFav ? r.isFavorite : true;
+            if (!matchesFav) return false;
 
-            // JAVÍTOTT DÁTUM SZŰRŐ: r.date lehet ISO string vagy Date objektum, filterDate YYYY-MM
             const readingDateStr = typeof r.date === 'string' ? r.date : new Date(r.date).toISOString();
-            const matchesDate = filterDate ? readingDateStr.startsWith(filterDate) : true;
+            const matchesDate = !filterDate || readingDateStr.startsWith(filterDate);
+            if (!matchesDate) return false;
 
-            const matchesTag = filterTag ? (r.tags || []).includes(filterTag) || r.sequenceId === filterTag : true;
+            const matchesTag = !filterTag || ((r.tags || []).includes(filterTag) || r.sequenceId === filterTag);
+            if (!matchesTag) return false;
 
-            // Asztrológia szűrés javítása: normalization
             const normalizeSign = (s: string) => s?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             const rSun = r.astrology?.sunSign ? normalizeSign(r.astrology.sunSign) : null;
             const rMoon = r.astrology?.moonSign ? normalizeSign(r.astrology.moonSign) : null;
             const fSun = filterSunSign ? normalizeSign(filterSunSign) : null;
             const fMoon = filterMoonSign ? normalizeSign(filterMoonSign) : null;
 
-            const matchesSun = fSun ? rSun === fSun : true;
-            const matchesMoon = fMoon ? rMoon === fMoon : true;
-            const matchesArchive = showArchived ? r.isArchived : !r.isArchived;
+            const matchesSun = !fSun || rSun === fSun;
+            const matchesMoon = !fMoon || rMoon === fMoon;
 
-            return matchesSearch && matchesFav && matchesDate && matchesTag && matchesSun && matchesMoon && matchesArchive;
+            return matchesSun && matchesMoon;
         });
 
         return [...result].sort((a, b) => {
@@ -299,28 +314,22 @@ export const HistoryView = ({ deck, onBack }: any) => {
         return <ReadingAnalysis reading={selectedReadingForAnalysis} onClose={() => setSelectedReadingForAnalysis(null)} />;
     }
 
-    if ((viewMode as string) === 'map') {
-        return (
-            <div className="space-y-4">
-                <button onClick={() => setViewMode('list')} className="bg-white/10 px-4 py-2 rounded-lg text-sm font-bold">← Vissza a listához</button>
-                <HistoryHeatmap readings={myReadings} onSelectReading={(r) => { setViewMode('list'); setSelectedReadingForAnalysis(r); }} />
-            </div>
-        );
-    }
 
     return (
         <>
             <div className="space-y-6 pb-20 animate-fade-in max-w-5xl mx-auto">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                     <div className="flex items-center">
-                        <button onClick={onBack} className="mr-4 p-2 hover:bg-white/10 rounded-full transition-colors" title="Vissza a főoldalra">←</button>
+                        <button onClick={onBack} className="mr-4 px-4 py-2 hover:bg-white/10 rounded-xl transition-all border border-white/10 flex items-center gap-2 font-bold text-sm" title="Vissza a főoldalra">
+                            <span>←</span>
+                            <span>vissza</span>
+                        </button>
                         <h2 className="text-3xl font-serif font-bold">Az Idő Fonalai</h2>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <div className="bg-black/30 p-1 rounded-lg flex border border-white/10">
                             <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 rounded text-xs font-bold transition ${viewMode === 'list' ? 'bg-white/20 text-white' : 'text-gray-500'}`}>Lista</button>
                             <button onClick={() => setViewMode('gallery')} className={`px-3 py-1.5 rounded text-xs font-bold transition ${viewMode === 'gallery' ? 'bg-white/20 text-white' : 'text-gray-500'}`}>Galéria</button>
-                            <button onClick={() => setViewMode('map')} className={`px-3 py-1.5 rounded text-xs font-bold transition ${viewMode === 'map' ? 'bg-white/20 text-white' : 'text-gray-500'}`}>Térkép</button>
                         </div>
                         <button onClick={() => setShowStats(true)} className="bg-indigo-600/30 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-500/30 hover:bg-indigo-600/50 transition-colors">📊 Statisztika</button>
                         <button 
@@ -426,33 +435,42 @@ export const HistoryView = ({ deck, onBack }: any) => {
                             {filterFav ? '★' : '☆'}
                         </button>
                     </div>
-                    <div className="flex flex-wrap gap-4">
+                    <div className="flex flex-wrap gap-4 items-center">
                         <select className="bg-black/30 border border-white/10 p-2 rounded text-white text-sm" value={sortOrder} onChange={e => setSortOrder(e.target.value as any)}>
                             <option value="desc">🕒 Legújabb elől</option>
                             <option value="asc">🕒 Legrégebbi elől</option>
                             <option value="mood">🎭 Hangulat</option>
                             <option value="alpha">🔤 ABC (Kérdés)</option>
                         </select>
-                        {/* Havi szűrő visszállítása */}
-                        <input
-                            type="month"
-                            className="bg-black/30 border border-white/10 p-2 rounded text-white text-sm"
-                            value={filterDate}
-                            onChange={e => setFilterDate(e.target.value)}
-                        />
-                        <button onClick={() => setFilterDate("")} className="text-xs opacity-50 hover:opacity-100">✖ Szűrő törlése</button>
+
+                        <div className="relative">
+                            <input
+                                type="month"
+                                className="bg-black/30 border border-white/10 p-2 rounded text-white text-sm focus:border-gold-500 outline-none"
+                                value={filterDate}
+                                onChange={e => setFilterDate(e.target.value)}
+                                onClick={(e) => (e.target as any).showPicker?.()}
+                            />
+                        </div>
+
                         <select className="bg-black/30 border border-white/10 p-2 rounded text-white text-sm flex-1 min-w-[150px]" value={filterTag} onChange={e => setFilterTag(e.target.value)}>
                             <option value="">-- Minden Sorozat --</option>
                             {userFolders.map(f => <option key={f} value={f}>📂 {f}</option>)}
                         </select>
+
                         <select className="bg-black/30 border border-white/10 p-2 rounded text-white text-sm" value={filterSunSign} onChange={e => setFilterSunSign(e.target.value)}>
                             <option value="">☀️ Bármely Napjegy</option>
                             {["Kos", "Bika", "Ikrek", "Rák", "Oroszlán", "Szűz", "Mérleg", "Skorpió", "Nyilas", "Bak", "Vízöntő", "Halak"].map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
+
                         <select className="bg-black/30 border border-white/10 p-2 rounded text-white text-sm" value={filterMoonSign} onChange={e => setFilterMoonSign(e.target.value)}>
                             <option value="">🌙 Bármely Holdjegy</option>
                             {["Kos", "Bika", "Ikrek", "Rák", "Oroszlán", "Szűz", "Mérleg", "Skorpió", "Nyilas", "Bak", "Vízöntő", "Halak"].map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
+
+                        <button onClick={clearAllFilters} className="bg-red-500/10 hover:bg-red-500/20 text-red-400 px-4 py-2 rounded-lg text-sm font-bold border border-red-500/30 transition-all flex items-center gap-2">
+                            <span>✖</span> Összes szűrő törlése
+                        </button>
                     </div>
                 </div>
 
