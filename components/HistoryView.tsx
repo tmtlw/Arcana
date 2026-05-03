@@ -61,6 +61,9 @@ export const HistoryView = ({ deck, onBack }: any) => {
     // Share as Image State
     const [sharingReading, setSharingReading] = useState<Reading | null>(null);
 
+    // Menu state
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
     const userFolders = currentUser?.folders || [];
 
     const myReadings = useMemo(() => readings.filter(r => r.userId === currentUser?.id), [readings, currentUser?.id]);
@@ -78,12 +81,21 @@ export const HistoryView = ({ deck, onBack }: any) => {
 
             const matchesFav = filterFav ? r.isFavorite : true;
 
-            // JAVÍTOTT DÁTUM SZŰRŐ: r.date ISO formátumú, filterDate pedig YYYY-MM vagy YYYY-MM-DD
-            const matchesDate = filterDate ? r.date.includes(filterDate) : true;
+            // JAVÍTOTT DÁTUM SZŰRŐ: r.date lehet ISO string vagy Date objektum, filterDate YYYY-MM
+            const readingDateStr = typeof r.date === 'string' ? r.date : new Date(r.date).toISOString();
+            const matchesDate = filterDate ? readingDateStr.startsWith(filterDate) : true;
 
-            const matchesTag = filterTag ? (r.tags || []).includes(filterTag) : true;
-            const matchesSun = filterSunSign ? r.astrology?.sunSign?.toLowerCase() === filterSunSign.toLowerCase() : true;
-            const matchesMoon = filterMoonSign ? r.astrology?.moonSign?.toLowerCase() === filterMoonSign.toLowerCase() : true;
+            const matchesTag = filterTag ? (r.tags || []).includes(filterTag) || r.sequenceId === filterTag : true;
+
+            // Asztrológia szűrés javítása: normalization
+            const normalizeSign = (s: string) => s?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const rSun = r.astrology?.sunSign ? normalizeSign(r.astrology.sunSign) : null;
+            const rMoon = r.astrology?.moonSign ? normalizeSign(r.astrology.moonSign) : null;
+            const fSun = filterSunSign ? normalizeSign(filterSunSign) : null;
+            const fMoon = filterMoonSign ? normalizeSign(filterMoonSign) : null;
+
+            const matchesSun = fSun ? rSun === fSun : true;
+            const matchesMoon = fMoon ? rMoon === fMoon : true;
             const matchesArchive = showArchived ? r.isArchived : !r.isArchived;
 
             return matchesSearch && matchesFav && matchesDate && matchesTag && matchesSun && matchesMoon && matchesArchive;
@@ -527,18 +539,28 @@ export const HistoryView = ({ deck, onBack }: any) => {
                                         </div>
 
                                         {!isMultiSelectMode && (
-                                            <div className="absolute top-4 right-4 group/menu">
-                                                <button className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/20 transition-all border border-white/10">⋮</button>
-                                                <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl opacity-0 group-hover/menu:opacity-100 pointer-events-none group-hover/menu:pointer-events-auto transition-all z-50 p-2 space-y-1">
-                                                    <button onClick={(e) => { e.stopPropagation(); setSelectedReadingForAnalysis(r); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 flex items-center gap-2 text-xs"><span>🔍</span> Részletes Elemzés</button>
-                                                    <button onClick={(e) => { e.stopPropagation(); setSharingReading(r); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 flex items-center gap-2 text-xs"><span>🖼️</span> Megosztás képként</button>
-                                                    <button onClick={(e) => { e.stopPropagation(); updateReading({ ...r, isPublic: !r.isPublic }); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 flex items-center gap-2 text-xs"><span>{r.isPublic ? '🔒' : '🌍'}</span> {r.isPublic ? 'Priváttá tétel' : 'Publikussá tétel'}</button>
-                                                    <button onClick={(e) => { e.stopPropagation(); handleCopyToClipboard(r, spreadName); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 flex items-center gap-2 text-xs"><span>📋</span> Másolás</button>
-                                                    <button onClick={(e) => { e.stopPropagation(); toggleFavorite(r.id); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 flex items-center gap-2 text-xs"><span>{r.isFavorite ? '☆' : '★'}</span> {r.isFavorite ? 'Eltávolítás a kedvencekből' : 'Kedvencnek jelölés'}</button>
-                                                    <button onClick={(e) => { e.stopPropagation(); handleCalendarExport(r); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 flex items-center gap-2 text-xs"><span>📅</span> Naptárba</button>
-                                                    <button onClick={(e) => { e.stopPropagation(); updateReading({ ...r, isArchived: !r.isArchived }); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 flex items-center gap-2 text-xs"><span>📦</span> {r.isArchived ? 'Visszaállítás' : 'Archiválás'}</button>
-                                                    <div className="h-px bg-white/5 my-1"></div>
-                                                    <button onClick={(e) => { e.stopPropagation(); if(confirm('Törlöd ezt a bejegyzést?')) deleteReading(r.id); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-red-500/10 text-red-400 flex items-center gap-2 text-xs"><span>🗑️</span> Törlés</button>
+                                            <div className="absolute top-4 right-4 flex items-center gap-2">
+                                                <button onClick={(e) => { e.stopPropagation(); toggleFavorite(r.id); }} className={`w-8 h-8 flex items-center justify-center rounded-full border transition-all ${r.isFavorite ? 'bg-gold-500/20 border-gold-500 text-gold-400' : 'bg-white/5 border-white/10 text-white/30 hover:text-white'}`} title="Kedvenc">★</button>
+                                                <div className="relative">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === r.id ? null : r.id); }}
+                                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/20 transition-all border border-white/10"
+                                                    >⋮</button>
+                                                    {openMenuId === r.id && (
+                                                        <>
+                                                            <div className="fixed inset-0 z-40" onClick={() => setOpenMenuId(null)}></div>
+                                                            <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl z-50 p-2 space-y-1 animate-scale-in">
+                                                                <button onClick={(e) => { e.stopPropagation(); setSelectedReadingForAnalysis(r); setOpenMenuId(null); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 flex items-center gap-2 text-xs"><span>🔍</span> Részletes Elemzés</button>
+                                                                <button onClick={(e) => { e.stopPropagation(); setSharingReading(r); setOpenMenuId(null); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 flex items-center gap-2 text-xs"><span>🖼️</span> Megosztás képként</button>
+                                                                <button onClick={(e) => { e.stopPropagation(); updateReading({ ...r, isPublic: !r.isPublic }); setOpenMenuId(null); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 flex items-center gap-2 text-xs"><span>{r.isPublic ? '🔒' : '🌍'}</span> {r.isPublic ? 'Priváttá tétel' : 'Publikussá tétel'}</button>
+                                                                <button onClick={(e) => { e.stopPropagation(); handleCopyToClipboard(r, spreadName); setOpenMenuId(null); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 flex items-center gap-2 text-xs"><span>📋</span> Másolás</button>
+                                                                <button onClick={(e) => { e.stopPropagation(); handleCalendarExport(r); setOpenMenuId(null); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 flex items-center gap-2 text-xs"><span>📅</span> Naptárba</button>
+                                                                <button onClick={(e) => { e.stopPropagation(); updateReading({ ...r, isArchived: !r.isArchived }); setOpenMenuId(null); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 flex items-center gap-2 text-xs"><span>📦</span> {r.isArchived ? 'Visszaállítás' : 'Archiválás'}</button>
+                                                                <div className="h-px bg-white/5 my-1"></div>
+                                                                <button onClick={(e) => { e.stopPropagation(); if(confirm('Törlöd ezt a bejegyzést?')) deleteReading(r.id); setOpenMenuId(null); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-red-500/10 text-red-400 flex items-center gap-2 text-xs"><span>🗑️</span> Törlés</button>
+                                                            </div>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                         )}
@@ -548,7 +570,7 @@ export const HistoryView = ({ deck, onBack }: any) => {
                                         <div className="flex justify-between items-start mb-2">
                                             <div className="text-xs font-bold uppercase text-white/30 tracking-widest">A Kérdés</div>
                                             {editingId !== r.id && (
-                                                <button onClick={(e) => { e.stopPropagation(); startEdit(r); }} className="text-[10px] text-gold-500/60 hover:text-gold-500">Szerkesztés ✎</button>
+                                                <button onClick={(e) => { e.stopPropagation(); startEdit(r); }} className="text-sm px-3 py-1 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 text-gold-500 font-bold transition-all" title="Szerkesztés">✎ Szerkesztés</button>
                                             )}
                                         </div>
                                         {editingId === r.id ? (
@@ -591,8 +613,12 @@ export const HistoryView = ({ deck, onBack }: any) => {
                                                     return (
                                                         <React.Fragment key={c.positionId}>
                                                             <div className="w-full md:w-32 flex-shrink-0">
-                                                                <div className={`relative aspect-[2/3] rounded-xl shadow-2xl ${c.isReversed ? 'rotate-180' : ''}`}>
-                                                                    <img src={getCardImage(c.cardId, activeDeckImageSource)} className="w-full h-full object-cover rounded-xl border border-white/20" loading="lazy" />
+                                                                <div
+                                                                    className={`relative aspect-[2/3] rounded-xl shadow-2xl cursor-zoom-in group/card ${c.isReversed ? 'rotate-180' : ''}`}
+                                                                    onClick={(e) => { e.stopPropagation(); setSelectedReadingForAnalysis(r); }}
+                                                                >
+                                                                    <img src={getCardImage(c.cardId, activeDeckImageSource)} className="w-full h-full object-cover rounded-xl border border-white/20 group-hover/card:border-gold-500 transition-all" loading="lazy" />
+                                                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/card:opacity-100 transition-opacity rounded-xl flex items-center justify-center text-white text-xs font-bold">Részletek 🔍</div>
                                                                 </div>
                                                             </div>
                                                             <div className="flex-1 space-y-3">
@@ -637,8 +663,11 @@ export const HistoryView = ({ deck, onBack }: any) => {
                                                         if(!card) return null;
                                                         return (
                                                             <div key={c.positionId} className="flex flex-col items-center">
-                                                                <div className={`relative w-full aspect-[2/3] rounded-lg overflow-hidden border border-white/5 ${c.isReversed ? 'rotate-180' : ''}`}>
-                                                                    <img src={getCardImage(c.cardId, activeDeckImageSource)} className="w-full h-full object-cover" loading="lazy" />
+                                                                <div
+                                                                    className={`relative w-full aspect-[2/3] rounded-lg overflow-hidden border border-white/5 cursor-zoom-in group/cardsmall ${c.isReversed ? 'rotate-180' : ''}`}
+                                                                    onClick={(e) => { e.stopPropagation(); setSelectedReadingForAnalysis(r); }}
+                                                                >
+                                                                    <img src={getCardImage(c.cardId, activeDeckImageSource)} className="w-full h-full object-cover group-hover/cardsmall:scale-110 transition-transform" loading="lazy" />
                                                                 </div>
                                                                 <div className="text-[8px] font-bold truncate mt-1 text-white/50">{card.name}</div>
                                                             </div>
