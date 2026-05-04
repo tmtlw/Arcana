@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useTarot } from '../context/TarotContext';
 import { THEMES, getCardImage, MOODS } from '../constants';
 import { Card, DrawnCard, Reading, MeaningContext } from '../types';
@@ -71,6 +71,13 @@ export const HistoryView = ({ deck, onBack }: any) => {
 
     // Share as Image State
     const [sharingReading, setSharingReading] = useState<Reading | null>(null);
+
+    // Mount notification for "On This Day"
+    useEffect(() => {
+        if (onThisDay.length > 0 && !showArchived) {
+            showToast(`✨ ${onThisDay.length} korábbi emléked van erről a napról!`, "info");
+        }
+    }, []);
 
     // Menu state
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -382,9 +389,13 @@ export const HistoryView = ({ deck, onBack }: any) => {
 
                 {/* On This Day Highlight - Collapsible */}
                 {onThisDay.length > 0 && !showArchived && (
-                    <details className="bg-gold-500/10 border border-gold-500/30 rounded-2xl overflow-hidden group">
+                    <details className="bg-gold-500/20 border-2 border-gold-500/40 rounded-2xl overflow-hidden group mb-4 shadow-[0_0_30px_rgba(251,191,36,0.1)]" open>
                         <summary className="p-4 cursor-pointer hover:bg-gold-500/5 transition-colors flex items-center justify-between">
-                            <h3 className="text-gold-400 font-serif font-bold flex items-center gap-2">✨ Ezen a napon a múltban...</h3>
+                            <h3 className="text-gold-400 font-serif font-bold flex items-center gap-2">
+                                <span className="animate-pulse">✨</span>
+                                Ezen a napon már húztál korábban is!
+                                <span className="text-[10px] bg-gold-500 text-black px-2 py-0.5 rounded-full ml-2 font-sans">{onThisDay.length} emlék</span>
+                            </h3>
                             <span className="text-gold-400/50 group-open:rotate-180 transition-transform">▼</span>
                         </summary>
                         <div className="p-4 pt-0">
@@ -393,12 +404,22 @@ export const HistoryView = ({ deck, onBack }: any) => {
                                     const d = new Date(r.date);
                                     const isMonthly = d.getFullYear() === new Date().getFullYear();
                                     return (
-                                        <button key={r.id} onClick={() => setSelectedReadingForAnalysis(r)} className="flex-shrink-0 bg-black/40 p-3 rounded-xl border border-white/10 hover:border-gold-500 transition-colors text-left min-w-[180px]">
+                                        <button key={r.id} onClick={() => setSelectedReadingForAnalysis(r)} className="flex-shrink-0 bg-black/40 p-3 rounded-xl border border-white/10 hover:border-gold-500 transition-colors text-left min-w-[200px]">
                                             <div className="text-[10px] opacity-50 uppercase font-bold text-gold-500/70">
                                                 {isMonthly ? `${d.toLocaleDateString('hu-HU', { month: 'short' })} (Havi)` : d.getFullYear()}
                                             </div>
                                             <div className="text-xs font-bold truncate mt-1">{r.question || "Napi húzás"}</div>
-                                            <div className="text-[9px] opacity-40 mt-1">{r.cards.length} lapos kirakás</div>
+                                            <div className="mt-2 flex flex-wrap gap-1">
+                                                {r.cards.map(c => {
+                                                    const card = deck.find((d: any) => d.id === c.cardId);
+                                                    return (
+                                                        <span key={c.cardId} className="text-[9px] bg-white/5 px-1.5 py-0.5 rounded border border-white/5 text-white/70">
+                                                            {card?.name}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
+                                            <div className="text-[9px] opacity-30 mt-2 italic">{r.cards.length} lapos kirakás</div>
                                         </button>
                                     );
                                 })}
