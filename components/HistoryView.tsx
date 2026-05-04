@@ -191,7 +191,7 @@ export const HistoryView = ({ deck, onBack }: any) => {
         const sortedCards = Object.entries(counts).sort((a, b) => b[1] - a[1]);
         const sortedMonthlyCards = Object.entries(monthlyCounts).sort((a, b) => b[1] - a[1]);
         return { sortedCards, sortedMonthlyCards, elements, moonPhases };
-    }, [myReadings, deck]);
+    }, [myReadings, deck, statsMonth, statsYear]);
 
     const handleBulkDelete = () => {
         if(confirm(`${selectedIds.length} bejegyzés törlése?`)) {
@@ -389,7 +389,7 @@ export const HistoryView = ({ deck, onBack }: any) => {
 
                 {/* On This Day Highlight - Collapsible */}
                 {onThisDay.length > 0 && !showArchived && (
-                    <details className="bg-gold-500/20 border-2 border-gold-500/40 rounded-2xl overflow-hidden group mb-4 shadow-[0_0_30px_rgba(251,191,36,0.1)]" open>
+                    <details className="bg-gold-500/20 border-2 border-gold-500/40 rounded-2xl overflow-hidden group mb-4 shadow-[0_0_30px_rgba(251,191,36,0.1)]">
                         <summary className="p-4 cursor-pointer hover:bg-gold-500/5 transition-colors flex items-center justify-between">
                             <h3 className="text-gold-400 font-serif font-bold flex items-center gap-2">
                                 <span className="animate-pulse">✨</span>
