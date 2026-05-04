@@ -754,18 +754,7 @@ export const HistoryView = ({ deck, onBack }: any) => {
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={() => setShowStats(false)}>
                     <div className="glass-panel-dark max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-3xl p-6 md:p-10 relative" onClick={e => e.stopPropagation()}>
                         <button onClick={() => setShowStats(false)} className="absolute top-6 right-6 text-white/50 hover:text-white">✕</button>
-                        <h2 className="text-3xl font-serif font-bold text-gold-400 mb-4 border-b border-gold-500/20 pb-4">Lélek-Statisztika</h2>
-
-                        <div className="flex items-center justify-between bg-white/5 p-4 rounded-xl mb-8 border border-white/10">
-                            <button onClick={() => handleStatsMonthChange(-1)} className="p-2 hover:bg-white/10 rounded-lg">◀</button>
-                            <div className="text-center">
-                                <div className="text-xs uppercase text-white/40 font-bold">Időszak</div>
-                                <div className="text-xl font-serif font-bold text-gold-400">
-                                    {new Date(statsYear, statsMonth).toLocaleDateString('hu-HU', { month: 'long', year: 'numeric' })}
-                                </div>
-                            </div>
-                            <button onClick={() => handleStatsMonthChange(1)} className="p-2 hover:bg-white/10 rounded-lg">▶</button>
-                        </div>
+                        <h2 className="text-3xl font-serif font-bold text-gold-400 mb-8 border-b border-gold-500/20 pb-4">Lélek-Statisztika</h2>
 
                         <div className="space-y-10">
                             {/* Év Kártyája (Gyakoriság alapján) */}
@@ -814,7 +803,16 @@ export const HistoryView = ({ deck, onBack }: any) => {
 
                             {/* Havi Gyakoriság */}
                             <div>
-                                <h3 className="text-sm font-bold uppercase tracking-widest text-white/40 mb-4">Ebben a hónapban leggyakoribb</h3>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-sm font-bold uppercase tracking-widest text-white/40">Ebben az időszakban leggyakoribb</h3>
+                                    <div className="flex items-center gap-4 bg-white/5 px-3 py-1 rounded-lg border border-white/10">
+                                        <button onClick={() => handleStatsMonthChange(-1)} className="hover:text-gold-400 transition-colors">◀</button>
+                                        <div className="text-[10px] font-bold text-gold-400 min-w-[80px] text-center uppercase tracking-tighter">
+                                            {new Date(statsYear, statsMonth).toLocaleDateString('hu-HU', { month: 'short', year: 'numeric' })}
+                                        </div>
+                                        <button onClick={() => handleStatsMonthChange(1)} className="hover:text-gold-400 transition-colors">▶</button>
+                                    </div>
+                                </div>
                                 {stats.sortedMonthlyCards.length > 0 ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                         {stats.sortedMonthlyCards.slice(0, 4).map(([id, count]) => (
