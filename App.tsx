@@ -525,7 +525,7 @@ const AppContent = () => {
             <main className="container mx-auto px-4 pt-28 pb-10 max-w-7xl">
                 {view === 'dashboard' && <Dashboard onNavigate={navigateTo} onStartReading={startReading} onEditSpread={handleEditSpread} />}
                 {view === 'reading' && activeSpread && <ReadingView spread={activeSpread} deck={deck} targetDate={readingDate} onCancel={() => setView('dashboard')} />}
-                {view === 'history' && <HistoryView deck={deck} />}
+                {view === 'history' && <HistoryView deck={deck} onBack={() => setView('dashboard')} />}
                 {view === 'education' && <EducationView onBack={() => setView('dashboard')} />}
                 {view === 'community' && <CommunityView onBack={() => setView('dashboard')} onNavigate={navigateTo} />}
                 {view === 'communityDecks' && <CommunityDecksView onBack={() => setView('dashboard')} />}
