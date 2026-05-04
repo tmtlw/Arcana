@@ -80,50 +80,50 @@ export const HistoryView = ({ deck, onBack }: any) => {
     const myReadings = useMemo(() => readings.filter(r => r.userId === currentUser?.id), [readings, currentUser?.id]);
 
     const filtered = useMemo(() => {
-        const result = myReadings.filter(r => {
-            const matchesArchive = showArchived ? r.isArchived : !r.isArchived;
-            if (!matchesArchive) return false;
+        // Teljesen új, deklaratív szűrési stratégia
+        return myReadings
+            .filter(r => {
+                // 1. Archívum állapot (Kötelező alap szűrés)
+                const isMatchArchive = showArchived ? !!r.isArchived : !r.isArchived;
+                if (!isMatchArchive) return false;
 
-            const cardNames = r.cards.map(c => deck.find((d: any) => d.id === c.cardId)?.name || '').join(' ').toLowerCase();
-            const searchTerm = search.toLowerCase();
+                // 2. Kedvencek szűrése
+                if (filterFav && !r.isFavorite) return false;
 
-            const matchesSearch = !search || (
-                r.question?.toLowerCase().includes(searchTerm) ||
-                r.notes.toLowerCase().includes(searchTerm) ||
-                cardNames.includes(searchTerm)
-            );
-            if (!matchesSearch) return false;
+                // 3. Sorozat (Sequence) szűrés - pontos id vagy tag egyezés
+                if (filterTag && r.sequenceId !== filterTag && !(r.tags || []).includes(filterTag)) return false;
 
-            const matchesFav = filterFav ? r.isFavorite : true;
-            if (!matchesFav) return false;
+                // 4. Havi szűrés - Date objektum bontás alapú, nem string-alapú
+                if (filterDate) {
+                    const [targetYear, targetMonth] = filterDate.split('-').map(Number);
+                    const rDate = new Date(r.date);
+                    if (rDate.getFullYear() !== targetYear || (rDate.getMonth() + 1) !== targetMonth) return false;
+                }
 
-            const readingDateStr = typeof r.date === 'string' ? r.date : new Date(r.date).toISOString();
-            const matchesDate = !filterDate || readingDateStr.startsWith(filterDate);
-            if (!matchesDate) return false;
+                // 5. Asztrológiai jegy szűrés - Közvetlen property ellenőrzés
+                if (filterSunSign && r.astrology?.sunSign !== filterSunSign) return false;
+                if (filterMoonSign && r.astrology?.moonSign !== filterMoonSign) return false;
 
-            const matchesTag = !filterTag || ((r.tags || []).includes(filterTag) || r.sequenceId === filterTag);
-            if (!matchesTag) return false;
+                // 6. Szöveges keresés - utolsó lépésként
+                if (search) {
+                    const s = search.toLowerCase();
+                    const cardNames = r.cards.map(c => deck.find((d: any) => d.id === c.cardId)?.name || '').join(' ').toLowerCase();
+                    const inQuestion = r.question?.toLowerCase().includes(s);
+                    const inNotes = r.notes.toLowerCase().includes(s);
+                    const inCards = cardNames.includes(s);
+                    if (!inQuestion && !inNotes && !inCards) return false;
+                }
 
-            const normalizeSign = (s: string) => s?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            const rSun = r.astrology?.sunSign ? normalizeSign(r.astrology.sunSign) : null;
-            const rMoon = r.astrology?.moonSign ? normalizeSign(r.astrology.moonSign) : null;
-            const fSun = filterSunSign ? normalizeSign(filterSunSign) : null;
-            const fMoon = filterMoonSign ? normalizeSign(filterMoonSign) : null;
-
-            const matchesSun = !fSun || rSun === fSun;
-            const matchesMoon = !fMoon || rMoon === fMoon;
-
-            return matchesSun && matchesMoon;
-        });
-
-        return [...result].sort((a, b) => {
-            if (sortOrder === 'mood') return (a.mood || '').localeCompare(b.mood || '');
-            if (sortOrder === 'alpha') return (a.question || '').localeCompare(b.question || '');
-            const dateA = new Date(a.date).getTime();
-            const dateB = new Date(b.date).getTime();
-            return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
-        });
-    }, [myReadings, search, filterFav, filterDate, filterTag, sortOrder, deck, showArchived]);
+                return true;
+            })
+            .sort((a, b) => {
+                if (sortOrder === 'mood') return (a.mood || '').localeCompare(b.mood || '');
+                if (sortOrder === 'alpha') return (a.question || '').localeCompare(b.question || '');
+                const tA = new Date(a.date).getTime();
+                const tB = new Date(b.date).getTime();
+                return sortOrder === 'desc' ? tB - tA : tA - tB;
+            });
+    }, [myReadings, search, filterFav, filterDate, filterTag, filterSunSign, filterMoonSign, sortOrder, deck, showArchived]);
 
     // "Ezen a napon" húzások (Évfordulók és Havi fordulók)
     const onThisDay = useMemo(() => {
@@ -320,9 +320,9 @@ export const HistoryView = ({ deck, onBack }: any) => {
             <div className="space-y-6 pb-20 animate-fade-in max-w-5xl mx-auto">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                     <div className="flex items-center">
-                        <button onClick={onBack} className="mr-4 px-4 py-2 hover:bg-white/10 rounded-xl transition-all border border-white/10 flex items-center gap-2 font-bold text-sm" title="Vissza a főoldalra">
-                            <span>←</span>
-                            <span>vissza</span>
+                        <button onClick={onBack} className="mr-4 px-5 py-2.5 hover:bg-white/10 rounded-2xl transition-all border border-white/10 flex items-center gap-2 font-bold text-sm bg-black/20 group" title="Vissza a főoldalra">
+                            <span className="group-hover:-translate-x-1 transition-transform">←</span>
+                            <span className="uppercase tracking-widest text-[10px]">vissza</span>
                         </button>
                         <h2 className="text-3xl font-serif font-bold">Az Idő Fonalai</h2>
                     </div>
@@ -443,10 +443,11 @@ export const HistoryView = ({ deck, onBack }: any) => {
                             <option value="alpha">🔤 ABC (Kérdés)</option>
                         </select>
 
-                        <div className="relative">
+                        <div className="relative group/datepicker flex items-center bg-black/30 border border-white/10 rounded overflow-hidden focus-within:border-gold-500">
+                            <span className="px-2 opacity-50">📅</span>
                             <input
                                 type="month"
-                                className="bg-black/30 border border-white/10 p-2 rounded text-white text-sm focus:border-gold-500 outline-none"
+                                className="bg-transparent p-2 text-white text-sm outline-none cursor-pointer"
                                 value={filterDate}
                                 onChange={e => setFilterDate(e.target.value)}
                                 onClick={(e) => (e.target as any).showPicker?.()}
