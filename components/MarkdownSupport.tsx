@@ -132,16 +132,29 @@ const parseMarkdown = (text: string, onSelectCard?: (id: string) => void) => {
     return elements;
 };
 
-export const MarkdownRenderer = ({ content, className = "", onSelectCard }: { content: string, className?: string, onSelectCard?: (id: string) => void }) => {
+export const MarkdownRenderer = ({ content, className = "", onSelectCard, showReadMore = false }: { content: string, className?: string, onSelectCard?: (id: string) => void, showReadMore?: boolean }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const needsTruncation = showReadMore && content.length > 100;
+    const displayedContent = (needsTruncation && !isExpanded) ? content.substring(0, 100) + '...' : content;
+
     return (
         <div className={`markdown-content ${className}`}>
-            {parseMarkdown(content, onSelectCard)}
+            {parseMarkdown(displayedContent, onSelectCard)}
+            {needsTruncation && (
+                <button
+                    onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
+                    className="text-gold-500 text-xs font-bold uppercase mt-2 hover:underline"
+                >
+                    {isExpanded ? 'Kevesebb' : 'Mutat többet'}
+                </button>
+            )}
         </div>
     );
 };
 
 export const MarkdownEditor = ({ value, onChange, placeholder, className, height = "h-40" }: any) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const [isFullScreen, setIsFullScreen] = useState(false);
     const [showColorPicker, setShowColorPicker] = useState<'text' | 'bg' | null>(null);
     const insertFormat = (p: string, s: string) => {
         if (!textareaRef.current) return;
@@ -151,7 +164,7 @@ export const MarkdownEditor = ({ value, onChange, placeholder, className, height
         onChange(`${text.substring(0, start)}${p}${text.substring(start, end)}${s}${text.substring(end)}`);
     };
     return (
-        <div className={`flex flex-col border border-white/10 rounded-xl bg-black/20 focus-within:border-gold-500/50 transition-colors ${className} relative`}>
+        <div className={`flex flex-col border border-white/10 rounded-xl bg-black/20 focus-within:border-gold-500/50 transition-colors ${className} ${isFullScreen ? 'fixed inset-0 z-[200] bg-black/95 p-4 md:p-12' : 'relative'}`}>
             <div className="flex items-center gap-1 p-2 bg-white/5 border-b border-white/10 overflow-x-auto custom-scrollbar">
                 <button type="button" onClick={() => insertFormat('**', '**')} className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 font-bold text-xs">B</button>
                 <button type="button" onClick={() => insertFormat('*', '*')} className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 italic text-xs">I</button>
@@ -160,7 +173,22 @@ export const MarkdownEditor = ({ value, onChange, placeholder, className, height
                 <button type="button" onClick={() => insertFormat('\n> ', '')} className="text-xs px-1 hover:bg-white/10">❝</button>
                 <button type="button" onClick={() => insertFormat('\n![card](', ')') } className="text-xs px-1 hover:bg-white/10">🎴</button>
             </div>
-            <textarea ref={textareaRef} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={`w-full bg-transparent p-3 text-white text-sm outline-none resize-none font-mono ${height}`} />
+            <textarea
+                ref={textareaRef}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder={placeholder}
+                className={`w-full bg-transparent p-3 text-white text-sm outline-none resize-none font-mono ${isFullScreen ? 'flex-1' : height}`}
+            />
+
+            <button
+                type="button"
+                onClick={() => setIsFullScreen(!isFullScreen)}
+                className={`absolute bottom-2 right-2 w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isFullScreen ? 'bg-gold-500 text-black' : 'bg-white/10 text-white/50 hover:bg-white/20 hover:text-white'}`}
+                title={isFullScreen ? "Kilépés a teljes képernyőből" : "Teljes képernyős szerkesztés"}
+            >
+                {isFullScreen ? '↙️' : '↗️'}
+            </button>
         </div>
     );
 };

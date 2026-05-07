@@ -18,8 +18,9 @@ export const LibraryView = ({ deck, theme, onSelectCard }: any) => {
             const matchesName = c.name.toLowerCase().includes(term);
             // Check if ANY keyword matches the search term
             const matchesKeyword = c.keywords.some(k => k.toLowerCase().includes(term));
+            const matchesNumerology = c.numerology?.toLowerCase().includes(term);
             
-            if (!matchesName && !matchesKeyword) return false;
+            if (!matchesName && !matchesKeyword && !matchesNumerology) return false;
         }
         
         // 2. Category Filter Logic
