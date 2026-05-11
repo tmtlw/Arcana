@@ -273,7 +273,7 @@ export const ReadingAnalysis = ({ reading, onClose, spread }: ReadingAnalysisPro
 
                         {/* Contextual Meaning */}
                         {item.pos?.defaultContext && item.pos.defaultContext !== 'general' && (
-                            <div className="bg-indigo-500/10 p-3 rounded-xl border border-indigo-500/20 mt-4">
+                            <div className={`p-3 rounded-xl border mt-4 transition-all ${item.card!.primaryContexts?.includes(item.pos.defaultContext) ? 'border-gold-500 bg-gold-500/10 shadow-[0_0_15px_rgba(234,179,8,0.2)]' : 'bg-indigo-500/10 border-indigo-500/20'}`}>
                                 <h4 className="text-[10px] uppercase font-bold text-indigo-300 mb-1">Specifikus ({item.pos.defaultContext})</h4>
                                 <div className="text-xs text-gray-300">
                                     {/* Dynamic lookup for context meaning */}

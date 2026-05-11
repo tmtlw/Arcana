@@ -59,6 +59,7 @@ interface TarotContextType {
     toggleFavorite: (id: string) => void;
     toggleFavoriteCard: (cardId: string) => void; 
     toggleFavoriteSpread: (spreadId: string) => void; // Új
+    setCardSentiment: (cardId: string, sentiment: 'pos' | 'neg' | 'neu') => void;
     addCustomSpread: (s: Spread) => void;
     updateCustomSpread: (s: Spread) => void; 
     deleteCustomSpread: (id: string) => void;
@@ -163,6 +164,9 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
     }, [userLocation]);
 
     useEffect(() => {
+        // Enforce no local storage
+        StorageService.clearLocalCache();
+
         // Init IDB & Location
         dbService.init().catch(err => {
             console.warn("IndexedDB initialization failed. Custom local decks may not work.", err);
@@ -176,7 +180,15 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
         }
 
         // Load local decks initially
-        DeckService.loadAvailableDecks().then(decks => setAvailableDecks(decks));
+        DeckService.loadAvailableDecks().then(decks => {
+            if (auth.currentUser) {
+                // If logged in, we only care about system decks initially,
+                // cloud decks will be loaded in the auth listener
+                setAvailableDecks(decks.filter(d => !d.isCustomLocal || d.id === 'rider-waite'));
+            } else {
+                setAvailableDecks(decks);
+            }
+        });
 
         // Load Public Data for reference display
         CommunityService.getPublicLessons().then(lessons => setPublicLessons(lessons));
@@ -516,6 +528,15 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
         updateUser({ ...currentUser, favoriteSpreads: newFavs });
     };
 
+    const setCardSentiment = (cardId: string, sentiment: 'pos' | 'neg' | 'neu') => {
+        if(!currentUser) return;
+        const currentSentiments = currentUser.cardSentiments || {};
+        updateUser({
+            ...currentUser,
+            cardSentiments: { ...currentSentiments, [cardId]: sentiment }
+        });
+    };
+
     const addCustomSpread = async (s: Spread) => {
         setCustomSpreads(prev => [...prev, s]);
         if(currentUser) {
@@ -827,7 +848,7 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
             addCustomSpread, updateCustomSpread, deleteCustomSpread, 
             addCustomLesson, updateCustomLesson, deleteCustomLesson,
             updateCardData, resetCardData, saveQuizResult,
-            checkForBadges, toggleFavorite, toggleFavoriteCard, toggleFavoriteSpread, triggerInstall, exportData: StorageService.exportData,
+            checkForBadges, toggleFavorite, toggleFavoriteCard, toggleFavoriteSpread, setCardSentiment, triggerInstall, exportData: StorageService.exportData,
             importData: StorageService.importData, syncToCloud, loadFromCloud, showToast, playSound, logout,
             toggleLessonInCollection, toggleDeckInCollection, updateDashboardLayout,
             addCommunityEvent, joinCommunityEvent, leaveCommunityEvent,

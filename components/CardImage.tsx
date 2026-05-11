@@ -62,5 +62,31 @@ export const CardImage = ({ cardId, className, style, alt, deckOverride, isBack 
         );
     }
 
-    return <img src={src} className={className} style={style} alt={alt || cardId} loading="lazy" />;
+    const sentiment = currentUser?.cardSentiments?.[cardId];
+    const settings = currentUser?.sentimentSettings || {
+        posColor: '#4ade80',
+        neuColor: '#9ca3af',
+        negColor: '#f87171',
+        borderThickness: 1,
+        enabled: true
+    };
+
+    const sentimentStyle: React.CSSProperties = (settings.enabled && sentiment) ? {
+        border: `${settings.borderThickness}px solid ${
+            sentiment === 'pos' ? settings.posColor :
+            sentiment === 'neg' ? settings.negColor :
+            settings.neuColor
+        }`,
+        boxSizing: 'border-box'
+    } : {};
+
+    return (
+        <img
+            src={src}
+            className={className}
+            style={{ ...style, ...sentimentStyle }}
+            alt={alt || cardId}
+            loading="lazy"
+        />
+    );
 };

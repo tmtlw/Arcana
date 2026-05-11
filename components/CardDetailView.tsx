@@ -11,11 +11,67 @@ import { GAME_ICONS } from '../constants/gameIcons';
 // useTarot was imported twice (lines 3 and 11), removed one instance
 // import { useTarot } from '../context/TarotContext'; // Removed duplicate
 
+const CardSelector = ({ cards, onSelect, selectedId, currentUser }: { cards: Card[], onSelect: (id: string) => void, selectedId?: string, currentUser: any }) => {
+    const [tab, setTab] = useState<'major' | 'cups' | 'wands' | 'swords' | 'pentacles' | 'favs'>('major');
+    const [search, setSearch] = useState('');
+
+    const categories = [
+        { id: 'major', label: 'Nagy Á.', filter: (c: Card) => c.arcana === 'Major' },
+        { id: 'wands', label: 'Botok', filter: (c: Card) => c.suit === 'Botok' },
+        { id: 'cups', label: 'Kelyhek', filter: (c: Card) => c.suit === 'Kelyhek' },
+        { id: 'swords', label: 'Kardok', filter: (c: Card) => c.suit === 'Kardok' },
+        { id: 'pentacles', label: 'Érmék', filter: (c: Card) => c.suit === 'Érmék' },
+        { id: 'favs', label: '★', filter: (c: Card) => (currentUser?.favoriteCards || []).includes(c.id) }
+    ];
+
+    const filtered = cards.filter(c => {
+        const cat = categories.find(ct => ct.id === tab);
+        if (!cat?.filter(c)) return false;
+        if (search) return c.name.toLowerCase().includes(search.toLowerCase());
+        return true;
+    });
+
+    return (
+        <div className="bg-black/40 border border-white/10 rounded-2xl p-4">
+            <div className="flex flex-wrap gap-1 mb-4 bg-white/5 p-1 rounded-xl">
+                {categories.map(c => (
+                    <button
+                        key={c.id}
+                        onClick={() => setTab(c.id as any)}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${tab === c.id ? 'bg-gold-500 text-black' : 'text-white/40 hover:text-white'}`}
+                    >
+                        {c.label}
+                    </button>
+                ))}
+            </div>
+            <input
+                type="text"
+                placeholder="Keresés..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs mb-4 outline-none focus:border-gold-500/50"
+            />
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                {filtered.map(c => (
+                    <button
+                        key={c.id}
+                        onClick={() => onSelect(c.id)}
+                        className={`p-2 rounded-lg text-[10px] text-left transition-all border ${selectedId === c.id ? 'border-gold-500 bg-gold-500/10 text-gold-400' : 'border-white/5 bg-white/5 text-white/60 hover:border-white/20 hover:text-white'}`}
+                    >
+                        {c.name}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card, theme: any, onBack: () => void, onNavigate?: (c: Card) => void }) => {
-    const { activeDeck, updateCardData, resetCardData, deck } = useTarot(); // Get full deck
+    const { activeDeck, updateCardData, resetCardData, deck, currentUser, setCardSentiment } = useTarot(); // Get full deck
     const [isEditing, setIsEditing] = useState(false);
     const [isDeckCompareMode, setIsDeckCompareMode] = useState(false);
     const [editedCard, setEditedCard] = useState<Card>(card);
+    const [saveToOriginalFile, setSaveToOriginalFile] = useState(false);
 
     // Symbolism Editor State
     const [showIconPicker, setShowIconPicker] = useState<number | null>(null); // Index of symbol being edited
@@ -79,7 +135,7 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
 
     const hasCounselingInfo = card.generalMeaning || card.loveMeaning || card.advice;
 
-    const handleSave = () => {
+    const handleSave = async () => {
         const changes: Partial<Card> = {};
         let hasChanges = false;
 
@@ -92,6 +148,102 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
         });
 
         if (hasChanges) {
+            if (saveToOriginalFile && currentUser?.isAdmin) {
+                try {
+                    const suitMap: Record<string, string> = {
+                        'Kelyhek': 'cups',
+                        'Érmék': 'pentacles',
+                        'Kardok': 'swords',
+                        'Botok': 'wands'
+                    };
+                    const fileName = card.arcana === 'Major' ? 'major.ts' : `${suitMap[card.suit!]}.ts`;
+                    const filePath = `cards/${fileName}`;
+
+                    // 1. Fetch current content
+                    let secret = localStorage.getItem('X-Updater-Secret') || 'admin123';
+
+                    const performRequest = async (currentSecret: string) => {
+                        const readRes = await fetch(`./admin_io.php?action=read&file=${filePath}`, {
+                            headers: { 'X-Updater-Secret': currentSecret }
+                        });
+
+                        if (readRes.status === 403) {
+                            const input = window.prompt("Hibás vagy hiányzó biztonsági kulcs! Kérlek add meg az X-Updater-Secret értéket:");
+                            if (input) {
+                                localStorage.setItem('X-Updater-Secret', input);
+                                return performRequest(input);
+                            }
+                            return null;
+                        }
+
+                        return readRes.json();
+                    };
+
+                    const readData = await performRequest(secret);
+                    if (!readData) return;
+
+                    if (readData.content) {
+                        let content = readData.content;
+
+                        // 2. Find the card object by ID and update it
+                        // Use a more robust regex to find the card object including its ID
+                        const idRegex = new RegExp(`id:\\s*['"]${card.id}['"]`, 'g');
+                        const idMatch = idRegex.exec(content);
+
+                        if (idMatch) {
+                            const startIdx = content.lastIndexOf('{', idMatch.index);
+
+                            // Find the matching closing brace
+                            let braceCount = 0;
+                            let endIdx = -1;
+                            for (let i = startIdx; i < content.length; i++) {
+                                if (content[i] === '{') braceCount++;
+                                if (content[i] === '}') braceCount--;
+                                if (braceCount === 0) {
+                                    endIdx = i + 1;
+                                    break;
+                                }
+                            }
+
+                            if (endIdx !== -1) {
+                                // Merge changes into the full card object
+                                const fullUpdatedCard = { ...card, ...changes };
+
+                                // Format the new object string (4 space indentation for cleaner TS)
+                                const newObjStr = JSON.stringify(fullUpdatedCard, null, 4)
+                                    .replace(/"([^"]+)":/g, '$1:') // Remove quotes from property names
+                                    .replace(/"((?:[^"\\]|\\.)*)"/g, (match, p1) => {
+                                        // p1 is the content of the string. Escape ' and wrap in '
+                                        return "'" + p1.replace(/'/g, "\\'") + "'";
+                                    });
+
+                                const newContent = content.substring(0, startIdx) + newObjStr + content.substring(endIdx);
+
+                                // 3. Write back using the validated secret
+                                const finalSecret = localStorage.getItem('X-Updater-Secret') || secret;
+                                const writeRes = await fetch(`./admin_io.php?action=write&file=${filePath}`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-Updater-Secret': finalSecret,
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({ content: newContent })
+                                });
+                                const writeData = await writeRes.json();
+                                if (writeData.success) {
+                                    alert(`Sikeres mentés a fájlba! (Backup: ${writeData.backup})`);
+                                } else {
+                                    throw new Error(writeData.error || "Hiba a fájl mentésekor.");
+                                }
+                            }
+                        }
+                    }
+                } catch (e: any) {
+                    console.error("File save error:", e);
+                    alert("Fájlba mentés sikertelen: " + e.message);
+                }
+            }
+
             updateCardData(card.id, changes);
         }
         setIsEditing(false);
@@ -211,6 +363,22 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                             >
                                 Mégse
                             </button>
+                            {currentUser?.isAdmin && (
+                                <div className="flex bg-black/40 rounded-lg border border-red-500/30 overflow-hidden">
+                                    <button
+                                        onClick={() => setSaveToOriginalFile(false)}
+                                        className={`px-3 py-2 text-[10px] font-bold uppercase transition-colors ${!saveToOriginalFile ? 'bg-red-500 text-white' : 'text-red-400 hover:bg-white/5'}`}
+                                    >
+                                        Felhő
+                                    </button>
+                                    <button
+                                        onClick={() => setSaveToOriginalFile(true)}
+                                        className={`px-3 py-2 text-[10px] font-bold uppercase transition-colors ${saveToOriginalFile ? 'bg-red-500 text-white' : 'text-red-400 hover:bg-white/5'}`}
+                                    >
+                                        Fájl
+                                    </button>
+                                </div>
+                            )}
                             <button 
                                 onClick={handleSave} 
                                 className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-bold border border-green-400/50 shadow-lg transition-colors"
@@ -253,7 +421,27 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                                 className="text-4xl font-serif font-bold text-white mb-2 leading-tight bg-white/10 border-b border-white/30 w-full p-1 rounded focus:outline-none focus:border-gold-500"
                             />
                         ) : (
-                            <h1 className="text-5xl font-serif font-bold text-white mb-2 leading-tight">{card.name}</h1>
+                            <div className="flex items-center gap-4 mb-2">
+                                <h1 className="text-5xl font-serif font-bold text-white leading-tight">{card.name}</h1>
+
+                                {/* Sentiment Selector */}
+                                <div className="flex bg-black/40 backdrop-blur-md rounded-full p-1 border border-white/10 ml-2">
+                                    {[
+                                        { id: 'pos', icon: '🙂', label: 'Pozitív', color: 'text-green-400' },
+                                        { id: 'neu', icon: '😐', label: 'Semleges', color: 'text-gray-400' },
+                                        { id: 'neg', icon: '🙁', label: 'Negatív', color: 'text-red-400' }
+                                    ].map(s => (
+                                        <button
+                                            key={s.id}
+                                            onClick={() => setCardSentiment(card.id, s.id as any)}
+                                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 ${currentUser?.cardSentiments?.[card.id] === s.id ? 'bg-white/20 scale-110' : 'opacity-40 hover:opacity-100'}`}
+                                            title={s.label}
+                                        >
+                                            <span className={`text-lg ${currentUser?.cardSentiments?.[card.id] === s.id ? '' : 'grayscale'}`}>{s.icon}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         )}
                         <p className="text-white/60 font-serif italic">{card.nameEn}</p>
                     </div>
@@ -375,7 +563,7 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                             </h3>
                             
                             {(card.generalMeaning || isEditing) && (
-                                <div className={`p-5 rounded-xl border transition-all ${isEditing && (editedCard.primaryContexts?.includes('general')) ? 'border-gold-500 bg-gold-500/10' : 'bg-white/5 border-white/5'}`}>
+                                <div className={`p-5 rounded-xl border transition-all ${((isEditing && editedCard.primaryContexts?.includes('general')) || (!isEditing && card.primaryContexts?.includes('general'))) ? 'border-gold-500 bg-gold-500/10 shadow-[0_0_20px_rgba(234,179,8,0.15)]' : 'bg-white/5 border-white/5'}`}>
                                     <div className="flex justify-between items-center mb-2">
                                         <h4 className="font-bold text-gold-400 text-sm uppercase tracking-wider">Általános Jelentés</h4>
                                         {isEditing && <ContextToggle ctx="general" label="Általános" />}
@@ -387,14 +575,14 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                                             height="h-32"
                                         />
                                     ) : (
-                                        <MarkdownRenderer content={card.generalMeaning} className="text-gray-300 leading-relaxed text-sm" />
+                                        <MarkdownRenderer content={card.generalMeaning || ""} className="text-gray-300 leading-relaxed text-sm" showReadMore={true} />
                                     )}
                                 </div>
                             )}
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {(card.loveMeaning || isEditing) && (
-                                    <div className={`p-5 rounded-xl border transition-all ${isEditing && (editedCard.primaryContexts?.includes('love')) ? 'border-gold-500 bg-gold-500/10' : 'bg-indigo-500/10 border-indigo-500/20'}`}>
+                                    <div className={`p-5 rounded-xl border transition-all ${((isEditing && editedCard.primaryContexts?.includes('love')) || (!isEditing && card.primaryContexts?.includes('love'))) ? 'border-gold-500 bg-gold-500/10 shadow-[0_0_20px_rgba(234,179,8,0.15)]' : 'bg-indigo-500/10 border-indigo-500/20'}`}>
                                         <div className="flex justify-between items-center mb-2">
                                             <h4 className="font-bold text-indigo-300 text-sm uppercase tracking-wider">❤️ Szerelem & Kapcsolat</h4>
                                             {isEditing && <ContextToggle ctx="love" label="Szerelem" />}
@@ -406,12 +594,12 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                                                 height="h-32"
                                             />
                                         ) : (
-                                            <MarkdownRenderer content={card.loveMeaning} className="text-gray-300 leading-relaxed text-sm" />
+                                            <MarkdownRenderer content={card.loveMeaning || ""} className="text-gray-300 leading-relaxed text-sm" showReadMore={true} />
                                         )}
                                     </div>
                                 )}
                                 {(card.careerMeaning || isEditing) && (
-                                    <div className={`p-5 rounded-xl border transition-all ${isEditing && (editedCard.primaryContexts?.includes('career')) ? 'border-gold-500 bg-gold-500/10' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
+                                    <div className={`p-5 rounded-xl border transition-all ${((isEditing && editedCard.primaryContexts?.includes('career')) || (!isEditing && card.primaryContexts?.includes('career'))) ? 'border-gold-500 bg-gold-500/10 shadow-[0_0_20px_rgba(234,179,8,0.15)]' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
                                         <div className="flex justify-between items-center mb-2">
                                             <h4 className="font-bold text-emerald-300 text-sm uppercase tracking-wider">💼 Hivatás & Munka</h4>
                                             {isEditing && <ContextToggle ctx="career" label="Hivatás" />}
@@ -423,7 +611,7 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                                                 height="h-32"
                                             />
                                         ) : (
-                                            <MarkdownRenderer content={card.careerMeaning} className="text-gray-300 leading-relaxed text-sm" />
+                                            <MarkdownRenderer content={card.careerMeaning || ""} className="text-gray-300 leading-relaxed text-sm" showReadMore={true} />
                                         )}
                                     </div>
                                 )}
@@ -431,7 +619,7 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 {(card.advice || isEditing) && (
-                                    <div className={`p-4 rounded-xl border md:col-span-1 transition-all ${isEditing && (editedCard.primaryContexts?.includes('advice')) ? 'border-gold-500 bg-gold-500/10' : 'bg-gold-500/10 border-gold-500/20'}`}>
+                                    <div className={`p-4 rounded-xl border md:col-span-1 transition-all ${((isEditing && editedCard.primaryContexts?.includes('advice')) || (!isEditing && card.primaryContexts?.includes('advice'))) ? 'border-gold-500 bg-gold-500/10 shadow-[0_0_20px_rgba(234,179,8,0.15)]' : 'bg-gold-500/10 border-gold-500/20'}`}>
                                         <div className="flex flex-col gap-2 mb-2">
                                             <h4 className="font-bold text-gold-400 text-xs uppercase tracking-wider">💡 A Tarot Tanácsa</h4>
                                             {isEditing && <ContextToggle ctx="advice" label="Tanács" />}
@@ -443,12 +631,12 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                                                 height="h-24"
                                             />
                                         ) : (
-                                            <MarkdownRenderer content={card.advice} className="text-gray-300 leading-relaxed text-xs" />
+                                            <MarkdownRenderer content={card.advice || ""} className="text-gray-300 leading-relaxed text-xs" showReadMore={true} />
                                         )}
                                     </div>
                                 )}
                                 {(card.dailyMeaning || isEditing) && (
-                                    <div className={`p-4 rounded-xl border md:col-span-1 transition-all ${isEditing && (editedCard.primaryContexts?.includes('daily')) ? 'border-gold-500 bg-gold-500/10' : 'bg-blue-500/10 border-blue-500/20'}`}>
+                                    <div className={`p-4 rounded-xl border md:col-span-1 transition-all ${((isEditing && editedCard.primaryContexts?.includes('daily')) || (!isEditing && card.primaryContexts?.includes('daily'))) ? 'border-gold-500 bg-gold-500/10 shadow-[0_0_20px_rgba(234,179,8,0.15)]' : 'bg-blue-500/10 border-blue-500/20'}`}>
                                         <div className="flex flex-col gap-2 mb-2">
                                             <h4 className="font-bold text-blue-300 text-xs uppercase tracking-wider">📅 Napi Kártya</h4>
                                             {isEditing && <ContextToggle ctx="daily" label="Napi" />}
@@ -460,12 +648,12 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                                                 height="h-24"
                                             />
                                         ) : (
-                                            <MarkdownRenderer content={card.dailyMeaning} className="text-gray-300 leading-relaxed text-xs" />
+                                            <MarkdownRenderer content={card.dailyMeaning || ""} className="text-gray-300 leading-relaxed text-xs" showReadMore={true} />
                                         )}
                                     </div>
                                 )}
                                 {(card.yearlyMeaning || isEditing) && (
-                                    <div className={`p-4 rounded-xl border md:col-span-1 transition-all ${isEditing && (editedCard.primaryContexts?.includes('yearly')) ? 'border-gold-500 bg-gold-500/10' : 'bg-purple-500/10 border-purple-500/20'}`}>
+                                    <div className={`p-4 rounded-xl border md:col-span-1 transition-all ${((isEditing && editedCard.primaryContexts?.includes('yearly')) || (!isEditing && card.primaryContexts?.includes('yearly'))) ? 'border-gold-500 bg-gold-500/10 shadow-[0_0_20px_rgba(234,179,8,0.15)]' : 'bg-purple-500/10 border-purple-500/20'}`}>
                                         <div className="flex flex-col gap-2 mb-2">
                                             <h4 className="font-bold text-purple-300 text-xs uppercase tracking-wider">🗓️ Éves Kártya</h4>
                                             {isEditing && <ContextToggle ctx="yearly" label="Éves" />}
@@ -477,7 +665,7 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                                                 height="h-24"
                                             />
                                         ) : (
-                                            <MarkdownRenderer content={card.yearlyMeaning} className="text-gray-300 leading-relaxed text-xs" />
+                                            <MarkdownRenderer content={card.yearlyMeaning || ""} className="text-gray-300 leading-relaxed text-xs" showReadMore={true} />
                                         )}
                                     </div>
                                 )}
@@ -622,12 +810,12 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                                             <div key={sym.id} className="flex gap-2 items-center bg-black/20 p-2 rounded mb-2">
                                                 <button
                                                     onClick={() => setShowIconPicker(idx)}
-                                                    className="w-10 h-10 bg-white/5 border border-white/10 rounded flex items-center justify-center hover:bg-gold-500/20 hover:border-gold-500 transition-colors"
+                                                    className="w-10 h-10 bg-black/40 border border-white/10 rounded-xl flex items-center justify-center hover:bg-gold-500/20 hover:border-gold-500 transition-all text-xl"
                                                 >
                                                     {sym.icon && GAME_ICONS[sym.icon] ? (
                                                         <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current text-gold-400"><path d={GAME_ICONS[sym.icon]} /></svg>
                                                     ) : (
-                                                        <span className="text-xs text-white/30">?</span>
+                                                        sym.icon || <span className="text-xs text-white/30">?</span>
                                                     )}
                                                 </button>
                                                 <input
@@ -667,10 +855,12 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                                     {card.symbols && card.symbols.length > 0 && (
                                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                             {card.symbols.map(sym => (
-                                                <div key={sym.id} className="flex gap-3 items-center bg-white/5 p-2 rounded-lg border border-white/5 hover:border-gold-500/30 transition-colors">
-                                                    <div className="w-8 h-8 flex-shrink-0 bg-black/40 rounded-full flex items-center justify-center">
-                                                        {sym.icon && GAME_ICONS[sym.icon] && (
-                                                            <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current text-gold-400"><path d={GAME_ICONS[sym.icon]} /></svg>
+                                                <div key={sym.id} className="flex gap-3 items-center bg-white/5 p-2 rounded-xl border border-white/5 hover:border-gold-500/30 transition-all group/sym">
+                                                    <div className="w-10 h-10 flex-shrink-0 bg-black/40 rounded-lg flex items-center justify-center text-xl group-hover/sym:scale-110 transition-transform">
+                                                        {sym.icon && GAME_ICONS[sym.icon] ? (
+                                                            <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current text-gold-400"><path d={GAME_ICONS[sym.icon]} /></svg>
+                                                        ) : (
+                                                            sym.icon
                                                         )}
                                                     </div>
                                                     <span className="text-xs text-gray-300 font-serif leading-tight">{sym.description}</span>
@@ -844,12 +1034,12 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] uppercase font-bold text-white/40 mb-1">Kapcsolódó Kártya ID</label>
-                                    <input 
-                                        value={editedCard.comparison?.relatedCardId || ''}
-                                        onChange={e => handleComparisonChange('relatedCardId', e.target.value)}
-                                        className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white text-sm font-mono"
-                                        placeholder="Pl. wands-1"
+                                    <label className="block text-[10px] uppercase font-bold text-white/40 mb-2">Kapcsolódó Kártya Kiválasztása</label>
+                                    <CardSelector
+                                        cards={deck}
+                                        selectedId={editedCard.comparison?.relatedCardId}
+                                        onSelect={(id) => handleComparisonChange('relatedCardId', id)}
+                                        currentUser={currentUser}
                                     />
                                 </div>
                             </div>

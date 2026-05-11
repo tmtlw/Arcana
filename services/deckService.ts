@@ -117,11 +117,13 @@ export const DeckService = {
     },
 
     saveCustomDeck: async (meta: DeckMeta, images: Record<string, string>, userId?: string) => {
-        const localDecksJson = localStorage.getItem(KEYS.CUSTOM_DECKS);
-        const localDecks: DeckMeta[] = localDecksJson ? JSON.parse(localDecksJson) : [];
-        const updatedDecks = localDecks.filter(d => d.id !== meta.id);
-        updatedDecks.push(meta);
-        localStorage.setItem(KEYS.CUSTOM_DECKS, JSON.stringify(updatedDecks));
+        if (!userId) {
+            const localDecksJson = localStorage.getItem(KEYS.CUSTOM_DECKS);
+            const localDecks: DeckMeta[] = localDecksJson ? JSON.parse(localDecksJson) : [];
+            const updatedDecks = localDecks.filter(d => d.id !== meta.id);
+            updatedDecks.push(meta);
+            localStorage.setItem(KEYS.CUSTOM_DECKS, JSON.stringify(updatedDecks));
+        }
 
         for (const [cardId, base64] of Object.entries(images)) {
             await dbService.saveImage(`deck_${meta.id}_${cardId}`, base64);
@@ -134,10 +136,11 @@ export const DeckService = {
 
     deleteCustomDeck: async (deckId: string, userId?: string) => {
         const localDecksJson = localStorage.getItem(KEYS.CUSTOM_DECKS);
-        if(!localDecksJson) return;
-        const localDecks: DeckMeta[] = JSON.parse(localDecksJson);
-        const updated = localDecks.filter(d => d.id !== deckId);
-        localStorage.setItem(KEYS.CUSTOM_DECKS, JSON.stringify(updated));
+        if(localDecksJson) {
+            const localDecks: DeckMeta[] = JSON.parse(localDecksJson);
+            const updated = localDecks.filter(d => d.id !== deckId);
+            localStorage.setItem(KEYS.CUSTOM_DECKS, JSON.stringify(updated));
+        }
         
         if (db) {
             try {

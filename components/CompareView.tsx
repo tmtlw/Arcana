@@ -13,15 +13,33 @@ interface CompareViewProps {
 }
 
 export const CompareView = ({ readings, cardIdToCompare, onBack }: CompareViewProps) => {
-    const { allSpreads, availableDecks } = useTarot();
+    const { allSpreads, availableDecks, currentUser, activeDeck, updateUser } = useTarot();
     const [selectedDecks, setSelectedDecks] = useState<string[]>([]);
 
     useEffect(() => {
         if (cardIdToCompare && availableDecks.length > 0) {
-            // Default select first 3 decks (or fewer)
-            setSelectedDecks(availableDecks.slice(0, 3).map(d => d.id));
+            // 1. Always include active deck
+            const decks = [activeDeck?.id].filter(Boolean) as string[];
+
+            // 2. Add from lastSelectedDecks if they exist and are not the active deck
+            if (currentUser?.lastSelectedDecks) {
+                currentUser.lastSelectedDecks.forEach(id => {
+                    if (id !== activeDeck?.id && !decks.includes(id) && availableDecks.some(d => d.id === id)) {
+                        decks.push(id);
+                    }
+                });
+            }
+
+            // 3. Fill up to 3 or 4 if needed (just for initialization if nothing else)
+            if (decks.length < 3) {
+                availableDecks.slice(0, 4).forEach(d => {
+                    if (!decks.includes(d.id) && decks.length < 3) decks.push(d.id);
+                });
+            }
+
+            setSelectedDecks(decks.slice(0, 4));
         }
-    }, [cardIdToCompare, availableDecks]);
+    }, [cardIdToCompare, availableDecks, activeDeck?.id]);
 
     // --- MODE 1: READING COMPARISON ---
     if (readings && readings.length > 0) {
@@ -102,12 +120,26 @@ export const CompareView = ({ readings, cardIdToCompare, onBack }: CompareViewPr
         if (!card) return null;
 
         const toggleDeck = (deckId: string) => {
+            // Cannot toggle active deck off
+            if (deckId === activeDeck?.id) return;
+
+            let newSelection;
             if (selectedDecks.includes(deckId)) {
-                setSelectedDecks(prev => prev.filter(id => id !== deckId));
+                newSelection = selectedDecks.filter(id => id !== deckId);
             } else {
                 if (selectedDecks.length < 4) {
-                    setSelectedDecks(prev => [...prev, deckId]);
+                    newSelection = [...selectedDecks, deckId];
+                } else {
+                    newSelection = selectedDecks;
                 }
+            }
+
+            setSelectedDecks(newSelection);
+
+            // Remember selection in cloud (excluding active deck which is always forced)
+            if (currentUser) {
+                const toRemember = newSelection.filter(id => id !== activeDeck?.id);
+                updateUser({ ...currentUser, lastSelectedDecks: toRemember });
             }
         };
 
@@ -130,9 +162,10 @@ export const CompareView = ({ readings, cardIdToCompare, onBack }: CompareViewPr
                                     ${selectedDecks.includes(d.id)
                                         ? 'bg-gold-500 text-black border-gold-500'
                                         : 'bg-white/5 text-gray-400 border-white/20 hover:text-white'}
+                                    ${d.id === activeDeck?.id ? 'ring-2 ring-gold-500 ring-offset-2 ring-offset-black' : ''}
                                 `}
                             >
-                                {d.name}
+                                {d.id === activeDeck?.id && '★ '}{d.name}
                             </button>
                         ))}
                     </div>

@@ -319,6 +319,15 @@ export interface User {
   deckCollection?: string[];
   activeQuests?: UserQuestProgress[]; // Quest Progress Tracking
   dashboardLayout?: DashboardRow[]; // Widget IDs order
+  lastSelectedDecks?: string[]; // CompareView selection
+  cardSentiments?: Record<string, 'pos' | 'neg' | 'neu'>; // User's card ratings
+  sentimentSettings?: {
+    posColor: string;
+    neuColor: string;
+    negColor: string;
+    borderThickness: number;
+    enabled: boolean;
+  };
 
   // Shop System
   currency?: number; // Pontok (vásárlásra)
