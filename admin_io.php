@@ -4,6 +4,10 @@ header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Updater-Secret");
 header("Content-Type: application/json");
 
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit;
+}
+
 // Load configuration for secret key
 $config = [];
 if (file_exists('version.json')) {
@@ -13,8 +17,27 @@ if (file_exists('version.json')) {
 $SECRET_KEY = isset($config['secret_key']) ? $config['secret_key'] : 'admin123';
 
 // Validate Request
-$headers = getallheaders();
-$clientSecret = isset($headers['X-Updater-Secret']) ? $headers['X-Updater-Secret'] : '';
+function get_request_headers() {
+    if (function_exists('getallheaders')) {
+        return getallheaders();
+    }
+    $headers = [];
+    foreach ($_SERVER as $name => $value) {
+        if (substr($name, 0, 5) == 'HTTP_') {
+            $headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
+        }
+    }
+    return $headers;
+}
+
+$headers = get_request_headers();
+$clientSecret = '';
+if (isset($headers['X-Updater-Secret'])) {
+    $clientSecret = $headers['X-Updater-Secret'];
+} elseif (isset($_SERVER['HTTP_X_UPDATER_SECRET'])) {
+    $clientSecret = $_SERVER['HTTP_X_UPDATER_SECRET'];
+}
+
 if ($clientSecret !== $SECRET_KEY) {
     http_response_code(403);
     echo json_encode(['error' => 'Unauthorized']);

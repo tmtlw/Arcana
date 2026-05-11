@@ -160,28 +160,36 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                     const filePath = `cards/${fileName}`;
 
                     // 1. Fetch current content
-                    let secret = localStorage.getItem('X-Updater-Secret') || '';
-                    if (!secret) {
-                        const input = window.prompt("Hiányzó X-Updater-Secret! Kérlek add meg a biztonsági kulcsot a fájlba mentéshez:");
-                        if (input) {
-                            secret = input;
-                            localStorage.setItem('X-Updater-Secret', secret);
-                        } else {
-                            return;
+                    let secret = localStorage.getItem('X-Updater-Secret') || 'admin123';
+
+                    const performRequest = async (currentSecret: string) => {
+                        const readRes = await fetch(`./admin_io.php?action=read&file=${filePath}`, {
+                            headers: { 'X-Updater-Secret': currentSecret }
+                        });
+
+                        if (readRes.status === 403) {
+                            const input = window.prompt("Hibás vagy hiányzó biztonsági kulcs! Kérlek add meg az X-Updater-Secret értéket:");
+                            if (input) {
+                                localStorage.setItem('X-Updater-Secret', input);
+                                return performRequest(input);
+                            }
+                            return null;
                         }
-                    }
-                    const readRes = await fetch(`./admin_io.php?action=read&file=${filePath}`, {
-                        headers: { 'X-Updater-Secret': secret }
-                    });
-                    const readData = await readRes.json();
+
+                        return readRes.json();
+                    };
+
+                    const readData = await performRequest(secret);
+                    if (!readData) return;
 
                     if (readData.content) {
                         let content = readData.content;
 
                         // 2. Find the card object by ID and update it
-                        // This is a complex task for regex, so we'll use a more robust approach:
-                        // Find the start of the object with the given ID
-                        const idMatch = content.match(new RegExp(`id:\\s*['"]${card.id}['"]`));
+                        // Use a more robust regex to find the card object including its ID
+                        const idRegex = new RegExp(`id:\\s*['"]${card.id}['"]`, 'g');
+                        const idMatch = idRegex.exec(content);
+
                         if (idMatch) {
                             const startIdx = content.lastIndexOf('{', idMatch.index);
 
@@ -198,28 +206,25 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                             }
 
                             if (endIdx !== -1) {
-                                const oldObjStr = content.substring(startIdx, endIdx);
                                 // Merge changes into the full card object
                                 const fullUpdatedCard = { ...card, ...changes };
 
-                                // Format the new object string (basic JSON-like formatting for .ts file)
-                                // Note: We need to be careful with formatting to match the original style
-                                // We escape single quotes in values and then wrap values in single quotes
-                                const newObjStr = JSON.stringify(fullUpdatedCard, null, 8)
-                                    .replace(/"([^"]+)":/g, '$1:') // Remove quotes from keys
+                                // Format the new object string (4 space indentation for cleaner TS)
+                                const newObjStr = JSON.stringify(fullUpdatedCard, null, 4)
+                                    .replace(/"([^"]+)":/g, '$1:') // Remove quotes from property names
                                     .replace(/"((?:[^"\\]|\\.)*)"/g, (match, p1) => {
-                                        // p1 is the content of the string
-                                        // Replace ' with \' and wrap in '
+                                        // p1 is the content of the string. Escape ' and wrap in '
                                         return "'" + p1.replace(/'/g, "\\'") + "'";
                                     });
 
                                 const newContent = content.substring(0, startIdx) + newObjStr + content.substring(endIdx);
 
-                                // 3. Write back
+                                // 3. Write back using the validated secret
+                                const finalSecret = localStorage.getItem('X-Updater-Secret') || secret;
                                 const writeRes = await fetch(`./admin_io.php?action=write&file=${filePath}`, {
                                     method: 'POST',
                                     headers: {
-                                        'X-Updater-Secret': secret,
+                                        'X-Updater-Secret': finalSecret,
                                         'Content-Type': 'application/json'
                                     },
                                     body: JSON.stringify({ content: newContent })
@@ -359,15 +364,20 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                                 Mégse
                             </button>
                             {currentUser?.isAdmin && (
-                                <label className="flex items-center gap-2 cursor-pointer bg-black/40 px-3 py-2 rounded-lg border border-red-500/30">
-                                    <input
-                                        type="checkbox"
-                                        checked={saveToOriginalFile}
-                                        onChange={e => setSaveToOriginalFile(e.target.checked)}
-                                        className="w-4 h-4 accent-red-500"
-                                    />
-                                    <span className="text-[10px] font-bold uppercase text-red-400">Mentés Fájlba (Admin)</span>
-                                </label>
+                                <div className="flex bg-black/40 rounded-lg border border-red-500/30 overflow-hidden">
+                                    <button
+                                        onClick={() => setSaveToOriginalFile(false)}
+                                        className={`px-3 py-2 text-[10px] font-bold uppercase transition-colors ${!saveToOriginalFile ? 'bg-red-500 text-white' : 'text-red-400 hover:bg-white/5'}`}
+                                    >
+                                        Felhő
+                                    </button>
+                                    <button
+                                        onClick={() => setSaveToOriginalFile(true)}
+                                        className={`px-3 py-2 text-[10px] font-bold uppercase transition-colors ${saveToOriginalFile ? 'bg-red-500 text-white' : 'text-red-400 hover:bg-white/5'}`}
+                                    >
+                                        Fájl
+                                    </button>
+                                </div>
                             )}
                             <button 
                                 onClick={handleSave} 
