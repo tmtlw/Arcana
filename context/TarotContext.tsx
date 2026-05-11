@@ -164,6 +164,9 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
     }, [userLocation]);
 
     useEffect(() => {
+        // Enforce no local storage
+        StorageService.clearLocalCache();
+
         // Init IDB & Location
         dbService.init().catch(err => {
             console.warn("IndexedDB initialization failed. Custom local decks may not work.", err);

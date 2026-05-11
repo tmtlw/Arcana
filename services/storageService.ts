@@ -27,12 +27,18 @@ const safeGetDocs = async (collectionRef: any) => {
 
 export const StorageService = {
     // --- Local Storage Methods (Legacy/Backup use only) ---
-    saveUsers: (users: User[]) => {
-        // Only save to local if no authenticated user or guest?
-        // User wants "nothing, absolutely nothing" saved locally.
-        // We still need local storage for guest sessions until they expire, but for logged in users we should avoid it.
-        // However, the request says "absolutely nothing".
+    // User requested "absolutely nothing" saved locally.
+    // We clear localStorage on each load to be safe.
+    clearLocalCache: () => {
+        const keysToKeep = ['X-Updater-Secret', 'tarot_guest_active', 'tarot_guest_start']; // Keep session-critical or explicitly requested keys
+        Object.keys(localStorage).forEach(key => {
+            if (!keysToKeep.includes(key)) {
+                localStorage.removeItem(key);
+            }
+        });
     },
+
+    saveUsers: (users: User[]) => {},
     getUsers: (): User[] => [],
     
     saveReadings: (readings: Reading[]) => {},
