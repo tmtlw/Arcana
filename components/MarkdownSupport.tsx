@@ -134,18 +134,23 @@ const parseMarkdown = (text: string, onSelectCard?: (id: string) => void) => {
 
 export const MarkdownRenderer = ({ content, className = "", onSelectCard, showReadMore = false }: { content: string, className?: string, onSelectCard?: (id: string) => void, showReadMore?: boolean }) => {
     const [isExpanded, setIsExpanded] = useState(false);
-    const needsTruncation = showReadMore && content.length > 100;
-    const displayedContent = (needsTruncation && !isExpanded) ? content.substring(0, 100) + '...' : content;
+    const needsTruncation = showReadMore && content.length > 150;
+    const shouldTruncate = needsTruncation && !isExpanded;
 
     return (
-        <div className={`markdown-content ${className}`}>
-            {parseMarkdown(displayedContent, onSelectCard)}
+        <div className={`markdown-content ${className} relative`}>
+            <div className={shouldTruncate ? "max-h-24 overflow-hidden relative" : ""}>
+                {parseMarkdown(content, onSelectCard)}
+                {shouldTruncate && (
+                    <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none"></div>
+                )}
+            </div>
             {needsTruncation && (
                 <button
                     onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
-                    className="text-gold-500 text-xs font-bold uppercase mt-2 hover:underline"
+                    className="text-gold-500 text-[10px] font-bold uppercase tracking-widest mt-2 hover:text-gold-400 flex items-center gap-1"
                 >
-                    {isExpanded ? 'Kevesebb' : 'Mutat többet'}
+                    {isExpanded ? '▲ Kevesebb' : '▼ Mutat többet'}
                 </button>
             )}
         </div>

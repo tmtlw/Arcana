@@ -27,24 +27,28 @@ const safeGetDocs = async (collectionRef: any) => {
 
 export const StorageService = {
     // --- Local Storage Methods (Legacy/Backup use only) ---
-    saveUsers: (users: User[]) => localStorage.setItem(KEYS.USERS, JSON.stringify(users)),
-    getUsers: (): User[] => JSON.parse(localStorage.getItem(KEYS.USERS) || '[]'),
+    saveUsers: (users: User[]) => {
+        // Only save to local if no authenticated user or guest?
+        // User wants "nothing, absolutely nothing" saved locally.
+        // We still need local storage for guest sessions until they expire, but for logged in users we should avoid it.
+        // However, the request says "absolutely nothing".
+    },
+    getUsers: (): User[] => [],
     
-    // Kept for exportData functionality
-    saveReadings: (readings: Reading[]) => localStorage.setItem(KEYS.READINGS, JSON.stringify(readings)),
-    getReadings: (): Reading[] => JSON.parse(localStorage.getItem(KEYS.READINGS) || '[]'),
+    saveReadings: (readings: Reading[]) => {},
+    getReadings: (): Reading[] => [],
     
-    saveCustomSpreads: (spreads: Spread[]) => localStorage.setItem(KEYS.CUSTOM_SPREADS, JSON.stringify(spreads)),
-    getCustomSpreads: (): Spread[] => JSON.parse(localStorage.getItem(KEYS.CUSTOM_SPREADS) || '[]'),
+    saveCustomSpreads: (spreads: Spread[]) => {},
+    getCustomSpreads: (): Spread[] => [],
 
-    saveCustomCards: (cards: Record<string, Partial<Card>>) => localStorage.setItem(KEYS.CUSTOM_CARDS, JSON.stringify(cards)),
-    getCustomCards: (): Record<string, Partial<Card>> => JSON.parse(localStorage.getItem(KEYS.CUSTOM_CARDS) || '{}'),
+    saveCustomCards: (cards: Record<string, Partial<Card>>) => {},
+    getCustomCards: (): Record<string, Partial<Card>> => ({}),
 
-    saveQuizResults: (results: QuizResult[]) => localStorage.setItem(KEYS.QUIZ_RESULTS, JSON.stringify(results)),
-    getQuizResults: (): QuizResult[] => JSON.parse(localStorage.getItem(KEYS.QUIZ_RESULTS) || '[]'),
+    saveQuizResults: (results: QuizResult[]) => {},
+    getQuizResults: (): QuizResult[] => [],
 
-    saveCustomLessons: (lessons: Lesson[]) => localStorage.setItem(KEYS.CUSTOM_LESSONS, JSON.stringify(lessons)), // New
-    getCustomLessons: (): Lesson[] => JSON.parse(localStorage.getItem(KEYS.CUSTOM_LESSONS) || '[]'), // New
+    saveCustomLessons: (lessons: Lesson[]) => {},
+    getCustomLessons: (): Lesson[] => [],
 
     exportData: () => {
         const data = {

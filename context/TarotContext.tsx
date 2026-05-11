@@ -177,7 +177,15 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
         }
 
         // Load local decks initially
-        DeckService.loadAvailableDecks().then(decks => setAvailableDecks(decks));
+        DeckService.loadAvailableDecks().then(decks => {
+            if (auth.currentUser) {
+                // If logged in, we only care about system decks initially,
+                // cloud decks will be loaded in the auth listener
+                setAvailableDecks(decks.filter(d => !d.isCustomLocal || d.id === 'rider-waite'));
+            } else {
+                setAvailableDecks(decks);
+            }
+        });
 
         // Load Public Data for reference display
         CommunityService.getPublicLessons().then(lessons => setPublicLessons(lessons));

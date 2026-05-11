@@ -160,10 +160,15 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                     const filePath = `cards/${fileName}`;
 
                     // 1. Fetch current content
-                    const secret = localStorage.getItem('X-Updater-Secret') || '';
+                    let secret = localStorage.getItem('X-Updater-Secret') || '';
                     if (!secret) {
-                        alert("Hiányzó X-Updater-Secret! Kérlek állítsd be a localStorage-ban.");
-                        return;
+                        const input = window.prompt("Hiányzó X-Updater-Secret! Kérlek add meg a biztonsági kulcsot a fájlba mentéshez:");
+                        if (input) {
+                            secret = input;
+                            localStorage.setItem('X-Updater-Secret', secret);
+                        } else {
+                            return;
+                        }
                     }
                     const readRes = await fetch(`./admin_io.php?action=read&file=${filePath}`, {
                         headers: { 'X-Updater-Secret': secret }
