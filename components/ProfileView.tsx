@@ -532,6 +532,89 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                             </div>
                         </div>
 
+                        {/* SENTIMENT VISUAL SETTINGS */}
+                        <div className="glass-panel p-6 rounded-2xl border border-white/10">
+                            <h3 className="font-serif font-bold text-lg text-gold-400 mb-2">Kártya Megítélés Jelzése</h3>
+                            <p className="text-xs text-white/50 mb-6">Állítsd be, hogyan jelenjenek meg a pozitív/negatív jelzések a kártyák szegélyén.</p>
+
+                            <div className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/10 mb-6">
+                                <div>
+                                    <div className="font-bold text-white text-sm">Szegély Megjelenítése</div>
+                                    <div className="text-xs text-white/50">Színes keret a kártyák körül a galériában és húzásoknál</div>
+                                </div>
+                                <button
+                                    onClick={() => updateSetting('sentimentSettings', { ...(currentUser?.sentimentSettings || { posColor: '#4ade80', neuColor: '#9ca3af', negColor: '#f87171', borderThickness: 1, enabled: true }), enabled: !currentUser?.sentimentSettings?.enabled })}
+                                    className={`w-12 h-6 rounded-full p-1 transition-colors ${currentUser?.sentimentSettings?.enabled !== false ? 'bg-gold-500' : 'bg-gray-600'}`}
+                                >
+                                    <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-transform ${currentUser?.sentimentSettings?.enabled !== false ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-sm text-white/70">Vastagság: {currentUser?.sentimentSettings?.borderThickness || 1}px</label>
+                                        <input
+                                            type="range" min="1" max="5"
+                                            value={currentUser?.sentimentSettings?.borderThickness || 1}
+                                            onChange={e => updateSetting('sentimentSettings', { ...(currentUser?.sentimentSettings || { posColor: '#4ade80', neuColor: '#9ca3af', negColor: '#f87171', borderThickness: 1, enabled: true }), borderThickness: parseInt(e.target.value) })}
+                                            className="w-32 accent-gold-500"
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-sm text-white/70">Pozitív Szín</label>
+                                        <input
+                                            type="color"
+                                            value={currentUser?.sentimentSettings?.posColor || '#4ade80'}
+                                            onChange={e => updateSetting('sentimentSettings', { ...(currentUser?.sentimentSettings || { posColor: '#4ade80', neuColor: '#9ca3af', negColor: '#f87171', borderThickness: 1, enabled: true }), posColor: e.target.value })}
+                                            className="w-10 h-10 rounded cursor-pointer border-none bg-transparent"
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-sm text-white/70">Semleges Szín</label>
+                                        <input
+                                            type="color"
+                                            value={currentUser?.sentimentSettings?.neuColor || '#9ca3af'}
+                                            onChange={e => updateSetting('sentimentSettings', { ...(currentUser?.sentimentSettings || { posColor: '#4ade80', neuColor: '#9ca3af', negColor: '#f87171', borderThickness: 1, enabled: true }), neuColor: e.target.value })}
+                                            className="w-10 h-10 rounded cursor-pointer border-none bg-transparent"
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-sm text-white/70">Negatív Szín</label>
+                                        <input
+                                            type="color"
+                                            value={currentUser?.sentimentSettings?.negColor || '#f87171'}
+                                            onChange={e => updateSetting('sentimentSettings', { ...(currentUser?.sentimentSettings || { posColor: '#4ade80', neuColor: '#9ca3af', negColor: '#f87171', borderThickness: 1, enabled: true }), negColor: e.target.value })}
+                                            className="w-10 h-10 rounded cursor-pointer border-none bg-transparent"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col items-center justify-center bg-black/40 rounded-2xl p-6 border border-white/5">
+                                    <div className="text-[10px] uppercase font-bold text-white/30 mb-4 tracking-widest">Élő Előnézet</div>
+                                    <div className="flex gap-4">
+                                        {['pos', 'neu', 'neg'].map(s => (
+                                            <div key={s} className="flex flex-col items-center gap-2">
+                                                <div
+                                                    className="w-16 h-24 bg-gray-800 rounded-lg shadow-xl flex items-center justify-center text-2xl"
+                                                    style={{
+                                                        border: `${currentUser?.sentimentSettings?.enabled !== false ? (currentUser?.sentimentSettings?.borderThickness || 1) : 0}px solid ${
+                                                            s === 'pos' ? (currentUser?.sentimentSettings?.posColor || '#4ade80') :
+                                                            s === 'neg' ? (currentUser?.sentimentSettings?.negColor || '#f87171') :
+                                                            (currentUser?.sentimentSettings?.neuColor || '#9ca3af')
+                                                        }`
+                                                    }}
+                                                >
+                                                    {s === 'pos' ? '🙂' : s === 'neg' ? '🙁' : '😐'}
+                                                </div>
+                                                <span className="text-[9px] uppercase font-bold text-white/40">{s}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="glass-panel p-6 rounded-2xl border border-white/10">
                             <h3 className="font-serif font-bold text-lg text-gold-400 mb-6">Kártya Hátlap</h3>
                             <div className="grid grid-cols-4 gap-4">
