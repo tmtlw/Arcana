@@ -311,6 +311,10 @@ export interface User {
   folders?: string[]; 
   isAdmin?: boolean; 
   bio?: string; 
+  mantra?: string;
+  altarCards?: string[];
+  isPublicProfile?: boolean;
+  protectionSymbol?: string;
 
   createdAt?: string;
   lastLogin?: string;

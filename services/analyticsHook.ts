@@ -35,9 +35,17 @@ export interface AnalyticsStats {
     personalYear: number;
     spiritualChallenge: string;
     planetHourStats: Record<string, number>;
+
+    // --- BATCH 2 METRICS ---
+    zodiacDominance: { name: string; count: number }[];
+    diaryStats: { favorites: number; fulfilled: number; notesCount: number };
+    anniversaryReadings: Reading[];
+    innerPeaceIndex: number;
+    totemAnimal: { name: string; icon: string; description: string };
+    discoveryProgress: { total: number; discovered: number };
 }
 
-export const useAnalytics = (readings: Reading[], userId?: string, birthDate?: string) => {
+export const useAnalytics = (readings: Reading[], userId?: string, birthDate?: string, userSentiments?: Record<string, 'pos' | 'neg' | 'neu'>) => {
     const stats = useMemo(() => {
         const filteredReadings = userId ? readings.filter(r => r.userId === userId) : readings;
         const sortedReadings = [...filteredReadings].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -107,8 +115,8 @@ export const useAnalytics = (readings: Reading[], userId?: string, birthDate?: s
                     const card = FULL_DECK.find(x => x.id === c.cardId);
                     if (card?.element) dayElements[card.element]++;
                 }));
-                const topEl = Object.entries(dayElements).sort((a,b) => b[1] - a[1])[0];
-                if (topEl && topEl[1] > 0) {
+                const topEl = Object.entries(dayElements).sort((a,b) => b[1] - (a[1] as number))[0];
+                if (topEl && (topEl[1] as number) > 0) {
                     theme = topEl[0] === 'Víz' ? "Érzelmi mélység" : topEl[0] === 'Tűz' ? "Aktivitás és tűz" : topEl[0] === 'Levegő' ? "Szellemi munka" : "Stabilitás napja";
                 }
             }
@@ -118,7 +126,7 @@ export const useAnalytics = (readings: Reading[], userId?: string, birthDate?: s
         // 4. MOON
         const moonPhases: Record<string, number> = {};
         sortedReadings.forEach(r => { if (r.astrology?.moonPhase) moonPhases[r.astrology.moonPhase] = (moonPhases[r.astrology.moonPhase] || 0) + 1; });
-        const favMoonArr = Object.entries(moonPhases).sort((a,b) => b[1] - a[1]);
+        const favMoonArr = Object.entries(moonPhases).sort((a,b) => (b[1] as number) - (a[1] as number));
         const favMoon = favMoonArr.length > 0 ? { name: favMoonArr[0][0], count: favMoonArr[0][1] } : null;
 
         // 5. STREAK
@@ -163,8 +171,9 @@ export const useAnalytics = (readings: Reading[], userId?: string, birthDate?: s
             });
         });
         const moodCorrelations = Object.entries(moodCardMap).flatMap(([mId, counts]) => {
-            const topCard = Object.entries(counts).sort((a,b) => b[1] - a[1])[0];
-            return topCard ? [{ moodId: mId, cardId: topCard[0], count: topCard[1] }] : [];
+            const topCard = Object.entries(counts).sort((a,b) => (b[1] as number) - (a[1] as number))[0];
+            if (!topCard) return [];
+            return [{ moodId: mId, cardId: topCard[0], count: topCard[1] as number }];
         });
 
         // 8. TRENDS
@@ -174,7 +183,9 @@ export const useAnalytics = (readings: Reading[], userId?: string, birthDate?: s
             if (!trendMap[mKey]) trendMap[mKey] = { 'Tűz': 0, 'Víz': 0, 'Levegő': 0, 'Föld': 0 };
             r.cards.forEach(dc => {
                 const card = FULL_DECK.find(c => c.id === dc.cardId);
-                if (card?.element) trendMap[mKey][card.element as keyof typeof elements]++;
+                if (card?.element && (card.element in trendMap[mKey])) {
+                    (trendMap[mKey] as any)[card.element]++;
+                }
             });
         });
         const elementTrends = Object.entries(trendMap).map(([month, data]) => ({ month, ...data }));
@@ -198,6 +209,9 @@ export const useAnalytics = (readings: Reading[], userId?: string, birthDate?: s
                              minElement[0] === 'Levegő' ? "A tiszta gondolatok és kommunikáció fejlesztése." :
                              "A fizikai biztonság és stabilitás megteremtése.";
 
+        const moodCounts = sortedReadings.reduce((acc, r) => { if (r.mood) acc[r.mood] = (acc[r.mood] || 0) + 1; return acc; }, {} as Record<string, number>);
+        const topMoodEntry = Object.entries(moodCounts).sort((a,b) => b[1] - a[1])[0];
+
         // 11. PLANET HOUR STATS
         const planetHourStats: Record<string, number> = {};
         sortedReadings.forEach(r => {
@@ -205,6 +219,70 @@ export const useAnalytics = (readings: Reading[], userId?: string, birthDate?: s
                 planetHourStats[r.astrology.planetHour] = (planetHourStats[r.astrology.planetHour] || 0) + 1;
             }
         });
+
+        // 12. BATCH 2: ZODIAC DOMINANCE
+        const zodiacCounts: Record<string, number> = {};
+        allDrawnCards.forEach(dc => {
+            const card = FULL_DECK.find(c => c.id === dc.cardId);
+            if (card?.astrology) {
+                zodiacCounts[card.astrology] = (zodiacCounts[card.astrology] || 0) + 1;
+            }
+        });
+        const zodiacDominance = Object.entries(zodiacCounts)
+            .sort(([,a], [,b]) => (b as number) - (a as number))
+            .map(([name, count]) => ({ name, count: count as number }))
+            .slice(0, 5);
+
+        // 13. BATCH 2: DIARY STATS
+        const diaryStats = {
+            favorites: sortedReadings.filter(r => r.isFavorite).length,
+            fulfilled: sortedReadings.filter(r => r.isFulfilled).length,
+            notesCount: sortedReadings.filter(r => r.notes && r.notes.trim().length > 5).length
+        };
+
+        // 14. BATCH 2: ANNIVERSARY READINGS
+        const today = new Date();
+        const anniversaryReadings = sortedReadings.filter(r => {
+            const d = new Date(r.date);
+            return d.getMonth() === today.getMonth() &&
+                   d.getDate() === today.getDate() &&
+                   d.getFullYear() < today.getFullYear();
+        });
+
+        // 15. BATCH 2: INNER PEACE INDEX (0-100)
+        let peacePoints = 0;
+        let totalWeights = 0;
+
+        sortedReadings.slice(-10).forEach(r => {
+            totalWeights += 1;
+            if (r.mood === 'happy' || r.mood === 'peaceful' || r.mood === 'inspired') peacePoints += 50;
+            else if (r.mood === 'neutral' || !r.mood) peacePoints += 25;
+
+            let cardScore = 0;
+            r.cards.forEach(dc => {
+                const userSent = userSentiments?.[dc.cardId];
+                if (userSent === 'pos') cardScore += 1;
+                else if (userSent === 'neg') cardScore -= 1;
+                else {
+                    const card = FULL_DECK.find(c => c.id === dc.cardId);
+                    if (card?.decision === 'Igen') cardScore += 1;
+                    else if (card?.decision === 'Nem') cardScore -= 1;
+                }
+            });
+            const avgCardScore = r.cards.length ? cardScore / r.cards.length : 0;
+            peacePoints += (avgCardScore + 1) * 25;
+        });
+        const innerPeaceIndex = totalWeights ? Math.round(peacePoints / totalWeights) : 50;
+
+        // 16. BATCH 2: TOTEM ANIMAL
+        const maxElement = Object.entries(elements).sort((a,b) => (b[1] as number) - (a[1] as number))[0];
+        const totemMap: Record<string, { name: string; icon: string; description: string }> = {
+            'Tűz': { name: 'Főnix', icon: '🔥', description: 'Az újjászületés és a kimeríthetetlen energia jelképe.' },
+            'Víz': { name: 'Delfin', icon: '🐬', description: 'Az érzelmi intelligencia és a játékos bölcsesség hordozója.' },
+            'Levegő': { name: 'Sas', icon: '🦅', description: 'A tisztánlátás és a szellemi szabadság szimbóluma.' },
+            'Föld': { name: 'Szarvas', icon: '🦌', description: 'A stabilitás, a nemesség és a természeti erő megtestesítője.' }
+        };
+        const totemAnimal = totemMap[maxElement?.[0]] || { name: 'Bagowl', icon: '🦉', description: 'A titkos tudás és a megfigyelés mestere.' };
 
         return {
             totalReadings, totalCards, cardCounts, sortedCards, suits, elements, hours, weekDays, timeLabel, busiestHour, moonPhases, favMoon, currentStreak, longestStreak,
@@ -221,9 +299,15 @@ export const useAnalytics = (readings: Reading[], userId?: string, birthDate?: s
             personalYear,
             spiritualChallenge,
             planetHourStats,
-            dominantMood: MOODS.find(m => m.id === Object.entries(sortedReadings.reduce((acc, r) => { if (r.mood) acc[r.mood] = (acc[r.mood] || 0) + 1; return acc; }, {} as Record<string, number>)).sort((a,b) => b[1] - a[1])[0]?.[0])
+            dominantMood: topMoodEntry ? MOODS.find(m => m.id === topMoodEntry[0]) : undefined,
+            zodiacDominance,
+            diaryStats,
+            anniversaryReadings,
+            innerPeaceIndex,
+            totemAnimal,
+            discoveryProgress: { total: 78, discovered: Object.keys(cardCounts).length }
         };
-    }, [readings, userId, birthDate]);
+    }, [readings, userId, birthDate, userSentiments]);
 
     return stats;
 };
