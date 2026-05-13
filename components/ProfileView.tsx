@@ -55,6 +55,7 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
     const [showAltarPicker, setShowAltarPicker] = useState(false);
     const [showAuraInfo, setShowAuraInfo] = useState(false);
     const [showDiscoveryGallery, setShowDiscoveryGallery] = useState(false);
+    const [showAvatarPicker, setShowAvatarPicker] = useState(false);
 
     const PROTECTION_SYMBOLS = [
         { id: 'none', icon: '❌', name: 'Nincs' },
@@ -148,11 +149,11 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
     };
 
     const getRank = (xp: number) => {
-        if (xp >= 5000) return { title: 'Mágus', icon: '🧙‍♂️', color: 'text-purple-400' };
-        if (xp >= 2000) return { title: 'Főpapnő', icon: '✨', color: 'text-gold-400' };
-        if (xp >= 500) return { title: 'Beavatott', icon: '👁️', color: 'text-blue-400' };
-        if (xp >= 100) return { title: 'Novícius', icon: '📜', color: 'text-green-400' };
-        return { title: 'Kereső', icon: '🔍', color: 'text-gray-400' };
+        if (xp >= 5000) return { title: 'Mágus', icon: '🧙‍♂️', color: 'text-purple-400', nextXp: 10000 };
+        if (xp >= 2000) return { title: 'Főpapnő', icon: '✨', color: 'text-gold-400', nextXp: 5000 };
+        if (xp >= 500) return { title: 'Beavatott', icon: '👁️', color: 'text-blue-400', nextXp: 2000 };
+        if (xp >= 100) return { title: 'Novícius', icon: '📜', color: 'text-green-400', nextXp: 500 };
+        return { title: 'Kereső', icon: '🔍', color: 'text-gray-400', nextXp: 100 };
     };
 
     const auraColor = useMemo(() => {
@@ -260,12 +261,27 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
         .map(id => id === 'stats' ? 'analysis' : id)
         .filter(id => QUICK_ACTION_OPTIONS.some(opt => opt.id === id));
 
+    const toggleTheme = () => {
+        if (!currentUser) return;
+        const next = activeThemeKey === 'mystic' ? 'nature' : activeThemeKey === 'nature' ? 'dark' : activeThemeKey === 'dark' ? 'minimal' : 'mystic';
+        updateSetting('themePreference', next as any);
+    };
+
     return (
         <div className="animate-fade-in max-w-6xl mx-auto pb-20 relative">
             <div className="flex justify-between items-center mb-6">
                 <button onClick={onBack} className="flex items-center gap-2 font-bold text-white/60 hover:text-gold-400 transition-colors">
                     <span>&larr;</span> {t('profile.back', language)}
                 </button>
+                {isOwnProfile && (
+                    <button
+                        onClick={toggleTheme}
+                        className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all text-xl"
+                        title="Téma váltása"
+                    >
+                        {isDay ? '☀️' : '🌙'}
+                    </button>
+                )}
             </div>
 
             {/* HERO SECTION */}
@@ -289,14 +305,26 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                             </div>
                         )}
 
-                        <img 
-                            src={getAvatarUrl(viewedUser)} 
-                            className="w-32 h-32 rounded-full bg-black relative z-10 border-4 border-gold-500 shadow-2xl object-cover transition-transform group-hover:scale-105"
-                            onClick={() => setShowAuraInfo(true)}
-                        />
+                        <div className="relative" onClick={isOwnProfile ? () => setShowAvatarPicker(true) : undefined}>
+                            <img
+                                src={getAvatarUrl(viewedUser)}
+                                className={`w-32 h-32 rounded-full bg-black relative z-10 border-4 border-gold-500 shadow-2xl object-cover transition-transform ${isOwnProfile ? 'hover:scale-105 cursor-pointer' : ''}`}
+                            />
+                            {isOwnProfile && (
+                                <div className="absolute inset-0 z-11 flex items-center justify-center bg-black/40 rounded-full opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
+                                    <span className="text-white text-xs font-bold uppercase">Módosítás</span>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="absolute bottom-0 right-0 z-20 bg-gold-500 text-black font-bold text-xs px-2 py-1 rounded-full border-2 border-black shadow-lg">
                             Lvl {viewedUser.level || 1}
                         </div>
+                        {stats.currentStreak > 0 && (
+                            <div className="absolute -bottom-2 -left-2 z-20 bg-orange-600 text-white font-bold text-[10px] px-2 py-0.5 rounded-full border border-white/20 shadow-lg flex items-center gap-1 animate-pulse">
+                                🔥 {stats.currentStreak}
+                            </div>
+                        )}
                     </div>
                     
                     <div className="flex-1 text-center md:text-left mb-2 z-10">
@@ -306,6 +334,14 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                                 <span>{getRank(viewedUser.xp || 0).icon}</span>
                                 <span>{getRank(viewedUser.xp || 0).title}</span>
                             </div>
+                        </div>
+
+                        {/* XP PROGRESS BAR */}
+                        <div className="w-full max-w-xs h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/10 mb-4 hidden md:block">
+                            <div
+                                className="h-full bg-gradient-to-r from-gold-600 to-gold-400 shadow-[0_0_10px_rgba(212,175,55,0.4)]"
+                                style={{ width: `${(viewedUser.xp % getRank(viewedUser.xp).nextXp) / getRank(viewedUser.xp).nextXp * 100}%` }}
+                            ></div>
                         </div>
                         {viewedUser.mantra && (
                             <div className="mb-3 inline-block px-4 py-1 rounded-lg bg-gold-500/10 border border-gold-500/20 italic text-gold-200 text-sm animate-pulse">
@@ -454,7 +490,7 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                                 </div>
                             </div>
 
-                            {/* NUMEROLOGY CARD */}
+                            {/* NUMEROLOGY & ASTRO CARDS */}
                             {lifePath && (
                                 <div className="glass-panel p-6 rounded-2xl border border-indigo-500/20 bg-gradient-to-br from-indigo-900/10 to-transparent">
                                     <h3 className="font-bold text-indigo-300 text-xs uppercase tracking-widest mb-4">Személyes Archetípusok</h3>
@@ -472,6 +508,19 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                                             </div>
                                         </div>
 
+                                        {stats.astroTarot.cardId !== '0' && (
+                                            <div className="pt-4 border-t border-white/5 flex gap-4 items-center">
+                                                <div className="w-16 aspect-[2/3] rounded-lg border border-gold-500/20 overflow-hidden opacity-80 flex-shrink-0">
+                                                    <CardImage cardId={stats.astroTarot.cardId} className="w-full h-full object-cover" />
+                                                </div>
+                                                <div>
+                                                    <div className="text-lg font-bold text-gold-200">Asztro-Tarot: {stats.astroTarot.sign}</div>
+                                                    <div className="text-sm italic text-white/60">{stats.astroTarot.cardName}</div>
+                                                    <div className="text-[10px] text-white/40">A csillagjegyedhez rendelt Tarot archetípus.</div>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {stats.personalYear > 0 && (
                                             <div className="pt-4 border-t border-white/5 flex gap-4 items-center">
                                                 <div className="w-16 aspect-[2/3] rounded-lg border border-indigo-500/20 overflow-hidden opacity-80 flex-shrink-0">
@@ -488,6 +537,24 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                                                 </div>
                                             </div>
                                         )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* CHINESE ZODIAC */}
+                            {viewedUser.birthDate && (
+                                <div className="glass-panel p-6 rounded-2xl border border-red-500/20 bg-gradient-to-br from-red-900/10 to-transparent">
+                                    <h3 className="font-bold text-red-300 text-xs uppercase tracking-widest mb-4">Kínai Horoszkóp</h3>
+                                    <div className="flex gap-4 items-center">
+                                        <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-4xl shadow-inner">
+                                            {stats.chineseZodiac.icon}
+                                        </div>
+                                        <div>
+                                            <div className="text-xl font-bold text-white">{stats.chineseZodiac.name}</div>
+                                            <p className="text-[10px] text-red-200/70 leading-tight mt-1 italic">
+                                                {stats.chineseZodiac.description}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -602,7 +669,32 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                             </div>
 
                             {/* HEATMAP */}
-                            <HistoryHeatmap readings={userReadings} onSelectReading={setSelectedReading} />
+                            <div className="glass-panel p-6 rounded-2xl border border-white/5">
+                                <h3 className="font-bold text-white/60 text-xs uppercase tracking-widest mb-4 flex justify-between">
+                                    Spirituális Hőtérkép
+                                    <span className="text-[10px] text-white/20 font-sans tracking-normal">Húzási intenzitás</span>
+                                </h3>
+                                <HistoryHeatmap readings={userReadings} onSelectReading={setSelectedReading} />
+                            </div>
+
+                            {/* SPIRITUAL TIMELINE */}
+                            <div className="glass-panel p-6 rounded-2xl border border-white/5 overflow-hidden relative">
+                                <h3 className="font-bold text-white/60 text-xs uppercase tracking-widest mb-6">Spirituális Idővonal</h3>
+                                <div className="space-y-6 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-white/5">
+                                    {stats.milestones.slice(0, 5).map((m, idx) => (
+                                        <div key={idx} className="flex gap-4 items-start relative z-10">
+                                            <div className="w-6 h-6 rounded-full bg-black border border-white/20 flex items-center justify-center text-xs shadow-lg flex-shrink-0">
+                                                {m.icon}
+                                            </div>
+                                            <div>
+                                                <div className="text-xs font-bold text-white leading-none mb-1">{m.title}</div>
+                                                <div className="text-[10px] text-white/30">{new Date(m.date).toLocaleDateString()}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {stats.milestones.length === 0 && <div className="text-[10px] text-white/20 italic text-center py-4">Még nincsenek mérföldkövek.</div>}
+                                </div>
+                            </div>
 
                             {/* BADGES */}
                             <div className="glass-panel p-6 rounded-2xl border border-white/5">
@@ -774,6 +866,19 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                                         className={`w-12 h-6 rounded-full p-1 transition-colors ${currentUser?.isPublicProfile ? 'bg-gold-500' : 'bg-gray-600'}`}
                                     >
                                         <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-transform ${currentUser?.isPublicProfile ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                                    </button>
+                                </div>
+
+                                <div className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/10 mt-4">
+                                    <div>
+                                        <div className="font-bold text-white text-sm">Napi Emlékeztetők</div>
+                                        <div className="text-xs text-white/50">Értesítés küldése a napi kártyahúzáshoz</div>
+                                    </div>
+                                    <button
+                                        onClick={() => alert("Értesítések engedélyezve a böngészőben.")}
+                                        className={`w-12 h-6 rounded-full p-1 transition-colors bg-gray-600`}
+                                    >
+                                        <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-transform translate-x-0`}></div>
                                     </button>
                                 </div>
                             </div>
@@ -1142,6 +1247,41 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                             </div>
 
                             <button onClick={() => setShowAuraInfo(false)} className="mt-8 w-full py-3 bg-gold-500 text-black font-bold rounded-full shadow-lg">Értem</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* AVATAR PICKER MODAL */}
+            {showAvatarPicker && (
+                <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4">
+                    <div className="glass-panel w-full max-w-4xl max-h-[90vh] rounded-3xl border border-gold-500/30 overflow-hidden flex flex-col">
+                        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-gold-500/10">
+                            <div>
+                                <h3 className="text-2xl font-serif font-bold text-gold-400">Tarot Archetípus Avatár</h3>
+                                <p className="text-xs text-white/40">Válassz a 22 Nagy Árkánum bölcsességéből.</p>
+                            </div>
+                            <button onClick={() => setShowAvatarPicker(false)} className="text-white/60 hover:text-white text-2xl">✕</button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-6">
+                            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4">
+                                {FULL_DECK.filter(c => c.arcana === 'Major').map(card => {
+                                    const isSelected = currentUser?.avatarId === card.imageUrl;
+                                    return (
+                                        <button
+                                            key={card.id}
+                                            onClick={() => { updateSetting('avatarId', card.imageUrl); setShowAvatarPicker(false); }}
+                                            className={`aspect-[2/3] rounded-lg border-2 transition-all relative group overflow-hidden ${isSelected ? 'border-gold-500 shadow-lg scale-105 z-10' : 'border-white/10 opacity-60 hover:opacity-100'}`}
+                                        >
+                                            <CardImage cardId={card.id} className="w-full h-full object-cover" />
+                                            <div className="absolute inset-x-0 bottom-0 bg-black/80 p-1 text-[8px] text-white font-bold truncate">{card.name}</div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-white/10 flex justify-center">
+                            <button onClick={() => setShowAvatarPicker(false)} className="bg-gold-500 text-black px-10 py-2 rounded-full font-bold shadow-lg">Bezárás</button>
                         </div>
                     </div>
                 </div>
