@@ -272,7 +272,7 @@ const NotificationCenter = ({ navigateTo }: { navigateTo: (v: string) => void })
 };
 
 const AppContent = () => {
-    const { currentUser, deck, isSyncing, isCloudAvailable, language, activeThemeKey, logout, userLocation, globalSettings } = useTarot();
+    const { currentUser, readings, deck, isSyncing, isCloudAvailable, language, activeThemeKey, logout, userLocation, globalSettings } = useTarot();
     const [view, setView] = useState('dashboard');
     const [analysisTab, setAnalysisTab] = useState<any>('stats');
     const [activeSpread, setActiveSpread] = useState<Spread | null>(null);

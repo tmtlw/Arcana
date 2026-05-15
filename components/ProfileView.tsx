@@ -345,7 +345,10 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                     
                     <div className="flex-1 text-center md:text-left mb-2 z-10">
                         <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
-                            <h2 className="text-4xl font-serif font-bold text-white shadow-black drop-shadow-md">{viewedUser.name}</h2>
+                            <h2 className="text-4xl font-serif font-bold text-white shadow-black drop-shadow-md">
+                                {viewedUser.name}
+                                {viewedUser.username && <span className="text-lg text-white/40 ml-2 font-sans font-normal">@{viewedUser.username}</span>}
+                            </h2>
                             <div className={`px-3 py-1 rounded-full bg-black/40 border border-white/10 text-xs font-bold flex items-center gap-1 ${getRank(viewedUser.xp || 0).color}`}>
                                 <span>{getRank(viewedUser.xp || 0).icon}</span>
                                 <span>{getRank(viewedUser.xp || 0).title}</span>

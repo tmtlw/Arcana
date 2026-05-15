@@ -81,6 +81,7 @@ interface TarotContextType {
     toggleLessonInCollection: (lessonId: string) => void;
     toggleDeckInCollection: (deckId: string) => void;
     updateDashboardLayout: (layout: any[]) => Promise<void>;
+    updateProfileLayout: (layout: any[]) => Promise<void>;
 
     // Eseménykezelés
     addCommunityEvent: (e: CommunityEvent) => Promise<boolean>;
@@ -731,6 +732,12 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
         await updateUser(updated);
     };
 
+    const updateProfileLayout = async (layout: any[]) => {
+        if (!currentUser) return;
+        const updated = { ...currentUser, profileLayout: layout };
+        await updateUser(updated);
+    };
+
     // Utils - Safety check for FULL_DECK
     const deck = useMemo(() => (FULL_DECK || []).map(c => customCards[c.id] ? { ...c, ...customCards[c.id] } : c), [customCards]);
     
@@ -852,7 +859,7 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
             exportData: () => StorageService.exportData(currentUser?.id),
             importData: (f: File) => StorageService.importData(f, currentUser?.id),
             syncToCloud, loadFromCloud, showToast, playSound, logout,
-            toggleLessonInCollection, toggleDeckInCollection, updateDashboardLayout,
+            toggleLessonInCollection, toggleDeckInCollection, updateDashboardLayout, updateProfileLayout,
             addCommunityEvent, joinCommunityEvent, leaveCommunityEvent,
             requestCommunityBadge, approveCommunityBadgeRequest, rejectCommunityBadgeRequest,
             markNotificationRead, markAllNotificationsRead
