@@ -56,6 +56,8 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
     const [showAuraInfo, setShowAuraInfo] = useState(false);
     const [showDiscoveryGallery, setShowDiscoveryGallery] = useState(false);
     const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+    const [showCoverPicker, setShowCoverPicker] = useState(false);
+    const [readingPage, setReadingPage] = useState(1);
 
     const PROTECTION_SYMBOLS = [
         { id: 'none', icon: '❌', name: 'Nincs' },
@@ -267,30 +269,44 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
         updateSetting('themePreference', next as any);
     };
 
+    const COVERS = [
+        'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=1200&q=80',
+        'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1200&q=80',
+        'https://images.unsplash.com/photo-1502134249126-9f3755a50d78?auto=format&fit=crop&w=1200&q=80',
+        'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?auto=format&fit=crop&w=1200&q=80',
+        'https://images.unsplash.com/photo-1506318137071-a8e063b4b4bf?auto=format&fit=crop&w=1200&q=80',
+        'https://images.unsplash.com/photo-1536431311719-398b6704d4cc?auto=format&fit=crop&w=1200&q=80'
+    ];
+
     return (
         <div className="animate-fade-in max-w-6xl mx-auto pb-20 relative">
             <div className="flex justify-between items-center mb-6">
                 <button onClick={onBack} className="flex items-center gap-2 font-bold text-white/60 hover:text-gold-400 transition-colors">
                     <span>&larr;</span> {t('profile.back', language)}
                 </button>
-                {isOwnProfile && (
-                    <button
-                        onClick={toggleTheme}
-                        className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all text-xl"
-                        title="Téma váltása"
-                    >
-                        {isDay ? '☀️' : '🌙'}
-                    </button>
-                )}
             </div>
 
             {/* HERO SECTION */}
-            <div className={`relative rounded-3xl shadow-2xl border border-white/10 ${theme.cardBg} mb-8 overflow-hidden`}>
+            <div className={`relative rounded-3xl shadow-2xl border border-white/10 ${theme.cardBg} mb-8 overflow-hidden group/hero`}>
                 {/* Cover Background */}
-                <div className={`absolute inset-0 h-48 ${THEMES[viewedUser.themePreference || 'mystic'].bg} opacity-80`}></div>
-                <div className="absolute inset-0 h-48 bg-gradient-to-b from-transparent via-black/20 to-black/90"></div>
+                <div className="absolute inset-0 h-64 overflow-hidden">
+                    {viewedUser.coverPhotoUrl ? (
+                        <img src={viewedUser.coverPhotoUrl} className="w-full h-full object-cover" />
+                    ) : (
+                        <div className={`w-full h-full ${THEMES[viewedUser.themePreference || 'mystic'].bg} opacity-80`}></div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/90"></div>
+                    {isOwnProfile && (
+                        <button
+                            onClick={() => setShowCoverPicker(true)}
+                            className="absolute top-4 right-4 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1.5 rounded-full border border-white/20 opacity-0 group-hover/hero:opacity-100 transition-opacity flex items-center gap-2"
+                        >
+                            <span>🖼️</span> Borítókép módosítása
+                        </button>
+                    )}
+                </div>
                 
-                <div className="relative z-10 px-6 pb-8 pt-24 flex flex-col md:flex-row items-center md:items-end gap-6">
+                <div className="relative z-10 px-6 pb-8 pt-40 flex flex-col md:flex-row items-center md:items-end gap-6">
                     <div className="relative group">
                         {/* Aura Effect */}
                         <div
@@ -369,6 +385,7 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                     <div className="flex bg-black/30 p-1 rounded-xl border border-white/10 overflow-x-auto max-w-full">
                         {[
                             { id: 'overview', icon: '👤', label: 'Áttekintés' },
+                            { id: 'readings', icon: '📜', label: 'Húzások' },
                             { id: 'settings', icon: '⚙️', label: 'Adatok' },
                             { id: 'appearance', icon: '🎨', label: 'Megjelenés' },
                             { id: 'account', icon: '💾', label: 'Fiók' }
@@ -426,43 +443,6 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                         {/* LEFT COLUMN: Stats & Tools */}
                         <div className="space-y-6">
 
-                            {/* INNER PEACE INDEX */}
-                            <div className="glass-panel p-6 rounded-2xl border border-teal-500/20 bg-gradient-to-br from-teal-900/10 to-transparent">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="font-bold text-teal-300 text-xs uppercase tracking-widest">Belső Béke Index</h3>
-                                    <span className="text-2xl">⚖️</span>
-                                </div>
-                                <div className="flex items-end gap-2 mb-2">
-                                    <span className="text-4xl font-bold text-white">{stats.innerPeaceIndex}%</span>
-                                    <span className="text-xs text-white/40 pb-1">mentális egyensúly</span>
-                                </div>
-                                <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden border border-white/5 p-0.5">
-                                    <div
-                                        className="h-full rounded-full bg-gradient-to-r from-teal-600 to-teal-400 transition-all duration-1000 shadow-[0_0_10px_rgba(45,212,191,0.5)]"
-                                        style={{ width: `${stats.innerPeaceIndex}%` }}
-                                    ></div>
-                                </div>
-                                <p className="text-[10px] text-white/50 mt-4 leading-relaxed italic">
-                                    A kártyák energiái és a hangulatnaplód alapján számított spirituális rezgésszinted.
-                                </p>
-                            </div>
-
-                            {/* TOTEM ANIMAL */}
-                            <div className="glass-panel p-6 rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-900/10 to-transparent overflow-hidden relative">
-                                <div className="absolute -right-4 -bottom-4 text-8xl opacity-10 grayscale">{stats.totemAnimal.icon}</div>
-                                <h3 className="font-bold text-orange-300 text-xs uppercase tracking-widest mb-4">Szellemállat Guide</h3>
-                                <div className="flex gap-4 items-center relative z-10">
-                                    <div className="w-16 h-16 rounded-2xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center text-4xl shadow-inner">
-                                        {stats.totemAnimal.icon}
-                                    </div>
-                                    <div>
-                                        <div className="text-xl font-bold text-white">{stats.totemAnimal.name}</div>
-                                        <p className="text-[10px] text-orange-200/70 leading-tight mt-1">
-                                            {stats.totemAnimal.description}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
 
                             {/* DIGITAL ALTAR */}
                             <div className="glass-panel p-6 rounded-2xl border border-gold-500/20 relative overflow-hidden">
@@ -471,7 +451,6 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                                 </div>
                                 <h3 className="font-bold text-gold-400 text-xs uppercase tracking-widest mb-6 flex items-center justify-between">
                                     Digitális Oltár
-                                    {isOwnProfile && <button onClick={() => setShowAltarPicker(true)} className="text-[10px] bg-white/10 px-2 py-1 rounded hover:bg-white/20 transition-colors">Szerkesztés</button>}
                                 </h3>
                                 <div className="flex justify-center gap-3">
                                     {[0, 1, 2].map(idx => {
@@ -713,6 +692,35 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                         {/* RIGHT COLUMN: Readings Grid */}
                         <div className="lg:col-span-2 space-y-8">
 
+                            {/* DYNAMIC WIDGETS SECTION */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="glass-panel p-6 rounded-2xl border border-teal-500/20 bg-gradient-to-br from-teal-900/10 to-transparent">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="font-bold text-teal-300 text-xs uppercase tracking-widest">Belső Béke Index</h3>
+                                        <span className="text-2xl">⚖️</span>
+                                    </div>
+                                    <div className="flex items-end gap-2 mb-2">
+                                        <span className="text-4xl font-bold text-white">{stats.innerPeaceIndex}%</span>
+                                    </div>
+                                    <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden border border-white/5 p-0.5">
+                                        <div className="h-full rounded-full bg-gradient-to-r from-teal-600 to-teal-400" style={{ width: `${stats.innerPeaceIndex}%` }}></div>
+                                    </div>
+                                </div>
+
+                                <div className="glass-panel p-6 rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-900/10 to-transparent overflow-hidden relative">
+                                    <div className="absolute -right-4 -bottom-4 text-8xl opacity-10 grayscale">{stats.totemAnimal.icon}</div>
+                                    <h3 className="font-bold text-orange-300 text-xs uppercase tracking-widest mb-4">Szellemállat</h3>
+                                    <div className="flex gap-4 items-center relative z-10">
+                                        <div className="w-12 h-12 rounded-xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center text-2xl shadow-inner">
+                                            {stats.totemAnimal.icon}
+                                        </div>
+                                        <div>
+                                            <div className="text-lg font-bold text-white">{stats.totemAnimal.name}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* MAGICAL REVIEW / ANNIVERSARY */}
                             {isOwnProfile && stats.anniversaryReadings.length > 0 && (
                                 <div className="glass-panel p-6 rounded-2xl border border-gold-500/30 bg-gradient-to-r from-gold-900/20 to-transparent">
@@ -748,76 +756,19 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                                 </div>
                             )}
 
-                            <h3 className="font-serif font-bold text-xl text-white mb-6 flex items-center gap-2">
-                                <span>📜</span> {isOwnProfile ? 'Összes Húzás' : 'Publikus Húzások'}
-                            </h3>
-                            {displayReadings.length === 0 ? (
-                                <div className="text-center py-12 opacity-50 bg-white/5 rounded-2xl border border-dashed border-white/10">
-                                    <div className="text-5xl mb-4">🎴</div>
-                                    <p className="font-serif text-lg">Nincsenek megjeleníthető bejegyzések.</p>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {displayReadings.map(reading => {
-                                        const spread = allSpreads.find(s => s.id === reading.spreadId);
-                                        return (
-                                            <div
-                                                key={reading.id}
-                                                onClick={() => setSelectedReading(reading)}
-                                                className="glass-panel rounded-2xl overflow-hidden border border-white/10 hover:border-gold-500/30 transition-all hover:shadow-xl group flex flex-col cursor-pointer"
-                                            >
-                                                {/* Header */}
-                                                <div className="p-4 bg-black/20 border-b border-white/5 relative">
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <span className="text-[10px] font-bold uppercase tracking-widest text-gold-500 bg-gold-500/10 px-2 py-1 rounded">
-                                                            {spread?.name || 'Ismeretlen Kirakás'}
-                                                        </span>
-                                                        <span className="text-xs text-white/40">{new Date(reading.date).toLocaleDateString()}</span>
-                                                    </div>
-                                                    <h4 className="font-serif font-bold text-white text-lg leading-tight line-clamp-2 italic">
-                                                        "{reading.question || 'Csendes húzás...'}"
-                                                    </h4>
-                                                    {isOwnProfile && !reading.isPublic && (
-                                                        <div className="absolute top-2 right-2 text-xs" title="Privát">🔒</div>
-                                                    )}
-                                                </div>
-
-                                                {/* Visual Preview of Cards */}
-                                                <div className="p-4 flex-1 bg-gradient-to-b from-transparent to-black/20">
-                                                    <div className="flex gap-2 justify-center items-end h-24 mb-2">
-                                                        {reading.cards.slice(0, 3).map((c, i) => {
-                                                            return (
-                                                                <div key={i} className={`relative w-16 transition-transform hover:z-10 hover:scale-110 shadow-lg ${i===1 ? '-mb-2 z-10 scale-110' : 'opacity-80'}`} style={{ transform: c.isReversed ? 'rotate(180deg)' : 'none' }}>
-                                                                    <div className="aspect-[2/3] rounded-lg overflow-hidden border border-white/20">
-                                                                        <CardImage cardId={c.cardId} className="w-full h-full object-cover" />
-                                                                    </div>
-                                                                </div>
-                                                            )
-                                                        })}
-                                                        {reading.cards.length > 3 && (
-                                                            <div className="text-xs text-white/40 ml-2 font-bold">+{reading.cards.length - 3}</div>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                {/* Footer */}
-                                                <div className="p-3 border-t border-white/5 flex justify-between items-center bg-black/40">
-                                                    <div className="flex gap-2">
-                                                        {reading.mood && (
-                                                            <span className="text-lg" title={MOODS.find(m => m.id === reading.mood)?.label}>
-                                                                {MOODS.find(m => m.id === reading.mood)?.icon || reading.mood}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-gold-500 font-bold text-sm">✨ {reading.likes || 0}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
+                            {/* Short Preview or Widget instead of all readings */}
+                            <div className="glass-panel p-8 rounded-3xl border border-white/5 text-center">
+                                <h3 className="font-serif font-bold text-2xl text-white mb-4">Spirituális Napló</h3>
+                                <p className="text-white/40 mb-8 max-w-md mx-auto italic">
+                                    Az összes kártyahúzásodat és spirituális bejegyzésedet a Napló fülön találod meg, kényelmesen rendszerezve.
+                                </p>
+                                <button
+                                    onClick={() => setActiveTab('readings')}
+                                    className="px-8 py-3 bg-gold-500 text-black font-bold rounded-full shadow-lg hover:scale-105 transition-transform"
+                                >
+                                    Megnyitás
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -831,6 +782,16 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                                 <div>
                                     <label className="block text-xs font-bold text-white/50 mb-1">Megjelenített Név</label>
                                     <input value={localName} onChange={e => setLocalName(e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white focus:border-gold-500 outline-none" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-white/50 mb-1">Egyedi Felhasználónév (@)</label>
+                                    <input
+                                        value={currentUser?.username || ""}
+                                        onChange={e => updateSetting('username', e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                                        className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white focus:border-gold-500 outline-none"
+                                        placeholder="felhasznalonev"
+                                    />
+                                    <p className="text-[10px] text-white/30 mt-1">Ezen az azonosítón keresztül érhetik el a profilodat közvetlenül.</p>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-white/50 mb-1">Rövid Bemutatkozás (Bio)</label>
@@ -981,6 +942,13 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
 
                 {activeTab === 'appearance' && isOwnProfile && (
                     <div className="space-y-8 animate-fade-in">
+                        <div className="glass-panel p-6 rounded-2xl border border-white/10">
+                            <h3 className="font-serif font-bold text-lg text-gold-400 mb-6">Profil Elrendezése</h3>
+                            <p className="text-xs text-white/50 mb-4 italic">Későbbi frissítésben: Itt tudod majd rendezni a profilodon megjelenő modulokat.</p>
+                            <div className="opacity-50 grayscale pointer-events-none">
+                                <button className="w-full py-4 border-2 border-dashed border-white/10 rounded-2xl font-bold">Rendezés Bekapcsolása</button>
+                            </div>
+                        </div>
                         {/* THEME SETTINGS - NEW */}
                         <div className="glass-panel p-6 rounded-2xl border border-white/10">
                             <h3 className="font-serif font-bold text-lg text-gold-400 mb-6">Téma Beállítások</h3>
@@ -1160,20 +1128,75 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                             </div>
                         </div>
                         
-                        <div className="glass-panel p-6 rounded-2xl border border-white/10">
-                            <h3 className="font-serif font-bold text-lg text-gold-400 mb-6">Avatár</h3>
-                            <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
-                                {AVATAR_GALLERY.map((url, idx) => (
-                                    <button 
-                                        key={idx}
-                                        onClick={() => updateSetting('avatarId', url)}
-                                        className={`w-16 h-16 flex-shrink-0 rounded-full overflow-hidden border-2 transition-all hover:scale-110 ${currentUser?.avatarId === url ? 'border-gold-500 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'}`}
-                                    >
-                                        <img src={url} className="w-full h-full object-cover" loading="lazy" />
-                                    </button>
-                                ))}
-                            </div>
+                    </div>
+                )}
+
+                {activeTab === 'readings' && (
+                    <div className="space-y-6 animate-fade-in">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-serif font-bold text-2xl text-white">Naplózott Húzásaid</h3>
+                            <div className="text-xs text-white/40">Összesen {displayReadings.length} bejegyzés</div>
                         </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {displayReadings.slice(0, readingPage * 10).map(reading => {
+                                const spread = allSpreads.find(s => s.id === reading.spreadId);
+                                return (
+                                    <div
+                                        key={reading.id}
+                                        onClick={() => setSelectedReading(reading)}
+                                        className="glass-panel rounded-2xl overflow-hidden border border-white/10 hover:border-gold-500/30 transition-all hover:shadow-xl group flex flex-col cursor-pointer"
+                                    >
+                                        {/* Entry content exactly like before... */}
+                                        <div className="p-4 bg-black/20 border-b border-white/5 relative">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <span className="text-[10px] font-bold uppercase tracking-widest text-gold-500 bg-gold-500/10 px-2 py-1 rounded">
+                                                    {spread?.name || 'Ismeretlen Kirakás'}
+                                                </span>
+                                                <span className="text-xs text-white/40">{new Date(reading.date).toLocaleDateString()}</span>
+                                            </div>
+                                            <h4 className="font-serif font-bold text-white text-lg leading-tight line-clamp-2 italic">
+                                                "{reading.question || 'Csendes húzás...'}"
+                                            </h4>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}?reading=${reading.id}`); alert("Link másolva!"); }}
+                                                className="absolute top-2 right-8 text-[10px] text-white/20 hover:text-gold-400"
+                                                title="Megosztás"
+                                            >
+                                                🔗
+                                            </button>
+                                            {isOwnProfile && !reading.isPublic && (
+                                                <div className="absolute top-2 right-2 text-xs" title="Privát">🔒</div>
+                                            )}
+                                        </div>
+
+                                        <div className="p-4 flex-1 bg-gradient-to-b from-transparent to-black/20">
+                                            <div className="flex gap-2 justify-center items-end h-24 mb-2">
+                                                {reading.cards.slice(0, 3).map((c, i) => (
+                                                    <div key={i} className={`relative w-16 transition-transform hover:z-10 hover:scale-110 shadow-lg ${i===1 ? '-mb-2 z-10 scale-110' : 'opacity-80'}`} style={{ transform: c.isReversed ? 'rotate(180deg)' : 'none' }}>
+                                                        <div className="aspect-[2/3] rounded-lg overflow-hidden border border-white/20">
+                                                            <CardImage cardId={c.cardId} className="w-full h-full object-cover" />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {reading.cards.length > 3 && <div className="text-xs text-white/40 ml-2 font-bold">+{reading.cards.length - 3}</div>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {displayReadings.length > readingPage * 10 && (
+                            <div className="flex justify-center pt-8">
+                                <button
+                                    onClick={() => setReadingPage(p => p + 1)}
+                                    className="px-10 py-3 bg-white/5 border border-white/10 rounded-full font-bold text-white hover:bg-white/10 transition-all"
+                                >
+                                    Továbbiak betöltése...
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -1247,6 +1270,41 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                             </div>
 
                             <button onClick={() => setShowAuraInfo(false)} className="mt-8 w-full py-3 bg-gold-500 text-black font-bold rounded-full shadow-lg">Értem</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* COVER PICKER MODAL */}
+            {showCoverPicker && (
+                <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4">
+                    <div className="glass-panel w-full max-w-3xl rounded-3xl border border-gold-500/30 overflow-hidden flex flex-col">
+                        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-gold-500/10">
+                            <h3 className="text-2xl font-serif font-bold text-gold-400">Borítókép Választása</h3>
+                            <button onClick={() => setShowCoverPicker(false)} className="text-white/60 hover:text-white text-2xl">✕</button>
+                        </div>
+                        <div className="p-6 grid grid-cols-2 gap-4">
+                            {COVERS.map((url, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => { updateSetting('coverPhotoUrl', url); setShowCoverPicker(false); }}
+                                    className={`aspect-video rounded-xl overflow-hidden border-2 transition-all hover:scale-[1.02] ${viewedUser.coverPhotoUrl === url ? 'border-gold-500 shadow-lg' : 'border-white/10 opacity-60'}`}
+                                >
+                                    <img src={url} className="w-full h-full object-cover" />
+                                </button>
+                            ))}
+                            <div className="col-span-2 mt-4">
+                                <label className="block text-xs font-bold text-white/40 mb-2 uppercase tracking-widest">Egyedi kép URL</label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        placeholder="https://..."
+                                        className="flex-1 bg-black/30 border border-white/10 rounded-lg p-2 text-white outline-none focus:border-gold-500"
+                                        onKeyDown={(e) => { if(e.key === 'Enter') { updateSetting('coverPhotoUrl', (e.target as any).value); setShowCoverPicker(false); } }}
+                                    />
+                                    <button className="bg-white/10 px-4 rounded-lg font-bold text-xs">Beállítás</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

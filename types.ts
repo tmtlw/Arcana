@@ -283,6 +283,7 @@ export interface Lesson {
 export interface User {
   id: string;
   name: string;
+  username?: string;
   realName?: string; 
   birthDate?: string; 
   birthTime?: string; 
@@ -315,6 +316,8 @@ export interface User {
   altarCards?: string[];
   isPublicProfile?: boolean;
   protectionSymbol?: string;
+  coverPhotoUrl?: string;
+  profileLayout?: DashboardRow[];
 
   createdAt?: string;
   lastLogin?: string;
