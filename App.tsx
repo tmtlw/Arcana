@@ -33,6 +33,7 @@ import { MarketplaceView } from './components/MarketplaceView';
 import { Spread, Card } from './types';
 import { t } from './services/i18nService';
 import { AstroService } from './services/astroService';
+import { CommunityService } from './services/communityService';
 import { UpdateService, UpdateResponse } from './services/UpdateService';
 import { TutorialOverlay, TutorialStep } from './components/TutorialOverlay';
 

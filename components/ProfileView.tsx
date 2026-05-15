@@ -40,7 +40,7 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
     const theme = THEMES[activeThemeKey] || THEMES['mystic']; 
     
     // State
-    const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'appearance' | 'account'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'readings' | 'community' | 'collection' | 'settings' | 'appearance' | 'account'>('overview');
     const [viewedUser, setViewedUser] = useState<User | null>(null);
     const [publicReadings, setPublicReadings] = useState<Reading[]>([]);
     const [selectedReading, setSelectedReading] = useState<Reading | null>(null); // For detailed view
@@ -353,6 +353,11 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                                 <span>{getRank(viewedUser.xp || 0).icon}</span>
                                 <span>{getRank(viewedUser.xp || 0).title}</span>
                             </div>
+                            {viewedUser.activeTitle && (
+                                <div className="px-3 py-1 rounded-full bg-gold-500/20 border border-gold-500/30 text-[10px] font-bold text-gold-400 uppercase tracking-widest">
+                                    {viewedUser.activeTitle}
+                                </div>
+                            )}
                         </div>
 
                         {/* XP PROGRESS BAR */}
@@ -389,6 +394,8 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                         {[
                             { id: 'overview', icon: '👤', label: 'Áttekintés' },
                             { id: 'readings', icon: '📜', label: 'Húzások' },
+                            { id: 'community', icon: '🌍', label: 'Közösség' },
+                            { id: 'collection', icon: '💎', label: 'Gyűjtemény' },
                             { id: 'settings', icon: '⚙️', label: 'Adatok' },
                             { id: 'appearance', icon: '🎨', label: 'Megjelenés' },
                             { id: 'account', icon: '💾', label: 'Fiók' }
@@ -760,6 +767,71 @@ export const ProfileView = ({ onBack, targetUserId }: ProfileViewProps) => {
                             )}
 
                             {/* Short Preview or Widget instead of all readings */}
+                            {/* COMMUNITY SECTION */}
+                            {activeTab === 'community' && (
+                                <div className="space-y-6 animate-fade-in">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="glass-panel p-6 rounded-2xl border border-white/10">
+                                            <h3 className="text-xl font-serif font-bold text-gold-400 mb-4">Áldások</h3>
+                                            <div className="space-y-4">
+                                                {viewedUser.blessings?.map(b => (
+                                                    <div key={b.id} className="bg-white/5 p-3 rounded-xl border border-white/5">
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <span className="text-xs font-bold text-indigo-300">{b.fromName}</span>
+                                                            <span className="text-[10px] text-white/20">{new Date(b.createdAt).toLocaleDateString()}</span>
+                                                        </div>
+                                                        <p className="text-sm text-white/70 italic">"{b.message}"</p>
+                                                    </div>
+                                                ))}
+                                                {(!viewedUser.blessings || viewedUser.blessings.length === 0) && (
+                                                    <div className="text-center py-6 text-white/20 italic">Még nincsenek áldások.</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="glass-panel p-6 rounded-2xl border border-white/10">
+                                            <h3 className="text-xl font-serif font-bold text-gold-400 mb-4">Spirituális hírnév</h3>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="bg-white/5 p-4 rounded-xl text-center">
+                                                    <div className="text-2xl mb-1">👥</div>
+                                                    <div className="text-xl font-bold text-white">{viewedUser.followers || 0}</div>
+                                                    <div className="text-[10px] uppercase text-white/40">Követők</div>
+                                                </div>
+                                                <div className="bg-white/5 p-4 rounded-xl text-center">
+                                                    <div className="text-2xl mb-1">🤝</div>
+                                                    <div className="text-xl font-bold text-white">{viewedUser.following || 0}</div>
+                                                    <div className="text-[10px] uppercase text-white/40">Követés</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* COLLECTION SECTION */}
+                            {activeTab === 'collection' && (
+                                <div className="space-y-6 animate-fade-in">
+                                    <div className="glass-panel p-6 rounded-2xl border border-white/10">
+                                        <h3 className="text-xl font-serif font-bold text-gold-400 mb-6">Saját Kristályok</h3>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                            {viewedUser.inventory?.filter(i => i.type === 'crystal').map(item => (
+                                                <div key={item.id} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center text-center gap-2 group hover:border-gold-500/30 transition-all">
+                                                    <div className="text-4xl filter drop-shadow-lg group-hover:scale-110 transition-transform">{item.icon}</div>
+                                                    <div>
+                                                        <div className="font-bold text-white text-sm">{item.name}</div>
+                                                        <div className={`text-[10px] uppercase font-bold ${item.rarity === 'legendary' ? 'text-orange-400' : item.rarity === 'rare' ? 'text-purple-400' : 'text-blue-400'}`}>
+                                                            {item.rarity}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {(!viewedUser.inventory || viewedUser.inventory.length === 0) && (
+                                                <div className="col-span-full py-12 text-center text-white/20 italic">A gyűjtemény még üres.</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="glass-panel p-8 rounded-3xl border border-white/5 text-center">
                                 <h3 className="font-serif font-bold text-2xl text-white mb-4">Spirituális Napló</h3>
                                 <p className="text-white/40 mb-8 max-w-md mx-auto italic">
