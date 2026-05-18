@@ -33,6 +33,7 @@ import { MarketplaceView } from './components/MarketplaceView';
 import { Spread, Card } from './types';
 import { t } from './services/i18nService';
 import { AstroService } from './services/astroService';
+import { CommunityService } from './services/communityService';
 import { UpdateService, UpdateResponse } from './services/UpdateService';
 import { TutorialOverlay, TutorialStep } from './components/TutorialOverlay';
 
@@ -272,7 +273,7 @@ const NotificationCenter = ({ navigateTo }: { navigateTo: (v: string) => void })
 };
 
 const AppContent = () => {
-    const { currentUser, deck, isSyncing, isCloudAvailable, language, activeThemeKey, logout, userLocation, globalSettings } = useTarot();
+    const { currentUser, readings, deck, isSyncing, isCloudAvailable, language, activeThemeKey, logout, userLocation, globalSettings } = useTarot();
     const [view, setView] = useState('dashboard');
     const [analysisTab, setAnalysisTab] = useState<any>('stats');
     const [activeSpread, setActiveSpread] = useState<Spread | null>(null);
@@ -280,6 +281,7 @@ const AppContent = () => {
     const [selectedCard, setSelectedCard] = useState<Card | null>(null);
     const [spreadToEdit, setSpreadToEdit] = useState<Spread | undefined>(undefined);
     const [viewProfileId, setViewProfileId] = useState<string | undefined>(undefined);
+    const [directReading, setDirectReading] = useState<Reading | null>(null);
     const [spreadBuilderMode, setSpreadBuilderMode] = useState<'simple'|'advanced'>('simple');
     
     // Tutorial State
@@ -297,6 +299,41 @@ const AppContent = () => {
 
     // Menu State
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+    // --- URL ROUTING LOGIC ---
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+
+        // 1. Handle Reading ID
+        const readingId = params.get('reading');
+        if (readingId) {
+            const r = readings.find(x => x.id === readingId);
+            if (r) {
+                setDirectReading(r);
+            }
+        }
+
+        // 2. Handle Username
+        const userPath = window.location.pathname.substring(1);
+        if (userPath && userPath.length > 2 && !['dashboard', 'history', 'library', 'profile', 'admin'].includes(userPath)) {
+            CommunityService.getUserByUsername(userPath).then(u => {
+                if (u) {
+                    setViewProfileId(u.id);
+                    setView('profile');
+                }
+            });
+        }
+
+        const uParam = params.get('u');
+        if (uParam) {
+            CommunityService.getUserByUsername(uParam).then(u => {
+                if (u) {
+                    setViewProfileId(u.id);
+                    setView('profile');
+                }
+            });
+        }
+    }, [readings]);
 
     if (!currentUser) return <AuthView />;
 
@@ -523,6 +560,11 @@ const AppContent = () => {
 
             {/* Main Content - Adjusted Padding for Header */}
             <main className="container mx-auto px-4 pt-28 pb-10 max-w-7xl">
+                {directReading && (
+                    <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-xl flex flex-col p-4 md:p-8 overflow-y-auto">
+                        <ReadingAnalysis reading={directReading} onClose={() => { setDirectReading(null); window.history.pushState({}, '', '/'); }} />
+                    </div>
+                )}
                 {view === 'dashboard' && <Dashboard onNavigate={navigateTo} onStartReading={startReading} onEditSpread={handleEditSpread} />}
                 {view === 'reading' && activeSpread && <ReadingView spread={activeSpread} deck={deck} targetDate={readingDate} onCancel={() => setView('dashboard')} />}
                 {view === 'history' && <HistoryView deck={deck} onBack={() => setView('dashboard')} />}

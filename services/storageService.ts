@@ -56,37 +56,76 @@ export const StorageService = {
     saveCustomLessons: (lessons: Lesson[]) => {},
     getCustomLessons: (): Lesson[] => [],
 
-    exportData: () => {
-        const data = {
-            users: JSON.parse(localStorage.getItem(KEYS.USERS) || '[]'),
-            readings: JSON.parse(localStorage.getItem(KEYS.READINGS) || '[]'),
-            spreads: JSON.parse(localStorage.getItem(KEYS.CUSTOM_SPREADS) || '[]'),
-            customCards: JSON.parse(localStorage.getItem(KEYS.CUSTOM_CARDS) || '{}'),
-            quizResults: JSON.parse(localStorage.getItem(KEYS.QUIZ_RESULTS) || '[]'),
-            customDecks: JSON.parse(localStorage.getItem(KEYS.CUSTOM_DECKS) || '[]'),
-            customLessons: JSON.parse(localStorage.getItem(KEYS.CUSTOM_LESSONS) || '[]'), // Export lessons
-            exportedAt: new Date().toISOString()
-        };
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `tarot_backup_${new Date().toISOString().slice(0,10)}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
+    exportData: async (userId?: string) => {
+        if (!userId || !db) return;
+        try {
+            const profile = await StorageService.loadFullUserProfile(userId);
+            const data = {
+                ...profile,
+                exportedAt: new Date().toISOString()
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `arkanam_backup_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error("Export failed", e);
+        }
     },
 
-    importData: async (file: File): Promise<boolean> => {
+    importData: async (file: File, userId?: string): Promise<boolean> => {
+        if (!userId || !db) return false;
         try {
             const text = await file.text();
             const data = JSON.parse(text);
-            if(data.users) localStorage.setItem(KEYS.USERS, JSON.stringify(data.users));
-            if(data.readings) localStorage.setItem(KEYS.READINGS, JSON.stringify(data.readings));
-            if(data.spreads) localStorage.setItem(KEYS.CUSTOM_SPREADS, JSON.stringify(data.spreads));
-            if(data.customCards) localStorage.setItem(KEYS.CUSTOM_CARDS, JSON.stringify(data.customCards));
-            if(data.quizResults) localStorage.setItem(KEYS.QUIZ_RESULTS, JSON.stringify(data.quizResults));
-            if(data.customDecks) localStorage.setItem(KEYS.CUSTOM_DECKS, JSON.stringify(data.customDecks));
-            if(data.customLessons) localStorage.setItem(KEYS.CUSTOM_LESSONS, JSON.stringify(data.customLessons)); // Import lessons
+
+            // 1. User Profile
+            if (data.user) {
+                await StorageService.saveUserProfileToCloud({ ...data.user, id: userId });
+            }
+
+            // 2. Collections (Batching for performance)
+            const batch = writeBatch(db);
+
+            if (data.readings) {
+                data.readings.forEach((r: any) => {
+                    const ref = doc(db!, 'users', userId, 'readings', r.id);
+                    batch.set(ref, r);
+                });
+            }
+
+            if (data.customSpreads) {
+                data.customSpreads.forEach((s: any) => {
+                    const ref = doc(db!, 'users', userId, 'customSpreads', s.id);
+                    batch.set(ref, s);
+                });
+            }
+
+            if (data.customCards) {
+                Object.entries(data.customCards).forEach(([id, c]: [string, any]) => {
+                    const ref = doc(db!, 'users', userId, 'customCards', id);
+                    batch.set(ref, c);
+                });
+            }
+
+            if (data.quizResults) {
+                data.quizResults.forEach((q: any) => {
+                    const ref = doc(db!, 'users', userId, 'quizResults', q.id);
+                    batch.set(ref, q);
+                });
+            }
+
+            if (data.customLessons) {
+                data.customLessons.forEach((l: any) => {
+                    const ref = doc(db!, 'users', userId, 'customLessons', l.id);
+                    batch.set(ref, l);
+                });
+            }
+
+            await batch.commit();
             return true;
         } catch (e) {
             console.error("Import failed", e);

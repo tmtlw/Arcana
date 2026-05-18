@@ -1,7 +1,7 @@
 
 import { db } from './firebase';
 import { collection, addDoc, getDocs, query, orderBy, limit, doc, updateDoc, increment, deleteDoc, setDoc, getDoc, where, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { Reading, Spread, Comment, Lesson, CommunityBadge, BadgeRequest, TarotNotification, CommunityEvent, ShopItem } from '../types';
+import { Reading, Spread, Comment, Lesson, CommunityBadge, BadgeRequest, TarotNotification, CommunityEvent, ShopItem, User } from '../types';
 
 const COLLECTION_READINGS = 'public_readings';
 const COLLECTION_SPREADS = 'public_spreads';
@@ -726,6 +726,19 @@ export const CommunityService = {
         } catch (e) {
             console.error("Error saving settings:", e);
             throw e;
+        }
+    },
+
+    getUserByUsername: async (username: string): Promise<User | null> => {
+        if (!db) return null;
+        try {
+            const q = query(collection(db, 'users'), where('username', '==', username), limit(1));
+            const snap = await getDocs(q);
+            if (snap.empty) return null;
+            return snap.docs[0].data() as User;
+        } catch (e) {
+            console.error("Error fetching user by username:", e);
+            return null;
         }
     }
 };

@@ -81,6 +81,7 @@ interface TarotContextType {
     toggleLessonInCollection: (lessonId: string) => void;
     toggleDeckInCollection: (deckId: string) => void;
     updateDashboardLayout: (layout: any[]) => Promise<void>;
+    updateProfileLayout: (layout: any[]) => Promise<void>;
 
     // Eseménykezelés
     addCommunityEvent: (e: CommunityEvent) => Promise<boolean>;
@@ -164,6 +165,64 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
     }, [userLocation]);
 
     useEffect(() => {
+        // Mock User for testing
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('mock') === 'true') {
+            const mockUser: User = {
+                id: 'mock_user_123',
+                name: 'Teszt Mágus',
+                themePreference: 'mystic',
+                autoThemeEnabled: false,
+                dayTheme: 'nature',
+                nightTheme: 'mystic',
+                deckPreference: 'rider-waite',
+                avatarId: AVATAR_GALLERY[0],
+                language: 'hu',
+                badges: ['first_reading', 'meditator'],
+                xp: 1550,
+                currency: 2000,
+                level: 12,
+                soundEnabled: true,
+                fontSize: 'normal',
+                isAnonymous: false,
+                isAdmin: true,
+                quickActions: ['community', 'customSpread', 'astro', 'numerology', 'analysis', 'history'],
+                dashboardLayout: [
+                    { id: 'row1', widgets: ['hero'] },
+                    { id: 'row2', widgets: ['actions'] }
+                ],
+                lessonCollection: [],
+                deckCollection: [],
+                favoriteCards: ['major-0', 'major-1'],
+                favoriteSpreads: ['one-card'],
+                // V4 fields
+                followers: 128,
+                following: 42,
+                blessings: [
+                    { id: 'b1', fromId: 'u2', fromName: 'Luna', message: 'Legyen fény az utadon!', createdAt: new Date().toISOString() },
+                    { id: 'b2', fromId: 'u3', fromName: 'Sol', message: 'Szakrális energiákat küldök.', createdAt: new Date().toISOString() }
+                ],
+                reactions: { fire: 12, heart: 25, star: 18, magic: 5 },
+                titles: ['Fényhozó', 'Kártyavető Tanonc', 'Misztikus Utazó'],
+                activeTitle: 'Fényhozó',
+                auraColor: '#a855f7',
+                avatarFrame: 'gold-epic',
+                inventory: [
+                    { id: 'c1', type: 'crystal', name: 'Hegyi Kristály', rarity: 'common', icon: '💎' },
+                    { id: 'c2', type: 'crystal', name: 'Ametiszt', rarity: 'rare', icon: '🔮' },
+                    { id: 'c3', type: 'crystal', name: 'Moldavit', rarity: 'legendary', icon: '✨' }
+                ],
+                status: 'online',
+                ambientSound: 'zen',
+                ambientVolume: 0.5,
+                isPublic: true
+            };
+            setUsers([mockUser]);
+            setCurrentUser(mockUser);
+            setIsCloudAvailable(true);
+            return;
+        }
+
         // Enforce no local storage
         StorageService.clearLocalCache();
 
@@ -731,6 +790,12 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
         await updateUser(updated);
     };
 
+    const updateProfileLayout = async (layout: any[]) => {
+        if (!currentUser) return;
+        const updated = { ...currentUser, profileLayout: layout };
+        await updateUser(updated);
+    };
+
     // Utils - Safety check for FULL_DECK
     const deck = useMemo(() => (FULL_DECK || []).map(c => customCards[c.id] ? { ...c, ...customCards[c.id] } : c), [customCards]);
     
@@ -848,9 +913,11 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
             addCustomSpread, updateCustomSpread, deleteCustomSpread, 
             addCustomLesson, updateCustomLesson, deleteCustomLesson,
             updateCardData, resetCardData, saveQuizResult,
-            checkForBadges, toggleFavorite, toggleFavoriteCard, toggleFavoriteSpread, setCardSentiment, triggerInstall, exportData: StorageService.exportData,
-            importData: StorageService.importData, syncToCloud, loadFromCloud, showToast, playSound, logout,
-            toggleLessonInCollection, toggleDeckInCollection, updateDashboardLayout,
+            checkForBadges, toggleFavorite, toggleFavoriteCard, toggleFavoriteSpread, setCardSentiment, triggerInstall,
+            exportData: () => StorageService.exportData(currentUser?.id),
+            importData: (f: File) => StorageService.importData(f, currentUser?.id),
+            syncToCloud, loadFromCloud, showToast, playSound, logout,
+            toggleLessonInCollection, toggleDeckInCollection, updateDashboardLayout, updateProfileLayout,
             addCommunityEvent, joinCommunityEvent, leaveCommunityEvent,
             requestCommunityBadge, approveCommunityBadgeRequest, rejectCommunityBadgeRequest,
             markNotificationRead, markAllNotificationsRead
