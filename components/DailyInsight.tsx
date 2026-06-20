@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Reading, Card } from '../types';
 import { FULL_DECK } from '../constants';
 import { CardImage } from './CardImage';
@@ -30,13 +30,30 @@ export const DailyInsight = ({ reading, onSelectCard }: DailyInsightProps) => {
         reading.astrology.moonSign === card.astrology
     );
 
-    // 6. Recurring Guest
-    const recentReadings = readings.filter(r => {
+    // 6. Recurring Guest & Stats
+    const allPreviousDraws = useMemo(() => {
+        return readings
+            .filter(r => r.id !== reading.id && r.cards.some(c => c.cardId === card.id))
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [readings, card.id, reading.id]);
+
+    const totalDraws = allPreviousDraws.length;
+    const lastDraw = allPreviousDraws[0];
+    const lastDrawDate = lastDraw ? new Date(lastDraw.date) : null;
+    const daysSinceLast = lastDrawDate ? Math.floor((new Date().getTime() - lastDrawDate.getTime()) / (1000 * 60 * 60 * 24)) : null;
+
+    const statsReflection = useMemo(() => {
+        if (totalDraws === 0) return "Ez az első alkalom, hogy ezzel a kártyával találkozol az utad során. Figyelj mélyen az új üzenetre.";
+        if (daysSinceLast !== null && daysSinceLast <= 7) return "Ez az energia mostanában nagyon intenzíven kísér téged, egy héten belül újra megjelent.";
+        if (daysSinceLast !== null && daysSinceLast <= 30) return "Ebben a hónapban már találkoztál ezzel a minőséggel, ami a téma folyamatos jelenlétét jelzi.";
+        return "Már régebben találkoztál ezzel a lappal, érdemes lehet felidézni, mi foglalkoztatott akkor.";
+    }, [totalDraws, daysSinceLast]);
+
+    const appearanceCount = allPreviousDraws.filter(r => {
         const d = new Date(r.date);
         const diff = (new Date().getTime() - d.getTime()) / (1000 * 60 * 60 * 24);
-        return diff > 0 && diff <= 7 && r.id !== reading.id;
-    });
-    const appearanceCount = recentReadings.filter(r => r.cards.some(c => c.cardId === card.id)).length;
+        return diff <= 7;
+    }).length;
 
     return (
         <div className="animate-fade-in space-y-8 max-w-2xl mx-auto">
@@ -101,6 +118,32 @@ export const DailyInsight = ({ reading, onSelectCard }: DailyInsightProps) => {
                         </div>
                     </div>
                 )}
+            </div>
+
+            {/* Stats & History Reflection */}
+            <div className="glass-panel p-6 rounded-2xl border border-gold-500/20 bg-gold-500/5">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-3">
+                    <div>
+                        <div className="text-[10px] uppercase font-bold text-gold-400 tracking-widest mb-1">Kapcsolódási Napló</div>
+                        <div className="text-sm text-white font-serif italic">
+                            {statsReflection}
+                        </div>
+                    </div>
+                    <div className="flex gap-4 text-right shrink-0">
+                        <div className="border-l border-white/10 pl-4">
+                            <div className="text-[9px] uppercase font-bold text-white/30">Összesen</div>
+                            <div className="text-lg font-bold text-white">{totalDraws + 1}×</div>
+                        </div>
+                        {lastDrawDate && (
+                            <div className="border-l border-white/10 pl-4">
+                                <div className="text-[9px] uppercase font-bold text-white/30">Legutóbb</div>
+                                <div className="text-xs font-bold text-gold-300">
+                                    {lastDrawDate.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
             {/* Daily Interpretation */}
