@@ -60,6 +60,12 @@
     </div>
 
     <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW reg hiba:', err));
+        });
+      }
+
       const modules = {};
       const CRITICAL_FILES = [
         './types.ts',
@@ -103,7 +109,7 @@
       function registerModule(filename, code) {
         try {
           const transformed = Babel.transform(code, {
-              presets: ['react', 'typescript'],
+              presets: [['react', { runtime: 'classic' }], 'typescript'],
               filename: filename,
               plugins: ['transform-modules-commonjs']
           }).code;
