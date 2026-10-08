@@ -1,6 +1,5 @@
 import { initializeApp, FirebaseApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, Auth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
 
 // ⚠️ CSERÉLD LE EZEKET AZ ADATOKAT A SAJÁT FIREBASE PROJEKTED ADATAIRA!
 // 1. Menj a https://console.firebase.google.com/ oldalra
@@ -22,7 +21,6 @@ const firebaseConfig = {
 // Definite assignment: init hiba esetén undefined marad (a hívók eddig is így kezelték).
 let app!: FirebaseApp;
 let auth!: Auth;
-let db!: Firestore;
 let googleProvider!: GoogleAuthProvider;
 
 try {
@@ -31,11 +29,11 @@ try {
     } else {
         app = initializeApp(firebaseConfig);
         auth = getAuth(app);
-        db = getFirestore(app);
         googleProvider = new GoogleAuthProvider();
     }
 } catch (e) {
     console.error("Firebase init error:", e);
 }
 
-export { auth, db, googleProvider };
+// Az adatbázis (Firestore) a services/data/firestoreStore.ts-ben van; ide csak a Firebase app és az azonosítás tartozik.
+export { app, auth, googleProvider };

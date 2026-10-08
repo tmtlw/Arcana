@@ -24,6 +24,17 @@ Ellenőrzés: `npx tsc --noEmit` és `npx tsc -p functions/tsconfig.json`.
 4. Firebase Console → Authentication → Settings → Authorized domains: add hozzá a `*.pages.dev` és az egyéni domaint.
 5. Firestore szabályok: `firebase deploy --only firestore:rules` (a `firestore.rules` fájlból).
 
+## Adatbázis cseréje (pl. Firestore → Cloudflare D1)
+Az alkalmazás **csak** a `services/data/types.ts`-ben definiált `DataStore` interfészen át éri el az adatbázist
+(get/set/update/remove/add, list/listGroup lekérdezések, watch/watchList élő figyelés, batch, mezőműveletek).
+A Firestore SDK egyetlen fájlban használatos: `services/data/firestoreStore.ts`.
+Másik adatbázishoz:
+1. írj egy új `DataStore` implementációt (pl. `services/data/d1Store.ts` – fetch hívások egy Pages Function felé),
+2. állítsd át a `services/data/index.ts`-ben a `store` értékét,
+3. ellenőrizd a `tests/data-store.contract.mjs` szerződés-teszttel,
+4. a hozzáférés-védelmet (jelenleg `firestore.rules`) az új adatbázisnál szerveroldalon kell megvalósítani.
+Megjegyzés: a bejelentkezés (Firebase Auth) külön van, ahhoz nem kell nyúlni.
+
 ## Működés
 - A **Firestore és a Firebase bejelentkezés változatlanul a Firebase-en fut**.
 - `functions/api/*` (Cloudflare Pages Functions) váltja a régi PHP fájlokat:

@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { db } from '../services/firebase';
-import { doc, setDoc, onSnapshot, getDoc, collection, addDoc, query, orderBy, serverTimestamp, where, getDocs, deleteDoc, writeBatch, updateDoc } from 'firebase/firestore';
+import { store, Ops } from '../services/data';
 import { useTarot } from '../context/TarotContext';
 import { CardImage } from './CardImage';
 import { FULL_DECK } from '../constants';
@@ -50,15 +49,14 @@ export const MultiplayerSession = ({ onBack }: { onBack: () => void }) => {
     // --- SETUP FLOW ---
 
     const handleHostStart = async () => {
-        if (!currentUser || !db) return;
+        if (!currentUser || !store.available) return;
         
         try {
-            const q = query(collection(db, 'sessions'), where('hostId', '==', currentUser.id));
-            const snap = await getDocs(q);
-            
-            if (!snap.empty) {
-                const existingDoc = snap.docs[0];
-                const data = existingDoc.data();
+            const existing = await store.list<any>(['sessions'], { where: [['hostId', '==', currentUser.id]] });
+
+            if (existing.length > 0) {
+                const existingDoc = existing[0];
+                const data = existingDoc.data;
                 setPendingSession({ 
                     id: existingDoc.id, 
                     spreadName: data.spreadName || 'Ismeretlen',
@@ -82,20 +80,16 @@ export const MultiplayerSession = ({ onBack }: { onBack: () => void }) => {
     };
 
     const deleteSessionFully = async (sid: string) => {
-        if (!db) return;
+        if (!store.available) return;
         try {
             // 1. Delete all messages in subcollection first (Firestore requirement)
-            const msgsQ = collection(db, 'sessions', sid, 'messages');
-            const msgsSnap = await getDocs(msgsQ);
-            
-            const batch = writeBatch(db);
-            msgsSnap.forEach((doc) => {
-                batch.delete(doc.ref);
-            });
-            
+            const msgs = await store.list(['sessions', sid, 'messages']);
+
+            const batch = store.batch();
+            msgs.forEach(m => batch.remove(m.path));
+
             // 2. Delete the session document itself
-            const sessionRef = doc(db, 'sessions', sid);
-            batch.delete(sessionRef);
+            batch.remove(['sessions', sid]);
             
             await batch.commit();
         } catch (e) {
@@ -105,7 +99,7 @@ export const MultiplayerSession = ({ onBack }: { onBack: () => void }) => {
     };
 
     const handleDeleteAndNew = async () => {
-        if (pendingSession && db) {
+        if (pendingSession && store.available) {
             try {
                 await deleteSessionFully(pendingSession.id);
                 setPendingSession(null);
@@ -118,11 +112,11 @@ export const MultiplayerSession = ({ onBack }: { onBack: () => void }) => {
     };
 
     const createRoom = async (spread: Spread) => {
-        if (!currentUser || !db) return;
+        if (!currentUser || !store.available) return;
         try {
             const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
             
-            await setDoc(doc(db, 'sessions', newRoomId), {
+            await store.set(['sessions', newRoomId], {
                 hostId: currentUser.id,
                 hostName: currentUser.name,
                 status: 'waiting',
@@ -130,7 +124,7 @@ export const MultiplayerSession = ({ onBack }: { onBack: () => void }) => {
                 spreadId: spread.id,
                 spreadName: spread.name,
                 spreadPositions: spread.positions,
-                createdAt: serverTimestamp()
+                createdAt: Ops.serverTimestamp()
             });
             
             setRoomId(newRoomId);
@@ -142,16 +136,16 @@ export const MultiplayerSession = ({ onBack }: { onBack: () => void }) => {
     };
 
     const joinRoom = async () => {
-        if (!currentUser || !db || !inputRoomId) return;
+        if (!currentUser || !store.available || !inputRoomId) return;
         try {
-            const roomRef = doc(db, 'sessions', inputRoomId);
-            const snap = await getDoc(roomRef);
-            
-            if (snap.exists()) {
-                await setDoc(roomRef, { 
-                    ...snap.data(), 
+            const roomRef = ['sessions', inputRoomId];
+            const existingRoom = await store.get<any>(roomRef);
+
+            if (existingRoom) {
+                await store.set(roomRef, {
+                    ...existingRoom,
                     guestName: currentUser.name,
-                    status: 'active' 
+                    status: 'active'
                 }, { merge: true });
                 setRoomId(inputRoomId);
                 setMode('room');
@@ -166,7 +160,7 @@ export const MultiplayerSession = ({ onBack }: { onBack: () => void }) => {
     // --- CLEANUP & EXIT LOGIC ---
 
     const handleExitRoom = async () => {
-        if (!db || !roomId) return;
+        if (!store.available || !roomId) return;
 
         const isHost = session?.hostId === currentUser?.id;
 
@@ -186,7 +180,7 @@ export const MultiplayerSession = ({ onBack }: { onBack: () => void }) => {
             // Guest exit: Remove self from session
             if (confirm("Biztosan kilépsz a szobából?")) {
                 try {
-                    await updateDoc(doc(db, 'sessions', roomId), {
+                    await store.update(['sessions', roomId], {
                         guestName: null,
                         status: 'waiting'
                     });
@@ -206,12 +200,12 @@ export const MultiplayerSession = ({ onBack }: { onBack: () => void }) => {
     // --- SYNC LOGIC ---
 
     useEffect(() => {
-        if (mode === 'room' && roomId && db) {
+        if (mode === 'room' && roomId && store.available) {
             // 1. Session Data Sync
-            const unsubSession = onSnapshot(doc(db, 'sessions', roomId), 
-                (docSnapshot) => {
-                    if (docSnapshot.exists()) {
-                        setSession(docSnapshot.data() as SessionData);
+            const unsubSession = store.watch<SessionData>(['sessions', roomId],
+                (sessionData) => {
+                    if (sessionData) {
+                        setSession(sessionData);
                     } else {
                         // Document deleted (Host left)
                         if (mode === 'room') { 
@@ -227,21 +221,23 @@ export const MultiplayerSession = ({ onBack }: { onBack: () => void }) => {
             );
 
             // 2. Chat Sync
-            const q = query(collection(db, 'sessions', roomId, 'messages'), orderBy('timestamp', 'asc'));
-            const unsubChat = onSnapshot(q, (snapshot) => {
-                const msgs: ChatMessage[] = [];
+            const seenIds = new Set<string>();
+            let firstSnapshot = true;
+            const unsubChat = store.watchList<ChatMessage>(['sessions', roomId, 'messages'], { orderBy: [['timestamp', 'asc']] }, (docs) => {
                 let hasNewMessageFromOthers = false;
 
-                snapshot.docChanges().forEach((change) => {
-                    if (change.type === "added") {
-                        const data = change.doc.data() as ChatMessage;
-                        if (data.sender !== currentUser?.name) {
+                // Új üzenet = olyan azonosító, amit még nem láttunk (az első betöltés nem számít újnak)
+                docs.forEach(d => {
+                    if (!seenIds.has(d.id)) {
+                        seenIds.add(d.id);
+                        if (!firstSnapshot && d.data.sender !== currentUser?.name) {
                             hasNewMessageFromOthers = true;
                         }
                     }
                 });
+                firstSnapshot = false;
 
-                snapshot.forEach(d => msgs.push({ id: d.id, ...d.data() } as ChatMessage));
+                const msgs: ChatMessage[] = docs.map(d => ({ ...d.data, id: d.id } as ChatMessage));
                 setMessages(msgs);
                 
                 // Notifications
@@ -271,13 +267,13 @@ export const MultiplayerSession = ({ onBack }: { onBack: () => void }) => {
 
     const sendMessage = async (e?: React.FormEvent) => {
         e?.preventDefault();
-        if (!chatInput.trim() || !currentUser || !db) return;
+        if (!chatInput.trim() || !currentUser || !store.available) return;
 
         try {
-            await addDoc(collection(db, 'sessions', roomId, 'messages'), {
+            await store.add(['sessions', roomId, 'messages'], {
                 sender: currentUser.name,
                 text: chatInput.trim(),
-                timestamp: serverTimestamp()
+                timestamp: Ops.serverTimestamp()
             });
             setChatInput("");
         } catch (err) {
@@ -294,7 +290,7 @@ export const MultiplayerSession = ({ onBack }: { onBack: () => void }) => {
     };
 
     const selectCard = async (cardId: string) => {
-        if (!session || activePositionId === null || !db) return;
+        if (!session || activePositionId === null || !store.available) return;
 
         const newDrawn = [
             ...session.drawnCards.filter(c => c.positionId !== activePositionId),
@@ -302,7 +298,7 @@ export const MultiplayerSession = ({ onBack }: { onBack: () => void }) => {
         ];
 
         try {
-            await setDoc(doc(db, 'sessions', roomId), { drawnCards: newDrawn }, { merge: true });
+            await store.set(['sessions', roomId], { drawnCards: newDrawn }, { merge: true });
             setIsCardPickerOpen(false);
             setActivePositionId(null);
         } catch (err) {
@@ -312,10 +308,10 @@ export const MultiplayerSession = ({ onBack }: { onBack: () => void }) => {
 
     const removeCard = async (e: React.MouseEvent, posId: number) => {
         e.stopPropagation();
-        if (!session || session.hostId !== currentUser?.id || !db) return;
+        if (!session || session.hostId !== currentUser?.id || !store.available) return;
 
         const newDrawn = session.drawnCards.filter(c => c.positionId !== posId);
-        await setDoc(doc(db, 'sessions', roomId), { drawnCards: newDrawn }, { merge: true });
+        await store.set(['sessions', roomId], { drawnCards: newDrawn }, { merge: true });
     };
 
     // --- VIEWS ---

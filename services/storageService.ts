@@ -1,7 +1,6 @@
 
 import { Reading, User, Spread, Card, QuizResult, DeckMeta, Lesson } from '../types';
-import { db } from './firebase';
-import { doc, setDoc, getDoc, collection, getDocs, deleteDoc, writeBatch, query, where } from 'firebase/firestore';
+import { store, Doc, Query } from './data';
 import { CommunityService } from './communityService';
 import { dbService } from './dbService';
 
@@ -16,12 +15,11 @@ const KEYS = {
 };
 
 // Helper to safely get docs without crashing on permission errors
-const safeGetDocs = async (collectionRef: any) => {
+const safeList = async <T = any>(collection: string[], query?: Query): Promise<Doc<T>[]> => {
     try {
-        const snap = await getDocs(collectionRef);
-        return snap;
+        return await store.list<T>(collection, query);
     } catch (e: any) {
-        return { empty: true, docs: [], forEach: () => {} };
+        return [];
     }
 };
 
@@ -57,7 +55,7 @@ export const StorageService = {
     getCustomLessons: (): Lesson[] => [],
 
     exportData: async (userId?: string) => {
-        if (!userId || !db) return;
+        if (!userId || !store.available) return;
         try {
             const profile = await StorageService.loadFullUserProfile(userId);
             const data = {
@@ -77,7 +75,7 @@ export const StorageService = {
     },
 
     importData: async (file: File, userId?: string): Promise<boolean> => {
-        if (!userId || !db) return false;
+        if (!userId || !store.available) return false;
         try {
             const text = await file.text();
             const data = JSON.parse(text);
@@ -88,44 +86,22 @@ export const StorageService = {
             }
 
             // 2. Collections (Batching for performance)
-            const batch = writeBatch(db);
+            const writes: Array<{ path: string[]; value: any }> = [];
+            const add = (collectionName: string, id: string, value: any) =>
+                writes.push({ path: ['users', userId, collectionName, id], value });
 
-            if (data.readings) {
-                data.readings.forEach((r: any) => {
-                    const ref = doc(db!, 'users', userId, 'readings', r.id);
-                    batch.set(ref, r);
-                });
+            (data.readings || []).forEach((r: any) => add('readings', r.id, r));
+            (data.customSpreads || []).forEach((s: any) => add('customSpreads', s.id, s));
+            Object.entries(data.customCards || {}).forEach(([id, c]) => add('customCards', id, c));
+            (data.quizResults || []).forEach((q: any) => add('quizResults', q.id, q));
+            (data.customLessons || []).forEach((l: any) => add('customLessons', l.id, l));
+
+            // Kötegekben írunk (a batch-nek mérethatára van)
+            for (let i = 0; i < writes.length; i += 450) {
+                const batch = store.batch();
+                writes.slice(i, i + 450).forEach(w => batch.set(w.path, w.value));
+                await batch.commit();
             }
-
-            if (data.customSpreads) {
-                data.customSpreads.forEach((s: any) => {
-                    const ref = doc(db!, 'users', userId, 'customSpreads', s.id);
-                    batch.set(ref, s);
-                });
-            }
-
-            if (data.customCards) {
-                Object.entries(data.customCards).forEach(([id, c]: [string, any]) => {
-                    const ref = doc(db!, 'users', userId, 'customCards', id);
-                    batch.set(ref, c);
-                });
-            }
-
-            if (data.quizResults) {
-                data.quizResults.forEach((q: any) => {
-                    const ref = doc(db!, 'users', userId, 'quizResults', q.id);
-                    batch.set(ref, q);
-                });
-            }
-
-            if (data.customLessons) {
-                data.customLessons.forEach((l: any) => {
-                    const ref = doc(db!, 'users', userId, 'customLessons', l.id);
-                    batch.set(ref, l);
-                });
-            }
-
-            await batch.commit();
             return true;
         } catch (e) {
             console.error("Import failed", e);
@@ -136,14 +112,14 @@ export const StorageService = {
     // --- Firestore Sync Implementation (Primary & Private) ---
 
     checkApiStatus: async (): Promise<boolean> => {
-        return !!db; 
+        return store.available;
     },
 
     // Save User Profile
     saveUserProfileToCloud: async (user: User) => {
-        if (!db || !user.id || user.isAnonymous) return;
+        if (!store.available || !user.id || user.isAnonymous) return;
         try {
-            await setDoc(doc(db, 'users', user.id), {
+            await store.set(['users', user.id], {
                 ...user,
                 lastActive: new Date().toISOString()
             }, { merge: true });
@@ -154,18 +130,18 @@ export const StorageService = {
 
     // Save a specific reading (Private under user)
     saveReadingToCloud: async (userId: string, reading: Reading) => {
-        if (!db || !userId) return;
+        if (!store.available || !userId) return;
         try {
-            await setDoc(doc(db, 'users', userId, 'readings', reading.id), reading);
+            await store.set(['users', userId, 'readings', reading.id], reading);
         } catch (e) {
             // console.error("Firestore Error (Save Reading):", e);
         }
     },
 
     deleteReadingFromCloud: async (userId: string, readingId: string) => {
-        if (!db || !userId) return;
+        if (!store.available || !userId) return;
         try {
-            await deleteDoc(doc(db, 'users', userId, 'readings', readingId));
+            await store.remove(['users', userId, 'readings', readingId]);
         } catch (e) {
             // console.error("Firestore Error (Delete Reading):", e);
         }
@@ -173,9 +149,9 @@ export const StorageService = {
 
     // Save custom card override (Private under user)
     saveCustomCardToCloud: async (userId: string, cardId: string, cardData: Partial<Card>) => {
-        if (!db || !userId) return;
+        if (!store.available || !userId) return;
         try {
-            await setDoc(doc(db, 'users', userId, 'customCards', cardId), cardData, { merge: true });
+            await store.set(['users', userId, 'customCards', cardId], cardData, { merge: true });
         } catch (e) {
             // console.error("Firestore Error (Save Card):", e);
         }
@@ -183,36 +159,36 @@ export const StorageService = {
 
     // Reset card to default (Delete private override)
     deleteCustomCardFromCloud: async (userId: string, cardId: string) => {
-        if (!db || !userId) return;
+        if (!store.available || !userId) return;
         try {
-            await deleteDoc(doc(db, 'users', userId, 'customCards', cardId));
+            await store.remove(['users', userId, 'customCards', cardId]);
         } catch (e) {
             // console.error("Firestore Error (Reset Card):", e);
         }
     },
 
     saveQuizResultToCloud: async (userId: string, result: QuizResult) => {
-        if (!db || !userId) return;
+        if (!store.available || !userId) return;
         try {
-            await setDoc(doc(db, 'users', userId, 'quizResults', result.id), result);
+            await store.set(['users', userId, 'quizResults', result.id], result);
         } catch (e) {
             // console.error("Firestore Error (Save Quiz):", e);
         }
     },
 
     saveCustomSpreadToCloud: async (userId: string, spread: Spread) => {
-        if (!db || !userId) return;
+        if (!store.available || !userId) return;
         try {
-            await setDoc(doc(db, 'users', userId, 'customSpreads', spread.id), spread);
+            await store.set(['users', userId, 'customSpreads', spread.id], spread);
         } catch (e) {
             // console.error("Firestore Error (Save Spread):", e);
         }
     },
 
     deleteCustomSpreadFromCloud: async (userId: string, spreadId: string) => {
-        if (!db || !userId) return;
+        if (!store.available || !userId) return;
         try {
-            await deleteDoc(doc(db, 'users', userId, 'customSpreads', spreadId));
+            await store.remove(['users', userId, 'customSpreads', spreadId]);
         } catch (e) {
             // console.error("Firestore Error (Delete Spread):", e);
         }
@@ -221,18 +197,18 @@ export const StorageService = {
     // --- Private Custom Lessons Cloud Sync (New) ---
     
     saveCustomLessonToCloud: async (userId: string, lesson: Lesson) => {
-        if (!db || !userId) return;
+        if (!store.available || !userId) return;
         try {
-            await setDoc(doc(db, 'users', userId, 'customLessons', lesson.id), lesson);
+            await store.set(['users', userId, 'customLessons', lesson.id], lesson);
         } catch (e) {
             console.error("Firestore Error (Save Lesson):", e);
         }
     },
 
     deleteCustomLessonFromCloud: async (userId: string, lessonId: string) => {
-        if (!db || !userId) return;
+        if (!store.available || !userId) return;
         try {
-            await deleteDoc(doc(db, 'users', userId, 'customLessons', lessonId));
+            await store.remove(['users', userId, 'customLessons', lessonId]);
         } catch (e) {
             console.error("Firestore Error (Delete Lesson):", e);
         }
@@ -241,23 +217,23 @@ export const StorageService = {
     // --- Private Custom Decks Cloud Sync ---
     
     saveUserDeckToCloud: async (userId: string, deck: DeckMeta, images: Record<string, string>) => {
-        if (!db || !userId) return;
+        if (!store.available || !userId) return;
         try {
             // 1. Save Metadata
-            await setDoc(doc(db, 'users', userId, 'private_decks', deck.id), deck);
-            
+            await store.set(['users', userId, 'private_decks', deck.id], deck);
+
             // 2. Save Images (Batching to avoid quota issues with single docs if possible)
-            const batch = writeBatch(db);
+            let batch = store.batch();
             let count = 0;
-            const MAX_BATCH = 450; 
+            const MAX_BATCH = 450;
 
             for (const [cardId, base64] of Object.entries(images)) {
-                const imgRef = doc(db, 'users', userId, 'private_decks', deck.id, 'card_images', cardId);
-                batch.set(imgRef, { content: base64 });
+                batch.set(['users', userId, 'private_decks', deck.id, 'card_images', cardId], { content: base64 });
                 count++;
-                
+
                 if (count >= MAX_BATCH) {
                     await batch.commit();
+                    batch = store.batch(); // a lezárt köteget nem lehet újra használni
                     count = 0;
                 }
             }
@@ -270,10 +246,10 @@ export const StorageService = {
     },
 
     deleteUserDeckFromCloud: async (userId: string, deckId: string) => {
-        if (!db || !userId) return;
+        if (!store.available || !userId) return;
         try {
             // 1. Delete Meta
-            await deleteDoc(doc(db, 'users', userId, 'private_decks', deckId));
+            await store.remove(['users', userId, 'private_decks', deckId]);
             // Note: Subcollections are not automatically deleted in Firestore client SDK.
         } catch (e) {
             console.error("Firestore Error (Delete Private Deck):", e);
@@ -282,18 +258,15 @@ export const StorageService = {
 
     // --- CLEANUP FOR GUESTS / DELETE ACCOUNT ---
     deleteFullUserProfile: async (userId: string) => {
-        if (!db || !userId) return;
+        if (!store.available || !userId) return;
         
         const deleteCollection = async (collectionName: string) => {
             try {
-                const q = collection(db, 'users', userId, collectionName);
-                const snapshot = await safeGetDocs(q); 
-                if (snapshot.empty) return;
+                const docs = await safeList(['users', userId, collectionName]);
+                if (docs.length === 0) return;
 
-                const batch = writeBatch(db);
-                snapshot.forEach((doc: any) => {
-                    batch.delete(doc.ref);
-                });
+                const batch = store.batch();
+                docs.forEach(d => batch.remove(d.path));
                 await batch.commit();
             } catch (e: any) {
                 // Ignore permission/network errors
@@ -302,11 +275,10 @@ export const StorageService = {
 
         const deletePublicDecks = async () => {
             try {
-                const q = query(collection(db, 'public_decks'), where('userId', '==', userId));
-                const snap = await safeGetDocs(q);
-                if (snap.empty) return;
-                const batch = writeBatch(db);
-                snap.forEach((d: any) => batch.delete(d.ref));
+                const docs = await safeList(['public_decks'], { where: [['userId', '==', userId]] });
+                if (docs.length === 0) return;
+                const batch = store.batch();
+                docs.forEach(d => batch.remove(d.path));
                 await batch.commit();
             } catch (e) {
                 console.error("Error wiping user decks:", e);
@@ -332,7 +304,7 @@ export const StorageService = {
             
             // 3. Delete the user doc
             try {
-                await deleteDoc(doc(db, 'users', userId));
+                await store.remove(['users', userId]);
             } catch(e) {}
             
         } catch (e) {
@@ -351,56 +323,41 @@ export const StorageService = {
         customLessons: Lesson[]
     }> => {
         const emptyResult = { user: null, readings: [], customSpreads: [], customCards: {}, quizResults: [], privateDecks: [], customLessons: [] };
-        if (!db || !userId) return emptyResult;
+        if (!store.available || !userId) return emptyResult;
 
         try {
             let user = null;
             try {
-                const userSnap = await getDoc(doc(db, 'users', userId));
-                user = userSnap.exists() ? (userSnap.data() as User) : null;
+                user = await store.get<User>(['users', userId]);
             } catch (e) {
                 return emptyResult;
             }
 
-            const readingsSnap = await safeGetDocs(collection(db, 'users', userId, 'readings'));
-            const readings: Reading[] = [];
-            readingsSnap.forEach((d: any) => readings.push(d.data() as Reading));
+            const readings = (await safeList<Reading>(['users', userId, 'readings'])).map(d => d.data);
+            const customSpreads = (await safeList<Spread>(['users', userId, 'customSpreads'])).map(d => d.data);
 
-            const spreadsSnap = await safeGetDocs(collection(db, 'users', userId, 'customSpreads'));
-            const customSpreads: Spread[] = [];
-            spreadsSnap.forEach((d: any) => customSpreads.push(d.data() as Spread));
-
-            const cardsSnap = await safeGetDocs(collection(db, 'users', userId, 'customCards'));
             const customCards: Record<string, Partial<Card>> = {};
-            cardsSnap.forEach((d: any) => {
-                customCards[d.id] = d.data() as Partial<Card>;
+            (await safeList<Partial<Card>>(['users', userId, 'customCards'])).forEach(d => {
+                customCards[d.id] = d.data;
             });
 
-            const quizSnap = await safeGetDocs(collection(db, 'users', userId, 'quizResults'));
-            const quizResults: QuizResult[] = [];
-            quizSnap.forEach((d: any) => quizResults.push(d.data() as QuizResult));
-
-            // Load Custom Lessons
-            const lessonsSnap = await safeGetDocs(collection(db, 'users', userId, 'customLessons'));
-            const customLessons: Lesson[] = [];
-            lessonsSnap.forEach((d: any) => customLessons.push(d.data() as Lesson));
+            const quizResults = (await safeList<QuizResult>(['users', userId, 'quizResults'])).map(d => d.data);
+            const customLessons = (await safeList<Lesson>(['users', userId, 'customLessons'])).map(d => d.data);
 
             // Load Private Decks Metadata
-            const decksSnap = await safeGetDocs(collection(db, 'users', userId, 'private_decks'));
             const privateDecks: DeckMeta[] = [];
-            
-            for (const d of decksSnap.docs) {
-                const meta = d.data() as DeckMeta;
+
+            for (const d of await safeList<DeckMeta>(['users', userId, 'private_decks'])) {
+                const meta = d.data;
                 privateDecks.push(meta);
-                
+
                 // Background Sync
                 try {
                     const testCard = await dbService.getImage(`deck_${meta.id}_major-0`);
                     if (!testCard) {
-                        const imgsSnap = await getDocs(collection(db, 'users', userId, 'private_decks', meta.id, 'card_images'));
-                        imgsSnap.forEach((imgDoc: any) => {
-                            const content = imgDoc.data().content;
-                            dbService.saveImage(`deck_${meta.id}_${imgDoc.id}`, content);
+                        const imgs = await store.list<{ content: string }>(['users', userId, 'private_decks', meta.id, 'card_images']);
+                        imgs.forEach(img => {
+                            dbService.saveImage(`deck_${meta.id}_${img.id}`, img.data.content);
                         });
                     }
                 } catch(e) { console.warn("Deck image sync warn", e); }

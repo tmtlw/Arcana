@@ -1,8 +1,7 @@
 
 import { DeckMeta } from '../types';
 import { dbService } from './dbService';
-import { db } from './firebase';
-import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, increment, setDoc, deleteDoc, where, writeBatch } from 'firebase/firestore';
+import { store, Ops } from './data';
 import { StorageService } from './storageService';
 
 const RIDER_WAITE: DeckMeta = { 
@@ -142,9 +141,9 @@ export const DeckService = {
             localStorage.setItem(KEYS.CUSTOM_DECKS, JSON.stringify(updated));
         }
         
-        if (db) {
+        if (store.available) {
             try {
-                await deleteDoc(doc(db, 'public_decks', deckId));
+                await store.remove(['public_decks', deckId]);
             } catch(e) {}
         }
 
@@ -156,7 +155,7 @@ export const DeckService = {
     // --- Community Deck Features ---
 
     publishDeck: async (deck: DeckMeta, userId: string, price: number = 0) => {
-        if (!db) throw new Error("Nincs kapcsolat az adatbázissal.");
+        if (!store.available) throw new Error("Nincs kapcsolat az adatbázissal.");
         
         const allImages: Record<string, string> = {};
         // Use dynamic import or pass dependencies if possible, here assuming full deck logic
@@ -170,7 +169,7 @@ export const DeckService = {
         }
 
         try {
-            await setDoc(doc(db, 'public_decks', deck.id), {
+            await store.set(['public_decks', deck.id], {
                 ...deck,
                 userId: userId,
                 isPublic: true,
@@ -185,22 +184,18 @@ export const DeckService = {
     },
 
     getPublicDecks: async (): Promise<DeckMeta[]> => {
-        if (!db) return [];
-        const q = query(collection(db, 'public_decks'), limit(20));
-        const snap = await getDocs(q);
-        const decks: DeckMeta[] = [];
-        snap.forEach(d => {
-            const data = d.data();
-            const { images, ...meta } = data; 
-            decks.push(meta as DeckMeta);
+        if (!store.available) return [];
+        const docs = await store.list<any>(['public_decks'], { limit: 20 });
+        return docs.map(d => {
+            const { images, ...meta } = d.data;
+            return meta as DeckMeta;
         });
-        return decks;
     },
 
     deletePublicDeck: async (deckId: string) => {
-        if (!db) return;
+        if (!store.available) return;
         try {
-            await deleteDoc(doc(db, 'public_decks', deckId));
+            await store.remove(['public_decks', deckId]);
         } catch (e) {
             console.error(e);
             throw e;
@@ -208,13 +203,12 @@ export const DeckService = {
     },
     
     deleteDecksByUser: async (userId: string) => {
-        if (!db) return;
+        if (!store.available) return;
         try {
-            const q = query(collection(db, 'public_decks'), where('userId', '==', userId));
-            const snap = await getDocs(q);
-            if(snap.empty) return;
-            const batch = writeBatch(db);
-            snap.forEach(d => batch.delete(d.ref));
+            const docs = await store.list(['public_decks'], { where: [['userId', '==', userId]] });
+            if (docs.length === 0) return;
+            const batch = store.batch();
+            docs.forEach(d => batch.remove(d.path));
             await batch.commit();
         } catch (e) {
             console.error(e);
@@ -222,11 +216,10 @@ export const DeckService = {
     },
 
     downloadDeck: async (deckId: string): Promise<boolean> => {
-        if (!db) return false;
-        const snap = await getDoc(doc(db, 'public_decks', deckId));
-        if (!snap.exists()) return false;
-        
-        const data = snap.data();
+        if (!store.available) return false;
+        const data = await store.get<any>(['public_decks', deckId]);
+        if (!data) return false;
+
         const images = data.images;
         const meta = { 
             ...data, 
@@ -238,7 +231,7 @@ export const DeckService = {
         delete (meta as any).images;
 
         await DeckService.saveCustomDeck(meta, images || {});
-        await updateDoc(doc(db, 'public_decks', deckId), { downloads: increment(1) });
+        await store.update(['public_decks', deckId], { downloads: Ops.increment(1) });
         return true;
     }
 };

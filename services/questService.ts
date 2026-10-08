@@ -1,7 +1,6 @@
 
 import { Quest, User, UserQuestProgress, Reading } from '../types';
-import { db } from './firebase';
-import { collection, addDoc, getDocs, query, where } from 'firebase/firestore';
+import { store } from './data';
 import { FULL_DECK } from '../constants';
 
 export const DAILY_QUESTS: Quest[] = [
@@ -148,13 +147,12 @@ const checkQuestCondition = (quest: Quest, reading: Reading): number => {
 export const QuestService = {
 
     createQuest: async (quest: Quest): Promise<string | null> => {
-        if (!db) return null;
+        if (!store.available) return null;
         try {
-            const docRef = await addDoc(collection(db, 'quests'), {
+            return await store.add(['quests'], {
                 ...quest,
                 createdAt: new Date().toISOString()
             });
-            return docRef.id;
         } catch (e) {
             console.error("Error creating quest:", e);
             return null;
@@ -162,15 +160,14 @@ export const QuestService = {
     },
 
     getCommunityQuests: async (): Promise<Quest[]> => {
-        if (!db) return [];
+        if (!store.available) return [];
         try {
-            const q = query(collection(db, 'quests'), where('isPublic', '==', true));
-            const snap = await getDocs(q);
-            const quests = snap.docs.map(d => ({ id: d.id, ...d.data() } as Quest));
+            const docs = await store.list<Quest>(['quests'], { where: [['isPublic', '==', true]] });
+            const quests = docs.map(d => ({ ...d.data, id: d.id } as Quest));
             return quests.sort((a, b) => {
                 const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                return db - da;
+                const dbTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return dbTime - da;
             });
         } catch (e) {
             console.error("Error fetching quests:", e);

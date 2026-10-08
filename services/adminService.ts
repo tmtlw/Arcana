@@ -1,6 +1,5 @@
 
-import { db } from './firebase';
-import { collection, getDocs, deleteDoc, doc, query, limit, orderBy, collectionGroup, getDoc, setDoc, where, writeBatch } from 'firebase/firestore';
+import { store } from './data';
 import { User, Reading, Spread, DeckMeta, Lesson } from '../types';
 import { StorageService } from './storageService';
 
@@ -10,13 +9,10 @@ export const AdminService = {
 
     // Get all users
     getAllUsers: async (): Promise<User[]> => {
-        if (!db) return [];
+        if (!store.available) return [];
         try {
-            const q = query(collection(db, 'users'), limit(100));
-            const snap = await getDocs(q);
-            const users: User[] = [];
-            snap.forEach(d => users.push(d.data() as User));
-            return users;
+            const docs = await store.list<User>(['users'], { limit: 100 });
+            return docs.map(d => d.data);
         } catch (e) {
             console.error("Admin: Error fetching users", e);
             return [];
@@ -25,13 +21,11 @@ export const AdminService = {
 
     // Fetch ALL readings from EVERY user's private collection (God Mode)
     getGlobalReadings: async (): Promise<Reading[]> => {
-        if (!db) return [];
+        if (!store.available) return [];
         try {
             // 'readings' subcollection query across all users
-            const q = query(collectionGroup(db, 'readings'), limit(100));
-            const snap = await getDocs(q);
-            const items: Reading[] = [];
-            snap.forEach(d => items.push(d.data() as Reading));
+            const docs = await store.listGroup<Reading>('readings', { limit: 100 });
+            const items: Reading[] = docs.map(d => d.data);
             
             // Sort manually by date desc
             return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -43,13 +37,10 @@ export const AdminService = {
 
     // Fetch ALL custom spreads (God Mode)
     getGlobalSpreads: async (): Promise<Spread[]> => {
-        if (!db) return [];
+        if (!store.available) return [];
         try {
-            const q = query(collectionGroup(db, 'customSpreads'), limit(100));
-            const snap = await getDocs(q);
-            const items: Spread[] = [];
-            snap.forEach(d => items.push(d.data() as Spread));
-            return items;
+            const docs = await store.listGroup<Spread>('customSpreads', { limit: 100 });
+            return docs.map(d => d.data);
         } catch (e) {
             console.error("Admin: Error fetching global spreads", e);
             return [];
@@ -58,17 +49,13 @@ export const AdminService = {
 
     // Fetch ALL custom decks (God Mode)
     getGlobalDecks: async (): Promise<DeckMeta[]> => {
-        if (!db) return [];
+        if (!store.available) return [];
         try {
-            const q = query(collectionGroup(db, 'private_decks'), limit(50));
-            const snap = await getDocs(q);
-            const items: DeckMeta[] = [];
-            snap.forEach(d => {
-                const data = d.data();
-                const { images, ...meta } = data; // Exclude images to save bandwidth
-                items.push(meta as DeckMeta);
+            const docs = await store.listGroup<any>('private_decks', { limit: 50 });
+            return docs.map(d => {
+                const { images, ...meta } = d.data; // Exclude images to save bandwidth
+                return meta as DeckMeta;
             });
-            return items;
         } catch (e) {
             console.error("Admin: Error fetching global decks", e);
             return [];
@@ -77,14 +64,11 @@ export const AdminService = {
 
     // Fetch ALL public/system lessons
     getGlobalLessons: async (): Promise<Lesson[]> => {
-        if (!db) return [];
+        if (!store.available) return [];
         try {
             // Fetch from public_lessons which acts as the override source
-            const q = query(collection(db, 'public_lessons'), limit(100));
-            const snap = await getDocs(q);
-            const items: Lesson[] = [];
-            snap.forEach(d => items.push(d.data() as Lesson));
-            return items;
+            const docs = await store.list<Lesson>(['public_lessons'], { limit: 100 });
+            return docs.map(d => d.data);
         } catch (e) {
             console.error("Admin: Error fetching global lessons", e);
             return [];
@@ -95,19 +79,18 @@ export const AdminService = {
 
     // Helper: Cascade Delete derived copies based on sourceId
     cascadeDeleteCopies: async (collectionName: string, sourceId: string) => {
-        if (!db) return;
+        if (!store.available) return;
         console.log(`Cascade deleting copies of ${sourceId} from ${collectionName}...`);
         try {
             // Find all docs in subcollections (e.g. users/{uid}/customLessons) that match the sourceId
-            const q = query(collectionGroup(db, collectionName), where('sourceId', '==', sourceId));
-            const snap = await getDocs(q);
-            
-            if (snap.empty) return;
+            const docs = await store.listGroup(collectionName, { where: [['sourceId', '==', sourceId]] });
 
-            const batch = writeBatch(db);
-            snap.forEach(d => {
-                console.log(`Deleting copy: ${d.ref.path}`);
-                batch.delete(d.ref);
+            if (docs.length === 0) return;
+
+            const batch = store.batch();
+            docs.forEach(d => {
+                console.log(`Deleting copy: ${d.path.join('/')}`);
+                batch.remove(d.path);
             });
             await batch.commit();
         } catch (e) {
@@ -117,10 +100,10 @@ export const AdminService = {
 
     // Save or Override a System Lesson
     saveSystemLesson: async (lesson: Lesson) => {
-        if (!db) return;
+        if (!store.available) return;
         try {
             // Saving to public_lessons with the SAME ID as the original lesson overrides it
-            await setDoc(doc(db, 'public_lessons', lesson.id), {
+            await store.set(['public_lessons', lesson.id], {
                 ...lesson,
                 isPublic: true // Ensure it's treated as public/system
             });
@@ -144,9 +127,9 @@ export const AdminService = {
 
     // Delete from public_lessons AND all downloaded copies
     deletePublicLesson: async (lessonId: string) => {
-        if (!db) return;
+        if (!store.available) return;
         try {
-            await deleteDoc(doc(db, 'public_lessons', lessonId));
+            await store.remove(['public_lessons', lessonId]);
             // Cascade: delete from users' private collections where sourceId matches
             await AdminService.cascadeDeleteCopies('customLessons', lessonId);
         } catch (e) {
@@ -157,9 +140,9 @@ export const AdminService = {
 
     // Delete public deck AND all downloaded copies
     deletePublicDeck: async (deckId: string) => {
-        if (!db) return;
+        if (!store.available) return;
         try {
-            await deleteDoc(doc(db, 'public_decks', deckId));
+            await store.remove(['public_decks', deckId]);
             // Cascade: delete from users' private collections where sourceId matches
             await AdminService.cascadeDeleteCopies('private_decks', deckId);
         } catch (e) {
@@ -174,7 +157,7 @@ export const AdminService = {
 
     // Ban User: Wipes entire profile and subcollections
     banUser: async (userId: string) => {
-        if (!db) return;
+        if (!store.available) return;
         try {
             await StorageService.deleteFullUserProfile(userId);
         } catch (e) {

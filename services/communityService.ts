@@ -1,6 +1,5 @@
 
-import { db } from './firebase';
-import { collection, addDoc, getDocs, query, orderBy, limit, doc, updateDoc, increment, deleteDoc, setDoc, getDoc, where, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { store, Ops } from './data';
 import { Reading, Spread, Comment, Lesson, CommunityBadge, BadgeRequest, TarotNotification, CommunityEvent, ShopItem, User } from '../types';
 
 const COLLECTION_READINGS = 'public_readings';
@@ -17,16 +16,16 @@ export const CommunityService = {
     // --- Readings ---
 
     publishReading: async (reading: Reading) => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
-            const docRef = doc(db, COLLECTION_READINGS, reading.id);
+            const docRef = [COLLECTION_READINGS, reading.id];
             const cleanReading = JSON.parse(JSON.stringify(reading));
             cleanReading.isPublic = true;
             cleanReading.likes = cleanReading.likes || 0;
             cleanReading.likedBy = []; 
             cleanReading.comments = []; 
             
-            await setDoc(docRef, cleanReading);
+            await store.set(docRef, cleanReading);
             return true;
         } catch (e) {
             console.error("Error publishing reading (Check permissions):", e);
@@ -35,22 +34,21 @@ export const CommunityService = {
     },
 
     unpublishReading: async (readingId: string) => {
-        if (!db) return;
+        if (!store.available) return;
         try {
-            await deleteDoc(doc(db, COLLECTION_READINGS, readingId));
+            await store.remove([COLLECTION_READINGS, readingId]);
         } catch (e) {
             console.error("Error unpublishing reading:", e);
         }
     },
 
     deletePublicReadingsByUser: async (userId: string) => {
-        if (!db) return;
+        if (!store.available) return;
         try {
-            const q = query(collection(db, COLLECTION_READINGS), where('userId', '==', userId));
-            const snap = await getDocs(q);
-            if(snap.empty) return;
-            const batch = writeBatch(db);
-            snap.forEach(d => batch.delete(d.ref));
+            const docs = await store.list([COLLECTION_READINGS], { where: [['userId', '==', userId]] });
+            if (docs.length === 0) return;
+            const batch = store.batch();
+            docs.forEach(d => batch.remove(d.path));
             await batch.commit();
         } catch (e) {
             console.error("Error wiping user readings:", e);
@@ -58,9 +56,9 @@ export const CommunityService = {
     },
 
     deletePublicReading: async (readingId: string) => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
-            await deleteDoc(doc(db, COLLECTION_READINGS, readingId));
+            await store.remove([COLLECTION_READINGS, readingId]);
             return true;
         } catch (e) {
             console.error("Admin delete error:", e);
@@ -69,15 +67,10 @@ export const CommunityService = {
     },
 
     getPublicReadings: async (limitCount: number = 30): Promise<Reading[]> => {
-        if (!db) return [];
+        if (!store.available) return [];
         try {
-            const q = query(collection(db, COLLECTION_READINGS), orderBy('date', 'desc'), limit(limitCount));
-            const querySnapshot = await getDocs(q);
-            const readings: Reading[] = [];
-            querySnapshot.forEach((doc) => {
-                readings.push(doc.data() as Reading);
-            });
-            return readings;
+            const docs = await store.list<Reading>([COLLECTION_READINGS], { orderBy: [['date', 'desc']], limit: limitCount });
+            return docs.map(d => d.data);
         } catch (e) {
             console.error("Error fetching readings:", e);
             return [];
@@ -86,26 +79,25 @@ export const CommunityService = {
 
     // --- Like Logic ---
     toggleLike: async (readingId: string, userId: string): Promise<'added' | 'removed' | null> => {
-        if (!db || !userId) return null;
+        if (!store.available || !userId) return null;
         
         try {
-            const docRef = doc(db, COLLECTION_READINGS, readingId);
-            const snap = await getDoc(docRef);
-            
-            if (snap.exists()) {
-                const data = snap.data();
+            const docRef = [COLLECTION_READINGS, readingId];
+            const data = await store.get<any>(docRef);
+
+            if (data) {
                 const likedBy = data.likedBy || [];
                 
                 if (likedBy.includes(userId)) {
-                    await updateDoc(docRef, {
-                        likedBy: arrayRemove(userId),
-                        likes: increment(-1)
+                    await store.update(docRef, {
+                        likedBy: Ops.arrayRemove(userId),
+                        likes: Ops.increment(-1)
                     });
                     return 'removed';
                 } else {
-                    await updateDoc(docRef, {
-                        likedBy: arrayUnion(userId),
-                        likes: increment(1)
+                    await store.update(docRef, {
+                        likedBy: Ops.arrayUnion(userId),
+                        likes: Ops.increment(1)
                     });
                     return 'added';
                 }
@@ -120,11 +112,11 @@ export const CommunityService = {
     // --- Comments Logic ---
 
     addComment: async (readingId: string, comment: Comment): Promise<boolean> => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
-            const docRef = doc(db, COLLECTION_READINGS, readingId);
-            await updateDoc(docRef, {
-                comments: arrayUnion(comment)
+            const docRef = [COLLECTION_READINGS, readingId];
+            await store.update(docRef, {
+                comments: Ops.arrayUnion(comment)
             });
 
             // --- Megjelölések (Mentions) felismerése és értesítés küldése ---
@@ -156,14 +148,13 @@ export const CommunityService = {
     },
 
     deleteComment: async (readingId: string, comment: Comment): Promise<boolean> => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
-            const docRef = doc(db, COLLECTION_READINGS, readingId);
-            const snap = await getDoc(docRef);
-            if (snap.exists()) {
-                const data = snap.data() as Reading;
+            const docRef = [COLLECTION_READINGS, readingId];
+            const data = await store.get<Reading>(docRef);
+            if (data) {
                 const newComments = (data.comments || []).filter(c => c.id !== comment.id);
-                await updateDoc(docRef, { comments: newComments });
+                await store.update(docRef, { comments: newComments });
             }
             return true;
         } catch (e) {
@@ -173,17 +164,16 @@ export const CommunityService = {
     },
 
     updateComment: async (readingId: string, commentId: string, newText: string): Promise<boolean> => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
-            const docRef = doc(db, COLLECTION_READINGS, readingId);
-            const snap = await getDoc(docRef);
-            if (snap.exists()) {
-                const data = snap.data() as Reading;
+            const docRef = [COLLECTION_READINGS, readingId];
+            const data = await store.get<Reading>(docRef);
+            if (data) {
                 const comments = data.comments || [];
                 const updatedComments = comments.map(c => 
                     c.id === commentId ? { ...c, text: newText, isEdited: true } : c
                 );
-                await updateDoc(docRef, { comments: updatedComments });
+                await store.update(docRef, { comments: updatedComments });
             }
             return true;
         } catch (e) {
@@ -195,9 +185,9 @@ export const CommunityService = {
     // --- Events (Rituals, Circles) ---
 
     createEvent: async (event: CommunityEvent): Promise<boolean> => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
-            await setDoc(doc(db, COLLECTION_EVENTS, event.id), event);
+            await store.set([COLLECTION_EVENTS, event.id], event);
             return true;
         } catch (e) {
             console.error("Create event failed:", e);
@@ -206,13 +196,10 @@ export const CommunityService = {
     },
 
     getEvents: async (limitCount: number = 50): Promise<CommunityEvent[]> => {
-        if (!db) return [];
+        if (!store.available) return [];
         try {
-            const q = query(collection(db, COLLECTION_EVENTS), orderBy('date', 'asc'), limit(limitCount));
-            const snap = await getDocs(q);
-            const events: CommunityEvent[] = [];
-            snap.forEach(d => events.push(d.data() as CommunityEvent));
-            return events;
+            const docs = await store.list<CommunityEvent>([COLLECTION_EVENTS], { orderBy: [['date', 'asc']], limit: limitCount });
+            return docs.map(d => d.data);
         } catch (e) {
             console.error("Error fetching events:", e);
             return [];
@@ -220,12 +207,12 @@ export const CommunityService = {
     },
 
     joinEvent: async (eventId: string, userId: string, userName: string, avatar?: string): Promise<boolean> => {
-        if (!db || !userId) return false;
+        if (!store.available || !userId) return false;
         try {
-            const ref = doc(db, COLLECTION_EVENTS, eventId);
-            await updateDoc(ref, {
-                participants: arrayUnion(userId),
-                participantDetails: arrayUnion({ uid: userId, name: userName, avatar })
+            const ref = [COLLECTION_EVENTS, eventId];
+            await store.update(ref, {
+                participants: Ops.arrayUnion(userId),
+                participantDetails: Ops.arrayUnion({ uid: userId, name: userName, avatar })
             });
             return true;
         } catch (e) {
@@ -235,12 +222,12 @@ export const CommunityService = {
     },
 
     leaveEvent: async (eventId: string, userId: string, userName: string, avatar?: string): Promise<boolean> => {
-        if (!db || !userId) return false;
+        if (!store.available || !userId) return false;
         try {
-            const ref = doc(db, COLLECTION_EVENTS, eventId);
-            await updateDoc(ref, {
-                participants: arrayRemove(userId),
-                participantDetails: arrayRemove({ uid: userId, name: userName, avatar })
+            const ref = [COLLECTION_EVENTS, eventId];
+            await store.update(ref, {
+                participants: Ops.arrayRemove(userId),
+                participantDetails: Ops.arrayRemove({ uid: userId, name: userName, avatar })
             });
             return true;
         } catch (e) {
@@ -250,9 +237,9 @@ export const CommunityService = {
     },
 
     deleteEvent: async (eventId: string): Promise<boolean> => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
-            await deleteDoc(doc(db, COLLECTION_EVENTS, eventId));
+            await store.remove([COLLECTION_EVENTS, eventId]);
             return true;
         } catch (e) {
             return false;
@@ -262,9 +249,9 @@ export const CommunityService = {
     // --- Spreads (Marketplace) ---
 
     publishSpread: async (spread: Spread, authorName: string, userId: string, price: number = 0) => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
-            const docRef = doc(db, COLLECTION_SPREADS, spread.id);
+            const docRef = [COLLECTION_SPREADS, spread.id];
             const publicSpread: Spread = {
                 ...spread,
                 author: authorName,
@@ -273,7 +260,7 @@ export const CommunityService = {
                 downloads: spread.downloads || 0,
                 price
             };
-            await setDoc(docRef, publicSpread);
+            await store.set(docRef, publicSpread);
             return true;
         } catch (e) {
             console.error("Publish spread failed:", e);
@@ -282,28 +269,27 @@ export const CommunityService = {
     },
 
     unpublishSpread: async (spreadId: string) => {
-        if (!db) return;
+        if (!store.available) return;
         try {
-            await deleteDoc(doc(db, COLLECTION_SPREADS, spreadId));
+            await store.remove([COLLECTION_SPREADS, spreadId]);
         } catch (e) {}
     },
 
     deleteSpreadsByUser: async (userId: string) => {
-        if (!db) return;
+        if (!store.available) return;
         try {
-            const q = query(collection(db, COLLECTION_SPREADS), where('userId', '==', userId));
-            const snap = await getDocs(q);
-            if(snap.empty) return;
-            const batch = writeBatch(db);
-            snap.forEach(d => batch.delete(d.ref));
+            const docs = await store.list([COLLECTION_SPREADS], { where: [['userId', '==', userId]] });
+            if (docs.length === 0) return;
+            const batch = store.batch();
+            docs.forEach(d => batch.remove(d.path));
             await batch.commit();
         } catch (e) {}
     },
 
     deletePublicSpread: async (spreadId: string) => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
-            await deleteDoc(doc(db, COLLECTION_SPREADS, spreadId));
+            await store.remove([COLLECTION_SPREADS, spreadId]);
             return true;
         } catch (e) {
             return false;
@@ -311,39 +297,34 @@ export const CommunityService = {
     },
 
     getPublicSpreads: async (): Promise<Spread[]> => {
-        if (!db) return [];
+        if (!store.available) return [];
         try {
-            const q = query(collection(db, COLLECTION_SPREADS), limit(50));
-            const querySnapshot = await getDocs(q);
-            const spreads: Spread[] = [];
-            querySnapshot.forEach((doc) => {
-                spreads.push(doc.data() as Spread);
-            });
-            return spreads;
+            const docs = await store.list<Spread>([COLLECTION_SPREADS], { limit: 50 });
+            return docs.map(d => d.data);
         } catch (e) {
             return [];
         }
     },
 
     downloadSpread: async (spreadId: string) => {
-        if (!db) return;
+        if (!store.available) return;
         try {
-            const docRef = doc(db, COLLECTION_SPREADS, spreadId);
-            await updateDoc(docRef, {
-                downloads: increment(1)
+            const docRef = [COLLECTION_SPREADS, spreadId];
+            await store.update(docRef, {
+                downloads: Ops.increment(1)
             });
         } catch (e) {}
     },
 
     // --- Ratings (General) ---
     rateItem: async (collectionName: string, itemId: string, userId: string, rating: number): Promise<boolean> => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
             // Store the rating in a subcollection to avoid document size limits and allow easy averaging
-            const ratingRef = doc(collection(db, collectionName, itemId, 'ratings'), userId);
+            const ratingRef = [collectionName, itemId, 'ratings', userId];
 
             // 1. Set the user's rating
-            await setDoc(ratingRef, {
+            await store.set(ratingRef, {
                 userId,
                 rating,
                 timestamp: new Date().toISOString()
@@ -359,15 +340,15 @@ export const CommunityService = {
             // The client will need to fetch ratings to calculate average, OR we trigger an aggregation.
             // Let's do a simple aggregation here by reading all ratings (assuming < 1000 ratings usually).
 
-            const ratingsSnap = await getDocs(collection(db, collectionName, itemId, 'ratings'));
+            const ratings = await store.list<{ rating: number }>([collectionName, itemId, 'ratings']);
             let sum = 0;
             let count = 0;
-            ratingsSnap.forEach(doc => {
-                sum += doc.data().rating;
+            ratings.forEach(r => {
+                sum += r.data.rating;
                 count++;
             });
 
-            await updateDoc(doc(db, collectionName, itemId), {
+            await store.update([collectionName, itemId], {
                 ratingAvg: count > 0 ? sum / count : 0,
                 ratingCount: count
             });
@@ -380,15 +361,15 @@ export const CommunityService = {
     },
 
     getItemRatings: async (collectionName: string, itemId: string, userId?: string): Promise<{ avg: number, count: number, userRating?: number }> => {
-        if (!db) return { avg: 0, count: 0 };
+        if (!store.available) return { avg: 0, count: 0 };
         try {
-            const ratingsSnap = await getDocs(collection(db, collectionName, itemId, 'ratings'));
+            const ratings = await store.list<{ rating: number; userId?: string }>([collectionName, itemId, 'ratings']);
             let sum = 0;
             let count = 0;
             let userRating = undefined;
 
-            ratingsSnap.forEach(doc => {
-                const data = doc.data();
+            ratings.forEach(r => {
+                const data = r.data;
                 sum += data.rating;
                 count++;
                 if (userId && data.userId === userId) {
@@ -408,11 +389,11 @@ export const CommunityService = {
 
     // --- Comments (General for Marketplace) ---
     addItemComment: async (collectionName: string, itemId: string, comment: Comment): Promise<boolean> => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
-            const docRef = doc(db, collectionName, itemId);
-            await updateDoc(docRef, {
-                comments: arrayUnion(comment)
+            const docRef = [collectionName, itemId];
+            await store.update(docRef, {
+                comments: Ops.arrayUnion(comment)
             });
             return true;
         } catch (e) {
@@ -422,17 +403,16 @@ export const CommunityService = {
     },
 
     deleteItemComment: async (collectionName: string, itemId: string, comment: Comment): Promise<boolean> => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
-            const docRef = doc(db, collectionName, itemId);
+            const docRef = [collectionName, itemId];
             // Firestore arrayRemove needs exact object match.
             // If checking exact object is hard, we might need to read-modify-write.
-            const snap = await getDoc(docRef);
-            if(snap.exists()) {
-                const data = snap.data();
+            const data = await store.get<any>(docRef);
+            if (data) {
                 const comments = data.comments || [];
                 const newComments = comments.filter((c: Comment) => c.id !== comment.id);
-                await updateDoc(docRef, { comments: newComments });
+                await store.update(docRef, { comments: newComments });
             }
             return true;
         } catch (e) {
@@ -443,9 +423,9 @@ export const CommunityService = {
     // --- Lessons (Academy Marketplace) ---
 
     publishLesson: async (lesson: Lesson, authorName: string, userId: string, price: number = 0) => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
-            const docRef = doc(db, COLLECTION_LESSONS, lesson.id);
+            const docRef = [COLLECTION_LESSONS, lesson.id];
             const publicLesson: Lesson = {
                 ...lesson,
                 author: authorName,
@@ -454,7 +434,7 @@ export const CommunityService = {
                 downloads: lesson.downloads || 0,
                 price
             };
-            await setDoc(docRef, publicLesson);
+            await store.set(docRef, publicLesson);
             return true;
         } catch (e) {
             console.error("Publish lesson failed:", e);
@@ -463,47 +443,41 @@ export const CommunityService = {
     },
 
     getPublicLessons: async (): Promise<Lesson[]> => {
-        if (!db) return [];
+        if (!store.available) return [];
         try {
-            const q = query(collection(db, COLLECTION_LESSONS), limit(50));
-            const snap = await getDocs(q);
-            const lessons: Lesson[] = [];
-            snap.forEach((doc) => {
-                lessons.push(doc.data() as Lesson);
-            });
-            return lessons;
+            const docs = await store.list<Lesson>([COLLECTION_LESSONS], { limit: 50 });
+            return docs.map(d => d.data);
         } catch (e) {
             return [];
         }
     },
 
     deleteLessonsByUser: async (userId: string) => {
-        if (!db) return;
+        if (!store.available) return;
         try {
-            const q = query(collection(db, COLLECTION_LESSONS), where('userId', '==', userId));
-            const snap = await getDocs(q);
-            if (snap.empty) return;
-            const batch = writeBatch(db);
-            snap.forEach(d => batch.delete(d.ref));
+            const docs = await store.list([COLLECTION_LESSONS], { where: [['userId', '==', userId]] });
+            if (docs.length === 0) return;
+            const batch = store.batch();
+            docs.forEach(d => batch.remove(d.path));
             await batch.commit();
         } catch (e) {}
     },
 
     downloadLesson: async (lessonId: string) => {
-        if (!db) return;
+        if (!store.available) return;
         try {
-            const docRef = doc(db, COLLECTION_LESSONS, lessonId);
+            const docRef = [COLLECTION_LESSONS, lessonId];
             // Track download count
-            await updateDoc(docRef, {
-                downloads: increment(1)
+            await store.update(docRef, {
+                downloads: Ops.increment(1)
             });
         } catch (e) {}
     },
 
     deletePublicLesson: async (lessonId: string) => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
-            await deleteDoc(doc(db, COLLECTION_LESSONS, lessonId));
+            await store.remove([COLLECTION_LESSONS, lessonId]);
             return true;
         } catch (e) {
             return false;
@@ -513,9 +487,9 @@ export const CommunityService = {
     // --- Generic Marketplace Items (Backgrounds, Covers) ---
 
     createMarketplaceItem: async (item: ShopItem & { createdBy: string }) => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
-            await setDoc(doc(db, COLLECTION_MARKET, item.id), item);
+            await store.set([COLLECTION_MARKET, item.id], item);
             return true;
         } catch (e) {
             console.error("Create market item failed:", e);
@@ -524,18 +498,10 @@ export const CommunityService = {
     },
 
     getMarketplaceItems: async (type?: string): Promise<ShopItem[]> => {
-        if (!db) return [];
+        if (!store.available) return [];
         try {
-            let q = query(collection(db, COLLECTION_MARKET));
-            if (type) {
-                q = query(collection(db, COLLECTION_MARKET), where('type', '==', type));
-            }
-            const snap = await getDocs(q);
-            const items: ShopItem[] = [];
-            snap.forEach(doc => {
-                items.push(doc.data() as ShopItem);
-            });
-            return items;
+            const docs = await store.list<ShopItem>([COLLECTION_MARKET], type ? { where: [['type', '==', type]] } : undefined);
+            return docs.map(d => d.data);
         } catch (e) {
             console.error("Fetch market items failed:", e);
             return [];
@@ -543,9 +509,9 @@ export const CommunityService = {
     },
 
     deleteMarketplaceItem: async (itemId: string): Promise<boolean> => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
-            await deleteDoc(doc(db, COLLECTION_MARKET, itemId));
+            await store.remove([COLLECTION_MARKET, itemId]);
             return true;
         } catch (e) {
             return false;
@@ -555,9 +521,9 @@ export const CommunityService = {
     // --- Community Badges (New Feature) ---
 
     publishCommunityBadge: async (badge: CommunityBadge) => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
-            await setDoc(doc(db, COLLECTION_BADGES, badge.id), badge);
+            await store.set([COLLECTION_BADGES, badge.id], badge);
             return true;
         } catch (e) {
             console.error("Publish badge failed:", e);
@@ -566,12 +532,11 @@ export const CommunityService = {
     },
 
     getCommunityBadges: async (): Promise<CommunityBadge[]> => {
-        if (!db) return [];
+        if (!store.available) return [];
         try {
-            const q = query(collection(db, COLLECTION_BADGES), orderBy('likes', 'desc'), limit(50));
-            const snap = await getDocs(q);
+            const docs = await store.list<CommunityBadge>([COLLECTION_BADGES], { orderBy: [['likes', 'desc']], limit: 50 });
             const badges: CommunityBadge[] = [];
-            snap.forEach(d => badges.push(d.data() as CommunityBadge));
+            docs.forEach(d => badges.push(d.data));
             return badges;
         } catch (e) {
             return [];
@@ -579,15 +544,15 @@ export const CommunityService = {
     },
 
     toggleBadgeLike: async (badgeId: string, userId: string): Promise<boolean> => {
-        if (!db || !userId) return false;
-        const ref = doc(db, COLLECTION_BADGES, badgeId);
-        const snap = await getDoc(ref);
-        if (snap.exists()) {
-            const likedBy = snap.data().likedBy || [];
+        if (!store.available || !userId) return false;
+        const ref = [COLLECTION_BADGES, badgeId];
+        const badge = await store.get<any>(ref);
+        if (badge) {
+            const likedBy = badge.likedBy || [];
             if (likedBy.includes(userId)) {
-                await updateDoc(ref, { likedBy: arrayRemove(userId), likes: increment(-1) });
+                await store.update(ref, { likedBy: Ops.arrayRemove(userId), likes: Ops.increment(-1) });
             } else {
-                await updateDoc(ref, { likedBy: arrayUnion(userId), likes: increment(1) });
+                await store.update(ref, { likedBy: Ops.arrayUnion(userId), likes: Ops.increment(1) });
             }
             return true;
         }
@@ -597,19 +562,19 @@ export const CommunityService = {
     // --- Badge Requests (New Feature) ---
 
     submitBadgeRequest: async (request: BadgeRequest): Promise<boolean> => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
             // Check if already requested and pending
-            const q = query(
-                collection(db, COLLECTION_REQUESTS), 
-                where('requesterId', '==', request.requesterId),
-                where('badgeId', '==', request.badgeId),
-                where('status', '==', 'pending')
-            );
-            const snap = await getDocs(q);
-            if (!snap.empty) return false;
+            const existing = await store.list([COLLECTION_REQUESTS], {
+                where: [
+                    ['requesterId', '==', request.requesterId],
+                    ['badgeId', '==', request.badgeId],
+                    ['status', '==', 'pending']
+                ]
+            });
+            if (existing.length > 0) return false;
 
-            await setDoc(doc(db, COLLECTION_REQUESTS, request.id), request);
+            await store.set([COLLECTION_REQUESTS, request.id], request);
             return true;
         } catch (e) {
             console.error("Submit request failed:", e);
@@ -618,18 +583,16 @@ export const CommunityService = {
     },
 
     getBadgeRequestsForCreator: async (creatorId: string): Promise<BadgeRequest[]> => {
-        if (!db) return [];
+        if (!store.available) return [];
         try {
-            const q = query(
-                collection(db, COLLECTION_REQUESTS), 
-                where('creatorId', '==', creatorId),
-                where('status', '==', 'pending'),
-                orderBy('createdAt', 'desc')
-            );
-            const snap = await getDocs(q);
-            const reqs: BadgeRequest[] = [];
-            snap.forEach(d => reqs.push(d.data() as BadgeRequest));
-            return reqs;
+            const docs = await store.list<BadgeRequest>([COLLECTION_REQUESTS], {
+                where: [
+                    ['creatorId', '==', creatorId],
+                    ['status', '==', 'pending']
+                ],
+                orderBy: [['createdAt', 'desc']]
+            });
+            return docs.map(d => d.data);
         } catch (e) {
             console.error("Fetch requests failed:", e);
             return [];
@@ -637,10 +600,10 @@ export const CommunityService = {
     },
 
     resolveBadgeRequest: async (requestId: string, status: 'approved' | 'rejected'): Promise<boolean> => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
-            const ref = doc(db, COLLECTION_REQUESTS, requestId);
-            await updateDoc(ref, { status });
+            const ref = [COLLECTION_REQUESTS, requestId];
+            await store.update(ref, { status });
             return true;
         } catch (e) {
             return false;
@@ -650,9 +613,9 @@ export const CommunityService = {
     // --- Notifications (Notification Center) ---
 
     addNotification: async (notif: TarotNotification) => {
-        if (!db) return false;
+        if (!store.available) return false;
         try {
-            await setDoc(doc(db, COLLECTION_NOTIFICATIONS, notif.id), notif);
+            await store.set([COLLECTION_NOTIFICATIONS, notif.id], notif);
             return true;
         } catch (e) {
             console.error("Error adding notification:", e);
@@ -661,27 +624,27 @@ export const CommunityService = {
     },
 
     markNotificationAsRead: async (id: string) => {
-        if (!db) return;
+        if (!store.available) return;
         try {
-            await updateDoc(doc(db, COLLECTION_NOTIFICATIONS, id), { isRead: true });
+            await store.update([COLLECTION_NOTIFICATIONS, id], { isRead: true });
         } catch (e) {
             console.error("Error marking notification read:", e);
         }
     },
 
     markAllNotificationsAsRead: async (userId: string) => {
-        if (!db) return;
+        if (!store.available) return;
         try {
-            const q = query(
-                collection(db, COLLECTION_NOTIFICATIONS), 
-                where('userId', '==', userId),
-                where('isRead', '==', false)
-            );
-            const snap = await getDocs(q);
-            if (snap.empty) return;
+            const docs = await store.list([COLLECTION_NOTIFICATIONS], {
+                where: [
+                    ['userId', '==', userId],
+                    ['isRead', '==', false]
+                ]
+            });
+            if (docs.length === 0) return;
 
-            const batch = writeBatch(db);
-            snap.forEach(d => batch.update(d.ref, { isRead: true }));
+            const batch = store.batch();
+            docs.forEach(d => batch.update(d.path, { isRead: true }));
             await batch.commit();
         } catch (e) {
             console.error("Error marking all read:", e);
@@ -690,13 +653,12 @@ export const CommunityService = {
 
     // --- Global Settings (Admin) ---
     getCommunityCardStats: async () => {
-        if (!db) return {};
+        if (!store.available) return {};
         try {
-            const q = query(collection(db, 'public_readings'), limit(100));
-            const snap = await getDocs(q);
+            const docs = await store.list<Reading>(['public_readings'], { limit: 100 });
             const stats: Record<string, number> = {};
-            snap.forEach(d => {
-                const r = d.data() as Reading;
+            docs.forEach(d => {
+                const r = d.data;
                 r.cards.forEach(c => {
                     stats[c.cardId] = (stats[c.cardId] || 0) + 1;
                 });
@@ -708,11 +670,10 @@ export const CommunityService = {
     },
 
     getGlobalSettings: async () => {
-        if (!db) return null;
+        if (!store.available) return null;
         try {
-            const docRef = doc(db, 'settings', 'global');
-            const snap = await getDoc(docRef);
-            return snap.exists() ? snap.data() : null;
+            const docRef = ['settings', 'global'];
+            return await store.get(docRef);
         } catch (e) {
             console.error("Error fetching settings:", e);
             return null;
@@ -720,9 +681,9 @@ export const CommunityService = {
     },
 
     saveGlobalSettings: async (settings: any) => {
-        if (!db) return;
+        if (!store.available) return;
         try {
-            await setDoc(doc(db, 'settings', 'global'), settings, { merge: true });
+            await store.set(['settings', 'global'], settings, { merge: true });
         } catch (e) {
             console.error("Error saving settings:", e);
             throw e;
@@ -730,12 +691,13 @@ export const CommunityService = {
     },
 
     getUserByUsername: async (username: string): Promise<User | null> => {
-        if (!db) return null;
+        if (!store.available) return null;
         try {
-            const q = query(collection(db, 'users'), where('username', '==', username), where('isPublicProfile', '==', true), limit(1));
-            const snap = await getDocs(q);
-            if (snap.empty) return null;
-            return snap.docs[0].data() as User;
+            const docs = await store.list<User>(['users'], {
+                where: [['username', '==', username], ['isPublicProfile', '==', true]],
+                limit: 1
+            });
+            return docs.length ? docs[0].data : null;
         } catch (e) {
             console.error("Error fetching user by username:", e);
             return null;

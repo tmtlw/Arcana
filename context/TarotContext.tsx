@@ -6,8 +6,7 @@ import { dbService } from '../services/dbService';
 import { CommunityService } from '../services/communityService';
 import { Language } from '../services/i18nService';
 import { AstroService } from '../services/astroService';
-import { db } from '../services/firebase';
-import { onSnapshot, collection, query, where, orderBy, limit } from 'firebase/firestore';
+import { store } from '../services/data';
 // Import FULL_DECK directly from source to avoid circular dependency issues
 import { FULL_DECK } from '../constants/deckConstants';
 // Fix: Added getAvatarUrl to imports to resolve the error in requestCommunityBadge
@@ -416,29 +415,19 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
 
     // REAL-TIME NOTIFICATIONS & EVENTS LISTENER
     useEffect(() => {
-        if (!db) return;
+        if (!store.available) return;
 
         // Events Listener
-        const qEvents = query(collection(db, 'community_events'), orderBy('date', 'asc'));
-        const unsubEvents = onSnapshot(qEvents, (snap) => {
-            const evs: CommunityEvent[] = [];
-            snap.forEach(d => evs.push(d.data() as CommunityEvent));
-            setCommunityEvents(evs);
+        const unsubEvents = store.watchList<CommunityEvent>(['community_events'], { orderBy: [['date', 'asc']] }, (docs) => {
+            setCommunityEvents(docs.map(d => d.data));
         });
 
         if (currentUser?.id) {
-            const qNotif = query(
-                collection(db, 'notifications'), 
-                where('userId', '==', currentUser.id),
-                orderBy('createdAt', 'desc'),
-                limit(20)
+            const unsubNotif = store.watchList<TarotNotification>(
+                ['notifications'],
+                { where: [['userId', '==', currentUser.id]], orderBy: [['createdAt', 'desc']], limit: 20 },
+                (docs) => setNotifications(docs.map(d => d.data))
             );
-
-            const unsubNotif = onSnapshot(qNotif, (snap) => {
-                const notifs: TarotNotification[] = [];
-                snap.forEach(d => notifs.push(d.data() as TarotNotification));
-                setNotifications(notifs);
-            });
 
             return () => { unsubEvents(); unsubNotif(); };
         }
