@@ -765,7 +765,7 @@ export const HistoryView = ({ deck, onBack }: any) => {
                                     <div className="flex items-center gap-6 bg-white/5 p-4 rounded-2xl border border-gold-500/20">
                                         <img src={getCardImage(stats.sortedCards[0][0], activeDeckImageSource)} className="w-20 md:w-32 rounded-lg shadow-xl" />
                                         <div>
-                                            <div className="text-2xl font-serif font-bold text-gold-400">{deck.find(d => d.id === stats.sortedCards[0][0])?.name}</div>
+                                            <div className="text-2xl font-serif font-bold text-gold-400">{deck.find((d: any) => d.id === stats.sortedCards[0][0])?.name}</div>
                                             <div className="text-sm opacity-50 mt-1">Ezt a lapot húztad a legtöbbször: {stats.sortedCards[0][1]} alkalommal.</div>
                                         </div>
                                     </div>
@@ -818,7 +818,7 @@ export const HistoryView = ({ deck, onBack }: any) => {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                         {stats.sortedMonthlyCards.slice(0, 4).map(([id, count]) => (
                                             <div key={id} className="flex items-center justify-between text-xs bg-indigo-500/10 p-2 rounded-lg border border-indigo-500/20">
-                                                <span className="truncate">{deck.find(d => d.id === id)?.name}</span>
+                                                <span className="truncate">{deck.find((d: any) => d.id === id)?.name}</span>
                                                 <span className="font-bold text-indigo-400">{count}x</span>
                                             </div>
                                         ))}
@@ -832,7 +832,7 @@ export const HistoryView = ({ deck, onBack }: any) => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                     {stats.sortedCards.slice(0, 6).map(([id, count]) => (
                                         <div key={id} className="flex items-center justify-between text-xs bg-black/20 p-2 rounded-lg">
-                                            <span className="truncate">{deck.find(d => d.id === id)?.name}</span>
+                                            <span className="truncate">{deck.find((d: any) => d.id === id)?.name}</span>
                                             <span className="font-bold text-indigo-400">{count}x</span>
                                         </div>
                                     ))}
@@ -874,7 +874,7 @@ export const HistoryView = ({ deck, onBack }: any) => {
                         <div className="space-y-4">
                             {sharingReading.cards.length === 1 && (
                                 <div className="text-gold-400 font-serif font-bold text-xl">
-                                    {deck.find(d => d.id === sharingReading.cards[0].cardId)?.name}
+                                    {deck.find((d: any) => d.id === sharingReading.cards[0].cardId)?.name}
                                 </div>
                             )}
                             <div className="text-xs text-white/50 italic px-4">

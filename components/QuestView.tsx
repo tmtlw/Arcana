@@ -59,8 +59,8 @@ export const QuestView = ({ onBack }: { onBack: () => void }) => {
 
         setIsLoading(true);
         const questToSave: Quest = {
-            id: `cq_${Date.now()}`,
             ...newQuest as Quest,
+            id: `cq_${Date.now()}`,
             creatorId: currentUser?.id,
             creatorName: currentUser?.name || 'Admin',
             createdAt: new Date().toISOString(),

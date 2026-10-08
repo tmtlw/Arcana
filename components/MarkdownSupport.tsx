@@ -157,7 +157,7 @@ export const MarkdownRenderer = ({ content, className = "", onSelectCard, showRe
     );
 };
 
-export const MarkdownEditor = ({ value, onChange, placeholder, className, height = "h-40" }: any) => {
+export const MarkdownEditor = ({ value, onChange, placeholder, className, height = "h-40" }: { value: string; onChange: (val: string) => void; placeholder?: string; className?: string; height?: string }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [showColorPicker, setShowColorPicker] = useState<'text' | 'bg' | null>(null);

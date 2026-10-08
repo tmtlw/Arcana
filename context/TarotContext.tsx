@@ -74,7 +74,7 @@ interface TarotContextType {
     importData: (f: File) => Promise<boolean>;
     syncToCloud: () => Promise<void>;
     loadFromCloud: () => Promise<void>;
-    showToast: (text: string, type?: 'success' | 'info') => void;
+    showToast: (text: string, type?: 'success' | 'info' | 'error') => void;
     playSound: (type: 'draw' | 'flip' | 'success') => void;
     triggerInstall: () => void;
     logout: () => Promise<void>;
@@ -167,7 +167,7 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
     useEffect(() => {
         // Mock User for testing
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('mock') === 'true') {
+        if (import.meta.env.DEV && urlParams.get('mock') === 'true') {
             const mockUser: User = {
                 id: 'mock_user_123',
                 name: 'Teszt Mágus',
@@ -202,12 +202,11 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
                     { id: 'b1', fromId: 'u2', fromName: 'Luna', message: 'Legyen fény az utadon!', createdAt: new Date().toISOString() },
                     { id: 'b2', fromId: 'u3', fromName: 'Sol', message: 'Szakrális energiákat küldök.', createdAt: new Date().toISOString() }
                 ],
-                reactions: { fire: 12, heart: 25, star: 18, magic: 5 },
                 titles: ['Fényhozó', 'Kártyavető Tanonc', 'Misztikus Utazó'],
                 activeTitle: 'Fényhozó',
                 auraColor: '#a855f7',
                 avatarFrame: 'gold-epic',
-                inventory: [
+                crystals: [
                     { id: 'c1', type: 'crystal', name: 'Hegyi Kristály', rarity: 'common', icon: '💎' },
                     { id: 'c2', type: 'crystal', name: 'Ametiszt', rarity: 'rare', icon: '🔮' },
                     { id: 'c3', type: 'crystal', name: 'Moldavit', rarity: 'legendary', icon: '✨' }
@@ -835,7 +834,7 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
         });
     }, [customLessons, systemLessonOverrides, publicLessons, currentUser?.lessonCollection]);
 
-    const showToast = (text: string, type: 'success'|'info' = 'info') => {
+    const showToast = (text: string, type: 'success'|'info'|'error' = 'info') => {
         const id = Math.random().toString(36);
         setToasts(prev => [...prev, { id, text, type }]);
         setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);

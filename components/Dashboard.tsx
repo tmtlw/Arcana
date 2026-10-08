@@ -4,7 +4,7 @@ import { useTarot } from '../context/TarotContext';
 import { THEMES, BADGES, getAvatarUrl, ZODIAC_INFO, QUICK_ACTION_OPTIONS } from '../constants';
 import { WESTERN_HOROSCOPES } from '../constants/horoscopes_western';
 import { CHINESE_HOROSCOPES, getChineseZodiac } from '../constants/horoscopes_chinese';
-import { Spread, SpreadPosition, SpreadCategory } from '../types';
+import { Spread, SpreadPosition, SpreadCategory, DashboardRow } from '../types';
 import { CardImage } from './CardImage';
 import { CommunityService } from '../services/communityService';
 import { AstroService } from '../services/astroService';
@@ -190,12 +190,12 @@ export const Dashboard = ({ onNavigate, onStartReading, onEditSpread }: any) => 
     ];
 
     // Migration / Safety check: if it is a simple array of strings, wrap them
-    const layout = useMemo(() => {
+    const layout = useMemo<DashboardRow[]>(() => {
         if (!Array.isArray(layoutRaw)) return [];
         if (layoutRaw.length > 0 && typeof layoutRaw[0] === 'string') {
             return (layoutRaw as any).map((w: string, i: number) => ({ id: `migrated_${i}`, widgets: [w] }));
         }
-        return layoutRaw;
+        return layoutRaw as DashboardRow[];
     }, [layoutRaw]);
 
     const WIDGET_CATALOG = [

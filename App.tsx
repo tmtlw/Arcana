@@ -30,7 +30,8 @@ import { QuestView } from './components/QuestView';
 import { MonthlySummaryView } from './components/MonthlySummaryView'; // Still imported
 import { AnalysisView } from './components/AnalysisView';
 import { MarketplaceView } from './components/MarketplaceView';
-import { Spread, Card } from './types';
+import { Spread, Card, Reading } from './types';
+import { ReadingAnalysis } from './components/ReadingAnalysis';
 import { t } from './services/i18nService';
 import { AstroService } from './services/astroService';
 import { CommunityService } from './services/communityService';
@@ -200,7 +201,7 @@ const ToastContainer = () => {
     return (
         <div className="fixed top-24 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
             {toasts.map(t => (
-                <div key={t.id} className={`px-4 py-3 rounded-lg shadow-xl backdrop-blur-md border border-white/20 text-white font-bold animate-fade-in pointer-events-auto ${t.type === 'success' ? 'bg-green-600/80' : 'bg-indigo-600/80'}`}>
+                <div key={t.id} className={`px-4 py-3 rounded-lg shadow-xl backdrop-blur-md border border-white/20 text-white font-bold animate-fade-in pointer-events-auto ${t.type === 'success' ? 'bg-green-600/80' : t.type === 'error' ? 'bg-red-600/80' : 'bg-indigo-600/80'}`}>
                     {t.text}
                 </div>
             ))}

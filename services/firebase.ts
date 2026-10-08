@@ -1,6 +1,6 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp, FirebaseApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider, Auth } from 'firebase/auth';
+import { getFirestore, Firestore } from 'firebase/firestore';
 
 // ⚠️ CSERÉLD LE EZEKET AZ ADATOKAT A SAJÁT FIREBASE PROJEKTED ADATAIRA!
 // 1. Menj a https://console.firebase.google.com/ oldalra
@@ -19,10 +19,11 @@ const firebaseConfig = {
 
 // Initialize Firebase
 // We check if configs are placeholders to avoid crashing immediately
-let app;
-let auth;
-let db;
-let googleProvider;
+// Definite assignment: init hiba esetén undefined marad (a hívók eddig is így kezelték).
+let app!: FirebaseApp;
+let auth!: Auth;
+let db!: Firestore;
+let googleProvider!: GoogleAuthProvider;
 
 try {
     if (firebaseConfig.apiKey === "API_KEY_HELYE") {

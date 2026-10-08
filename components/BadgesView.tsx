@@ -135,8 +135,8 @@ export const BadgesView = ({ onBack }: { onBack: () => void }) => {
         if (!newBadge.name || !newBadge.description || !currentUser) return showToast("Hiányzó adatok!", "info");
 
         const badge: CommunityBadge = {
-            id: `cb_${Date.now()}`,
             ...newBadge as CommunityBadge,
+            id: `cb_${Date.now()}`,
             userId: currentUser.id,
             authorName: currentUser.name,
             createdAt: new Date().toISOString(),

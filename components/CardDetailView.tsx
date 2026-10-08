@@ -710,7 +710,7 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
 
                         {/* Colors Section */}
-                        {(card.colors?.length > 0 || isEditing) && (
+                        {((card.colors?.length ?? 0) > 0 || isEditing) && (
                             <div className="p-6 bg-black/20 rounded-2xl border border-white/5 h-full">
                                 <h3 className="text-sm font-bold uppercase tracking-widest text-white/60 mb-4 flex items-center gap-2">
                                     <span>🎨</span> Színek & Hangulat
@@ -785,7 +785,7 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                                         height="h-32"
                                     />
                                 ) : (
-                                    <MarkdownRenderer content={card.history} className="text-sm text-gray-400 leading-relaxed text-justify" />
+                                    <MarkdownRenderer content={card.history || ''} className="text-sm text-gray-400 leading-relaxed text-justify" />
                                 )}
                             </div>
                         )}
@@ -851,7 +851,7 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                                 </div>
                             ) : (
                                 <div>
-                                    <MarkdownRenderer content={card.symbolism} className="text-sm text-gray-400 leading-relaxed text-justify mb-4" />
+                                    <MarkdownRenderer content={card.symbolism || ''} className="text-sm text-gray-400 leading-relaxed text-justify mb-4" />
                                     {card.symbols && card.symbols.length > 0 && (
                                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                             {card.symbols.map(sym => (
@@ -888,7 +888,7 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                     )}
 
                     {/* Extended Data Section (Dynamic 3-col grid) */}
-                    {(card.extendedData?.length > 0 || isEditing) && (
+                    {((card.extendedData?.length ?? 0) > 0 || isEditing) && (
                         <div className="bg-black/20 p-8 rounded-3xl border border-white/10 mt-10 mb-10">
                             <h3 className="text-xl font-serif font-bold text-white mb-6 flex items-center gap-3">
                                 <span>🧬</span> További Adatok

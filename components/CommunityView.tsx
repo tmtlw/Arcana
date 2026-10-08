@@ -90,7 +90,7 @@ const VisualMentionInput = ({ value, onChange, onSearch, placeholder, className,
             ref={inputRef}
             contentEditable
             onInput={handleInput}
-            placeholder={placeholder}
+            {...({ placeholder } as any)}
             className={`w-full min-h-[80px] bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-gold-500 outline-none overflow-y-auto empty:before:content-[attr(placeholder)] empty:before:text-white/20 ${className}`}
         />
     );

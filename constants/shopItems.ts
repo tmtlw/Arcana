@@ -3,7 +3,7 @@ export interface ShopItem {
     id: string;
     name: string;
     description: string;
-    type: 'deck' | 'background' | 'cover';
+    type: 'deck' | 'background' | 'cover' | 'lesson' | 'spread';
     cost: number;
     previewUrl?: string; // URL for image or CSS value (e.g. "linear-gradient...")
     value?: string; // The actual value to apply (e.g. css class or image path)

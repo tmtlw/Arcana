@@ -167,7 +167,7 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                 category,
                 isCustom: true,
                 price: price,
-                author: currentUser?.displayName || 'Ismeretlen',
+                author: currentUser?.name || 'Ismeretlen',
                 userId: currentUser?.id
             };
 
@@ -180,7 +180,7 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
 
             // 2. Publish if requested
             if (publish) {
-                await CommunityService.publishSpread(spreadData, price);
+                await CommunityService.publishSpread(spreadData, currentUser?.name || 'Ismeretlen', currentUser?.id || '', price);
                 showToast("Kirakás sikeresen közzétéve a Piactéren!", "success");
             } else {
                 showToast("Kirakás sikeresen mentve!", "success");

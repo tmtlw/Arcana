@@ -171,9 +171,10 @@ export const useAnalytics = (readings: Reading[], userId?: string, birthDate?: s
         const moodCardMap: Record<string, Record<string, number>> = {};
         sortedReadings.forEach(r => {
             if (!r.mood) return;
+            if (!r.mood) return;
             if (!moodCardMap[r.mood]) moodCardMap[r.mood] = {};
             r.cards.forEach(c => {
-                moodCardMap[r.mood][c.cardId] = (moodCardMap[r.mood][c.cardId] || 0) + 1;
+                if (r.mood) moodCardMap[r.mood][c.cardId] = (moodCardMap[r.mood][c.cardId] || 0) + 1;
             });
         });
         const moodCorrelations = Object.entries(moodCardMap).flatMap(([mId, counts]) => {

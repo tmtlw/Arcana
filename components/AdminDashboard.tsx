@@ -1,4 +1,5 @@
 
+import { ShopItem } from '../constants/shopItems';
 import React, { useState, useEffect } from 'react';
 import { useTarot } from '../context/TarotContext';
 import { AdminService } from '../services/adminService';
@@ -185,6 +186,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
         const item = {
             id,
             ...newMarketItem,
+            type: newMarketItem.type as ShopItem['type'],
             createdBy: currentUser?.id || 'admin'
         };
 

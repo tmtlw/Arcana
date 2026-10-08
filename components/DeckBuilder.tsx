@@ -92,7 +92,7 @@ export const DeckBuilder = ({ onBack }: { onBack: () => void }) => {
          const newDeck: DeckMeta = {
             id: deckId,
             name: deckName,
-            author: authorName || currentUser.displayName || 'Névtelen',
+            author: authorName || currentUser.name || 'Névtelen',
             description: 'Saját készítésű pakli',
             basePath: 'indexeddb',
             extension: 'base64',

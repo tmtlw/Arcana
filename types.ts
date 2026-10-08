@@ -224,7 +224,7 @@ export interface BadgeRequest {
 export interface TarotNotification {
   id: string;
   userId: string;
-  type: 'badge_approved' | 'badge_rejected' | 'new_comment' | 'system' | 'mention';
+  type: 'badge_approved' | 'badge_rejected' | 'new_comment' | 'system' | 'system_alert' | 'mention';
   title: string;
   message: string;
   link?: string;
@@ -248,6 +248,7 @@ export interface DeckMeta {
     isPublic?: boolean; 
     sourceId?: string; 
     price?: number;
+    isSystem?: boolean;
 }
 
 export type LessonCategory = 'basics' | 'major' | 'minor' | 'reading' | 'symbolism';
@@ -336,6 +337,20 @@ export interface User {
     enabled: boolean;
   };
 
+  // Profile V4 (közösségi / spirituális)
+  titles?: string[];
+  activeTitle?: string;
+  auraColor?: string;
+  avatarFrame?: string;
+  crystals?: { id: string; type: string; name: string; rarity: string; icon: string }[];
+  followers?: number;
+  following?: number;
+  blessings?: { id: string; fromId: string; fromName: string; message: string; createdAt: string }[];
+  status?: string;
+  ambientSound?: string;
+  ambientVolume?: number;
+  isPublic?: boolean;
+
   // Shop System
   currency?: number; // Pontok (vásárlásra)
   inventory?: string[]; // Megvásárolt item ID-k
@@ -373,7 +388,7 @@ export interface ThemeColors {
 export interface ToastMessage {
     id: string;
     text: string;
-    type: 'success' | 'info';
+    type: 'success' | 'info' | 'error';
 }
 
 export interface WesternHoroscope {

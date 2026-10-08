@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTarot } from '../context/TarotContext';
-import { Reading, Spread } from '../types';
+import { Reading, Spread, Card } from '../types';
 import { FULL_DECK } from '../constants';
 import { CardImage } from './CardImage';
 import { MarkdownRenderer } from './MarkdownSupport';
