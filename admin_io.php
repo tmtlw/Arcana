@@ -1,107 +1,61 @@
 <?php
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Updater-Secret");
-header("Content-Type: application/json");
+require __DIR__ . '/lib/bootstrap.php';
+tarot_cors(['GET', 'POST']);
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit;
-}
+// Csak ellenőrzött Firebase ID tokennel rendelkező, allowlistes admin használhatja.
+tarot_require_admin();
 
-// Load configuration for secret key
-$config = [];
-if (file_exists('version.json')) {
-    $config = json_decode(file_get_contents('version.json'), true);
-}
-// Fallback or override if needed. In production, this should be secure.
-$SECRET_KEY = isset($config['secret_key']) ? $config['secret_key'] : 'admin123';
+$action = $_GET['action'] ?? '';
+$file = $_GET['file'] ?? '';
 
-// Validate Request
-function get_request_headers() {
-    if (function_exists('getallheaders')) {
-        return getallheaders();
-    }
-    $headers = [];
-    foreach ($_SERVER as $name => $value) {
-        if (substr($name, 0, 5) == 'HTTP_') {
-            $headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
-        }
-    }
-    return $headers;
-}
-
-$headers = get_request_headers();
-$clientSecret = '';
-if (isset($headers['X-Updater-Secret'])) {
-    $clientSecret = $headers['X-Updater-Secret'];
-} elseif (isset($_SERVER['HTTP_X_UPDATER_SECRET'])) {
-    $clientSecret = $_SERVER['HTTP_X_UPDATER_SECRET'];
-}
-
-if ($clientSecret !== $SECRET_KEY) {
-    http_response_code(403);
-    echo json_encode(['error' => 'Unauthorized']);
-    exit;
-}
-
-$action = isset($_GET['action']) ? $_GET['action'] : '';
-$file = isset($_GET['file']) ? $_GET['file'] : '';
-
-// Whitelist allowed directories/files for security
+// Whitelist: csak a tartalmi mappák .ts fájljai, pontosan két szint.
 $ALLOWED_DIRS = ['cards', 'constants', 'lessons'];
-$BASE_DIR = __DIR__;
+$BASE_DIR = realpath(__DIR__);
 
 function is_allowed($path) {
     global $ALLOWED_DIRS;
-    $parts = explode('/', $path);
-    if (count($parts) < 2) return false;
-    if (!in_array($parts[0], $ALLOWED_DIRS)) return false;
-    if (strpos($path, '..') !== false) return false;
-    if (substr($path, -3) !== '.ts') return false;
-    return true;
+    return is_string($path)
+        && preg_match('#^(' . implode('|', $ALLOWED_DIRS) . ')/[A-Za-z0-9_-]+\.ts$#', $path) === 1;
 }
 
 if ($action === 'read') {
     if (!is_allowed($file)) {
-        echo json_encode(['error' => 'Invalid file path']);
-        exit;
+        tarot_json_exit(400, ['error' => 'Invalid file path']);
     }
     $fullPath = $BASE_DIR . '/' . $file;
-    if (file_exists($fullPath)) {
+    if (is_file($fullPath)) {
         echo json_encode(['content' => file_get_contents($fullPath)]);
     } else {
-        echo json_encode(['error' => 'File not found']);
+        tarot_json_exit(404, ['error' => 'File not found']);
     }
 }
 elseif ($action === 'write') {
+    tarot_require_method('POST');
     $input = json_decode(file_get_contents('php://input'), true);
-    $content = isset($input['content']) ? $input['content'] : '';
+    $content = is_array($input) && isset($input['content']) && is_string($input['content']) ? $input['content'] : null;
 
     if (!is_allowed($file)) {
-        echo json_encode(['error' => 'Invalid file path']);
-        exit;
+        tarot_json_exit(400, ['error' => 'Invalid file path']);
+    }
+    if ($content === null || strlen($content) > 2 * 1024 * 1024) {
+        tarot_json_exit(400, ['error' => 'Invalid content']);
     }
 
     $fullPath = $BASE_DIR . '/' . $file;
+    $backupName = null;
 
     // Create Backup
-    if (file_exists($fullPath)) {
-        $backupPath = $fullPath . '.bak.' . date('Y-m-d_H-i-s');
-        copy($fullPath, $backupPath);
+    if (is_file($fullPath)) {
+        $backupName = basename($fullPath) . '.bak.' . date('Y-m-d_H-i-s');
+        copy($fullPath, dirname($fullPath) . '/' . $backupName);
     }
 
-    // Write File
-    if (file_put_contents($fullPath, $content) !== false) {
-        echo json_encode(['success' => true, 'backup' => basename($backupPath)]);
+    if (file_put_contents($fullPath, $content, LOCK_EX) !== false) {
+        echo json_encode(['success' => true, 'backup' => $backupName]);
     } else {
-        echo json_encode(['error' => 'Write failed']);
+        tarot_json_exit(500, ['error' => 'Write failed']);
     }
 }
-elseif ($action === 'restore') {
-    // Restore from backup functionality could be added here
-    echo json_encode(['error' => 'Not implemented yet']);
-}
 else {
-    echo json_encode(['error' => 'Invalid action']);
+    tarot_json_exit(400, ['error' => 'Invalid action']);
 }
-?>

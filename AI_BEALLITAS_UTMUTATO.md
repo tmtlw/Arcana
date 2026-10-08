@@ -17,12 +17,11 @@ Kövesd az alábbi lépéseket a helyes beállításhoz:
    - Meglévő Google Cloud projektet is kiválaszthatsz, ha van.
 4. A rendszer generál egy hosszú karakterláncot (pl. `AIzaSy...`). **Ezt másold ki!**
 
-## 3. Kulcs Beállítása az Alkalmazásban
-1. Nyisd meg a Tarot alkalmazást.
-2. Menj a **Beállítások** (Admin) felületre.
-3. Keresd meg a **Gemini API Kulcs** mezőt.
-4. Illeszd be a kimásolt kulcsot.
-5. mentsd el.
+## 3. Kulcs Beállítása a Szerveren
+A kulcs **nem** adható meg az Admin felületen (a böngészőben bárki láthatná). A szerveren kell beállítani:
+1. Másold a `config.example.php` fájlt `config.php` néven (ez a `.gitignore`-ban van, nem kerül a repóba).
+2. Írd be a `gemini_api_key` mezőbe a kimásolt kulcsot.
+3. Az Admin felületen kapcsold be az AI alapú kirakás-importot.
 
 ## 4. Hibaelhárítás
 Ha továbbra is 404-es hibát kapsz:

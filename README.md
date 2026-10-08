@@ -1,20 +1,19 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Arkánum – A Lélek Tükre
 
-# Run and deploy your AI Studio app
+Tarot napló, tudástár, közösség és spirituális profil (React + TypeScript + Firebase, opcionális PHP szerveroldali segédek).
 
-This contains everything you need to run your app locally.
+## Futtatás fejlesztéshez
+1. `npm install`
+2. `npm run dev`
 
-View your app in AI Studio: https://ai.studio/apps/drive/1YnxXIxFcg-CqDNKsZ0ex5bD9Wvybyjmh
+Ellenőrzés: `npx tsc --noEmit` (típusellenőrzés), `npm run build`.
 
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Éles telepítés – biztonsági beállítások
+- **Firestore szabályok:** `firestore.rules` → Firebase Console / `firebase deploy --only firestore:rules`.
+  Tesztek: `tests/firestore.rules.test.mjs` (Firebase emulátorral).
+- **Szerveroldali konfiguráció:** másold a `config.example.php`-t `config.php` néven, és töltsd ki
+  (`admin_emails`, `allowed_origins`, `gemini_api_key`). A `config.php` nem kerülhet a repóba.
+- A PHP végpontok (`updater.php`, `admin_io.php`, `api.php`, `gemini_proxy.php`) Firebase ID tokent várnak
+  (`Authorization: Bearer ...`); az admin műveletekhez a token e-mailje szerepeljen az `admin_emails` listában.
+- A `.htaccess` tiltja a `config.php`, `lib/`, `backups/` közvetlen elérését (Apache). Nginx esetén ugyanezt állítsd be.
+- A Gemini API kulcs szerver oldalon él; a Firestore-ba (`settings/global`) soha ne kerüljön titok.

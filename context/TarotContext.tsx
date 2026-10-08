@@ -17,7 +17,6 @@ import { onAuthStateChanged, signOut, deleteUser } from 'firebase/auth';
 import { QuestService } from '../services/questService'; // New Quest Service
 
 interface GlobalSettings {
-    geminiApiKey?: string;
     enableGeminiSpreadImport?: boolean;
     enableRegistration?: boolean;
     enableShop?: boolean; // Added
@@ -309,7 +308,7 @@ export const TarotProvider: React.FC<{children: React.ReactNode}> = ({ children 
 
                     setIsCloudAvailable(true);
                     setIsSyncing(true);
-                    const isAdmin = firebaseUser.email ? ADMIN_EMAILS.includes(firebaseUser.email) : false;
+                    const isAdmin = !!(firebaseUser.email && firebaseUser.emailVerified && ADMIN_EMAILS.includes(firebaseUser.email));
 
                     try {
                         // LOAD FROM CLOUD IMMEDIATELY

@@ -1,4 +1,5 @@
 
+import { getAuthHeaders } from '../services/authToken';
 import React, { useState, useEffect } from 'react';
 import { Card, Spread, Lesson, ShopItem } from '../types';
 import { useTarot } from '../context/TarotContext';
@@ -22,7 +23,6 @@ const FILES = {
 };
 
 interface ContentEditorProps {
-    secretKey: string;
 }
 
 // ----------------------------------------------------------------------
@@ -183,7 +183,7 @@ const FieldEditor = ({
     );
 };
 
-export const ContentEditor: React.FC<ContentEditorProps> = ({ secretKey }) => {
+export const ContentEditor: React.FC<ContentEditorProps> = () => {
     const { showToast } = useTarot();
     const [selectedFileKey, setSelectedFileKey] = useState<string>(Object.keys(FILES)[0]);
     const [data, setData] = useState<any[]>([]);
@@ -200,7 +200,7 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({ secretKey }) => {
         const config = FILES[selectedFileKey as keyof typeof FILES];
         try {
             const response = await fetch(`./admin_io.php?action=read&file=${config.path}`, {
-                headers: { 'X-Updater-Secret': secretKey }
+                headers: await getAuthHeaders()
             });
             const result = await response.json();
             if (result.error) {
@@ -284,10 +284,7 @@ export const ${config.variable}: ${config.type} = ${jsonString};
         try {
             const response = await fetch(`./admin_io.php?action=write&file=${config.path}`, {
                 method: 'POST',
-                headers: {
-                    'X-Updater-Secret': secretKey,
-                    'Content-Type': 'application/json'
-                },
+                headers: await getAuthHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ content: fileContent })
             });
             const result = await response.json();

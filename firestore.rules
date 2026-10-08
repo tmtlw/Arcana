@@ -1,105 +1,201 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // --- ADMIN DEFINÍCIÓ ---
+
+    // ---------- Segédfüggvények ----------
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Admin: csak ellenőrzött e-mail címmel. Hosszabb távon érdemes custom claimre (request.auth.token.admin == true) váltani.
     function isAdmin() {
-      return request.auth != null && (
-        request.auth.token.email == "admin@example.com" || 
-        request.auth.token.email == "themadteam@gmail.com" || 
-        request.auth.token.email == "reamira22@gmail.com" ||
-        request.auth.token.email == "te_email_cimed@gmail.com"
-      );
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          "themadteam@gmail.com",
+          "reamira22@gmail.com",
+          "te_email_cimed@gmail.com"
+        ];
     }
 
-    // --- 1. GLOBÁLIS ADMIN JOG (GOD MODE) ---
-    match /{document=**} {
-      allow read, write: if isAdmin();
+    function isUser(uid) {
+      return signedIn() && request.auth.uid == uid;
     }
 
-    // --- 2. FELHASZNÁLÓI ADATOK (PRIVÁT) ---
+    // Ugyanaz a dokumentum csak a megadott mezőkben változhat (pl. számláló, hozzászólás).
+    function changesOnly(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // Új dokumentum csak a saját nevében hozható létre.
+    function createdByMe(field) {
+      return signedIn() && request.resource.data[field] == request.auth.uid;
+    }
+
+    // Tulajdonos szerkesztheti, de a tulajdonost nem változtathatja meg.
+    function ownerUpdate(field) {
+      return signedIn()
+        && resource.data[field] == request.auth.uid
+        && request.resource.data[field] == resource.data[field];
+    }
+
+    // ---------- Felhasználók ----------
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      
-      match /{document=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow get: if isUser(userId)
+        || isAdmin()
+        || (signedIn() && resource.data.isPublicProfile == true);
+      // Listázás (pl. felhasználónév keresés) csak publikus profilokra, vagy adminnak.
+      allow list: if isAdmin()
+        || (signedIn() && resource.data.isPublicProfile == true);
+      allow create: if isUser(userId) && request.resource.data.get('isAdmin', false) == false;
+      // A saját dokumentumban az isAdmin jelző nem emelhető fel (a UI ezt használja).
+      allow update: if isUser(userId)
+        && (request.resource.data.get('isAdmin', false) == false
+            || request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false));
+      allow delete: if isUser(userId);
+
+      // Privát alkollekciók: readings, customSpreads, private_decks, ...
+      // (A /{document=**} a szülő dokumentumra is illene, ezért van külön kollekció/dokumentum szegmens.)
+      match /{subcollection}/{subDocId}/{document=**} {
+        allow read, write: if isUser(userId);
       }
     }
 
-    // --- 3. PUBLIKUS GYŰJTEMÉNYEK ---
-    
-    // Faliújság (Húzások)
-    match /public_readings/{document=**} {
+    // ---------- Publikus gyűjtemények ----------
+
+    // Faliújság (húzások): lájk és hozzászólás bárkitől, a többi csak a szerzőtől.
+    match /public_readings/{id} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if createdByMe('userId');
+      allow update: if ownerUpdate('userId')
+        || isAdmin()
+        || (signedIn() && changesOnly(['comments', 'likes', 'likedBy']));
+      allow delete: if (signedIn() && resource.data.userId == request.auth.uid) || isAdmin();
     }
 
-    // Kirakás Piactér
-    match /public_spreads/{document=**} {
+    match /public_spreads/{id} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if createdByMe('userId');
+      allow update: if ownerUpdate('userId')
+        || isAdmin()
+        || (signedIn() && changesOnly(['downloads', 'ratingAvg', 'ratingCount']));
+      allow delete: if (signedIn() && resource.data.userId == request.auth.uid) || isAdmin();
     }
-    
-    // Pakli Piactér
-    match /public_decks/{document=**} {
+
+    match /public_decks/{id} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if createdByMe('userId');
+      allow update: if ownerUpdate('userId')
+        || isAdmin()
+        || (signedIn() && changesOnly(['downloads', 'ratingAvg', 'ratingCount']));
+      allow delete: if (signedIn() && resource.data.userId == request.auth.uid) || isAdmin();
     }
-    
-    // Lecke Piactér
-    match /public_lessons/{document=**} {
+
+    match /public_lessons/{id} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if createdByMe('userId');
+      allow update: if ownerUpdate('userId')
+        || isAdmin()
+        || (signedIn() && changesOnly(['downloads', 'ratingAvg', 'ratingCount', 'comments']));
+      allow delete: if (signedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+    }
+
+    // Értékelések: bármelyik gyűjtemény elemeihez, mindenki csak a saját szavazatát írhatja.
+    match /{collectionName}/{itemId}/ratings/{ratingUserId} {
+      allow read: if true;
+      allow create, update: if isUser(ratingUserId)
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.rating is number
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5;
+      allow delete: if isUser(ratingUserId) || isAdmin();
+    }
+
+    // Piactér elemek: csak admin hozhat létre / módosíthat.
+    match /market_items/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Küldetések
+    match /quests/{id} {
+      allow read: if signedIn();
+      allow create: if createdByMe('creatorId');
+      allow update: if ownerUpdate('creatorId') || isAdmin();
+      allow delete: if (signedIn() && resource.data.creatorId == request.auth.uid) || isAdmin();
+    }
+
+    // Globális beállítások: olvasható (regisztráció / bolt kapcsolók), írni csak admin tud.
+    // FIGYELEM: ide soha ne kerüljön titok (API kulcs)!
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     // Értesítések
     match /notifications/{notifId} {
-      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if request.auth != null; 
-      allow update: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
-      allow delete: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.userId is string
+        && request.resource.data.type in ['badge_approved', 'badge_rejected', 'new_comment', 'system', 'system_alert', 'mention'];
+      allow update: if signedIn() && resource.data.userId == request.auth.uid && changesOnly(['isRead']);
+      allow delete: if signedIn() && resource.data.userId == request.auth.uid;
     }
 
-    // Közösségi Jelvények
+    // Közösségi jelvények
     match /community_badges/{badgeId} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if createdByMe('userId');
+      allow update: if ownerUpdate('userId')
+        || isAdmin()
+        || (signedIn() && changesOnly(['likes', 'likedBy']));
+      allow delete: if (signedIn() && resource.data.userId == request.auth.uid) || isAdmin();
     }
 
-    // Jelvény Kérelmek
+    // Jelvény kérelmek
     match /badge_requests/{reqId} {
-      allow read: if request.auth != null && (
-        resource.data.requesterId == request.auth.uid || 
-        resource.data.creatorId == request.auth.uid || 
-        isAdmin()
+      allow read: if signedIn() && (
+        resource.data.requesterId == request.auth.uid ||
+        resource.data.creatorId == request.auth.uid
       );
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && (
-        resource.data.requesterId == request.auth.uid || 
-        resource.data.creatorId == request.auth.uid || 
-        isAdmin()
+      allow create: if createdByMe('requesterId');
+      // Elbírálni csak a jelvény készítője tudja, és csak a státuszt.
+      allow update: if signedIn() && resource.data.creatorId == request.auth.uid && changesOnly(['status']);
+      allow delete: if signedIn() && (
+        resource.data.requesterId == request.auth.uid ||
+        resource.data.creatorId == request.auth.uid
       );
     }
 
-    // Közösségi Események (Naptár)
+    // Közösségi események (naptár)
     match /community_events/{eventId} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && (resource.data.hostId == request.auth.uid || isAdmin());
+      allow create: if createdByMe('hostId');
+      allow update: if ownerUpdate('hostId')
+        || isAdmin()
+        || (signedIn() && changesOnly(['participants', 'participantDetails']));
+      allow delete: if (signedIn() && resource.data.hostId == request.auth.uid) || isAdmin();
     }
 
-    // Távjóslás Szobák
+    // Távjóslás szobák
     match /sessions/{sessionId} {
-      allow read, write: if request.auth != null;
+      allow read: if signedIn();
+      allow create: if createdByMe('hostId');
+      // Host mindent, vendég csak a belépéshez/kilépéshez szükséges mezőket.
+      allow update: if (signedIn() && resource.data.hostId == request.auth.uid && request.resource.data.hostId == resource.data.hostId)
+        || (signedIn() && changesOnly(['guestName', 'status']));
+      allow delete: if signedIn() && resource.data.hostId == request.auth.uid;
+
       match /messages/{messageId} {
-        allow read, write: if request.auth != null;
+        allow read: if signedIn();
+        allow create: if signedIn();
+        allow delete: if signedIn() && get(/databases/$(database)/documents/sessions/$(sessionId)).data.hostId == request.auth.uid;
       }
+    }
+
+    // ---------- Admin: teljes hozzáférés (ellenőrzött e-mail szükséges) ----------
+    match /{document=**} {
+      allow read, write: if isAdmin();
     }
   }
 }

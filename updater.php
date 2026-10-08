@@ -4,38 +4,34 @@
  * Ez a script kezeli a GitHub-ról történő frissítéseket és a biztonsági mentéseket.
  *
  * BIZTONSÁG:
- * A script használatához egy titkos kulcs (SECRET_KEY) szükséges, amelyet a kérések fejlécében
- * vagy paraméterként kell átadni.
+ * Csak Firebase ID tokennel (Authorization: Bearer ...) hívható, és a token e-mailjének szerepelnie
+ * kell a config.php 'admin_emails' listájában. Lásd lib/bootstrap.php.
  */
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, GET');
-header('Access-Control-Allow-Headers: Content-Type, X-Updater-Secret');
+require __DIR__ . '/lib/bootstrap.php';
+tarot_cors(['GET', 'POST']);
 
 // --- KONFIGURÁCIÓ ---
 $REPO_OWNER = 'tmtlw';
 $REPO_NAME = 'Arcana';
-$BRANCH = 'main';
+$BRANCH = preg_match('/^[A-Za-z0-9._\/-]+$/', (string) tarot_config('update_branch', 'main')) ? tarot_config('update_branch', 'main') : 'main';
 $BACKUP_DIR = __DIR__ . '/backups/';
 // Fontos mappák/fájlok, amiket nem törlünk frissítés előtt, kivéve ha a zip tartalmazza őket
-$IGNORE_FILES = ['.git', 'backups', 'updater.php', 'version.json', 'storage', 'node_modules', '.env'];
+$IGNORE_FILES = ['.git', 'backups', 'updater.php', 'version.json', 'storage', 'node_modules', '.env', 'config.php'];
 $VERSION_FILE = __DIR__ . '/version.json';
-
-// TITKOS KULCS - Ezt változtasd meg éles környezetben!
-// A frontendnek is ismernie kell ezt a kulcsot.
-$SECRET_KEY = 'tarot_secret_updater_key';
 
 // GitHub API URL
 $GITHUB_API_URL = "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/commits/$BRANCH";
 $GITHUB_ZIP_URL = "https://github.com/$REPO_OWNER/$REPO_NAME/archive/refs/heads/$BRANCH.zip";
 
 // --- BIZTONSÁGI ELLENŐRZÉS ---
-$requestSecret = $_SERVER['HTTP_X_UPDATER_SECRET'] ?? $_GET['secret'] ?? '';
-if ($requestSecret !== $SECRET_KEY) {
-    http_response_code(403);
-    echo json_encode(['status' => 'error', 'message' => 'Hozzáférés megtagadva. Hibás biztonsági kulcs.']);
-    exit;
+// Csak ellenőrzött Firebase ID tokennel rendelkező, allowlistes admin használhatja.
+tarot_require_admin();
+
+// A módosító műveletek csak POST-tal engedélyezettek (CSRF/véletlen hívás ellen).
+$action = $_GET['action'] ?? '';
+if (in_array($action, ['update', 'restore'], true)) {
+    tarot_require_method('POST');
 }
 
 // Segédfüggvény: cURL kérés
@@ -46,9 +42,7 @@ function fetchUrl($url) {
     curl_setopt($ch, CURLOPT_USERAGENT, 'MisztikusTarotUpdater');
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 
-    // SSL hitelesítés kikapcsolása (csak fejlesztéshez vagy ha a szerver cert bundle hiányzik)
-    // Élesben javasolt bekapcsolva hagyni!
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
 
     $data = curl_exec($ch);
     $error = curl_error($ch);
@@ -77,7 +71,7 @@ function downloadFile($url, $path) {
     curl_setopt($ch, CURLOPT_FILE, $fp);
     curl_setopt($ch, CURLOPT_USERAGENT, 'MisztikusTarotUpdater');
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
 
     $exec = curl_exec($ch);
     $error = curl_error($ch);
@@ -114,7 +108,6 @@ function recurseCopy($src, $dst) {
 }
 
 // Művelet kiválasztása
-$action = $_GET['action'] ?? '';
 $response = ['status' => 'error', 'message' => 'Ismeretlen művelet'];
 
 try {
@@ -211,7 +204,7 @@ try {
     // 3. Visszaállítás
     elseif ($action === 'restore') {
         $backupId = $_GET['id'] ?? '';
-        if (!$backupId) throw new Exception("Nincs megadva backup azonosító.");
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/', $backupId)) throw new Exception("Érvénytelen backup azonosító.");
 
         $sourceBackup = $BACKUP_DIR . $backupId;
         if (!is_dir($sourceBackup)) throw new Exception("A megadott biztonsági mentés nem található.");
@@ -236,6 +229,7 @@ try {
     }
 
 } catch (Exception $e) {
+    error_log('updater: ' . $e->getMessage());
     $response = ['status' => 'error', 'message' => $e->getMessage()];
 }
 

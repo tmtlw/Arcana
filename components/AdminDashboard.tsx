@@ -31,7 +31,6 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
     const [updateLoading, setUpdateLoading] = useState(false);
 
     // Settings State
-    const [geminiApiKey, setGeminiApiKey] = useState('');
     const [enableGeminiSpreadImport, setEnableGeminiSpreadImport] = useState(false);
     const [enableRegistration, setEnableRegistration] = useState(true);
     const [enableShop, setEnableShop] = useState(true);
@@ -99,7 +98,6 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
 
             const settings = await CommunityService.getGlobalSettings();
             if (settings) {
-                setGeminiApiKey(settings.geminiApiKey || '');
                 setEnableGeminiSpreadImport(settings.enableGeminiSpreadImport || false);
                 setEnableRegistration(settings.enableRegistration !== undefined ? settings.enableRegistration : true);
                 setEnableShop(settings.enableShop !== undefined ? settings.enableShop : true);
@@ -112,7 +110,6 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
     const saveSettings = async () => {
         try {
             await CommunityService.saveGlobalSettings({
-                geminiApiKey,
                 enableGeminiSpreadImport,
                 enableRegistration,
                 enableShop
@@ -515,7 +512,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                     ) : (
                         <div className="w-full">
                             {activeTab === 'content' && (
-                                <ContentEditor secretKey="admin123" />
+                                <ContentEditor />
                             )}
 
                             {activeTab === 'marketplace' && (
@@ -619,14 +616,9 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
 
                                             {enableGeminiSpreadImport && (
                                                 <div className="bg-black/20 p-4 rounded-xl">
-                                                    <label className="block text-xs font-bold text-gray-500 mb-1">Gemini API Kulcs</label>
-                                                    <input
-                                                        type="password"
-                                                        value={geminiApiKey}
-                                                        onChange={(e) => setGeminiApiKey(e.target.value)}
-                                                        className="w-full bg-black/40 border border-white/10 rounded p-2 text-white font-mono"
-                                                        placeholder="AIza..."
-                                                    />
+                                                    <p className="text-xs text-gray-400">
+                                                        A Gemini API kulcs a szerveren van tárolva (<code>config.php</code> → <code>gemini_api_key</code>), a felületen nem állítható.
+                                                    </p>
                                                 </div>
                                             )}
 

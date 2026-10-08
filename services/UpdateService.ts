@@ -1,4 +1,5 @@
 // src/services/UpdateService.ts
+import { getAuthHeaders } from './authToken';
 
 export interface UpdateResponse {
   status: 'success' | 'error';
@@ -12,16 +13,8 @@ export interface UpdateResponse {
 
 // Abszolút útvonal a gyökérben lévő PHP fájlhoz (javítva relatívra a subdirectory támogatás miatt)
 const UPDATER_URL = './updater.php';
-// A titkos kulcsot itt tároljuk. Élesben ezt környezeti változóból vagy config fájlból kéne olvasni.
-// Mivel ez kliens oldali kód, a felhasználó láthatja, de ez csak egy egyszerű védelem a véletlen/bot kérések ellen.
-const SECRET_KEY = 'tarot_secret_updater_key';
-
-const getHeaders = () => {
-    return {
-        'Content-Type': 'application/json',
-        'X-Updater-Secret': SECRET_KEY
-    };
-};
+// A szerver Firebase ID tokennel azonosít és az admin allowlistet ellenőrzi (lásd lib/bootstrap.php).
+const getHeaders = () => getAuthHeaders({ 'Content-Type': 'application/json' });
 
 export const UpdateService = {
   /**
@@ -29,9 +22,9 @@ export const UpdateService = {
    */
   async checkForUpdates(): Promise<UpdateResponse> {
     try {
-      const response = await fetch(`${UPDATER_URL}?action=check&secret=${SECRET_KEY}`, {
+      const response = await fetch(`${UPDATER_URL}?action=check`, {
           method: 'GET',
-          headers: getHeaders()
+          headers: await getHeaders()
       });
       if (!response.ok) throw new Error(`Network response was not ok: ${response.status}`);
       return await response.json();
@@ -46,9 +39,9 @@ export const UpdateService = {
    */
   async performUpdate(): Promise<UpdateResponse> {
     try {
-      const response = await fetch(`${UPDATER_URL}?action=update&secret=${SECRET_KEY}`, {
+      const response = await fetch(`${UPDATER_URL}?action=update`, {
           method: 'POST', // POST a módosításhoz
-          headers: getHeaders()
+          headers: await getHeaders()
       });
       if (!response.ok) throw new Error('Network response was not ok');
       return await response.json();
@@ -63,8 +56,8 @@ export const UpdateService = {
    */
   async listBackups(): Promise<UpdateResponse> {
     try {
-      const response = await fetch(`${UPDATER_URL}?action=list_backups&secret=${SECRET_KEY}`, {
-          headers: getHeaders()
+      const response = await fetch(`${UPDATER_URL}?action=list_backups`, {
+          headers: await getHeaders()
       });
       if (!response.ok) throw new Error('Network response was not ok');
       return await response.json();
@@ -78,9 +71,9 @@ export const UpdateService = {
    */
   async restoreBackup(backupId: string): Promise<UpdateResponse> {
     try {
-      const response = await fetch(`${UPDATER_URL}?action=restore&id=${backupId}&secret=${SECRET_KEY}`, {
+      const response = await fetch(`${UPDATER_URL}?action=restore&id=${encodeURIComponent(backupId)}`, {
           method: 'POST',
-          headers: getHeaders()
+          headers: await getHeaders()
       });
       if (!response.ok) throw new Error('Network response was not ok');
       return await response.json();

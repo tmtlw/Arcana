@@ -732,7 +732,7 @@ export const CommunityService = {
     getUserByUsername: async (username: string): Promise<User | null> => {
         if (!db) return null;
         try {
-            const q = query(collection(db, 'users'), where('username', '==', username), limit(1));
+            const q = query(collection(db, 'users'), where('username', '==', username), where('isPublicProfile', '==', true), limit(1));
             const snap = await getDocs(q);
             if (snap.empty) return null;
             return snap.docs[0].data() as User;

@@ -1,0 +1,6 @@
+# Szerveroldali belső fájlok ne legyenek közvetlenül letölthetők
+<FilesMatch "^(config(\.example)?\.php|\.env.*|.*\.bak\..*)$">
+  Require all denied
+</FilesMatch>
+RedirectMatch 403 ^/?(.*/)?(lib|backups|storage/\.|\.git)(/.*)?$
+Options -Indexes

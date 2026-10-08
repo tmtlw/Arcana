@@ -4,9 +4,11 @@ import { DeckMeta, User } from './types';
 import { AVATAR_GALLERY } from './constants/ui';
 
 // --- ADMIN CONFIG ---
+// Az igazi védelem a firestore.rules és a szerveroldali config.php; ez csak a UI megjelenítéshez kell.
 export const ADMIN_EMAILS = [
-    'admin@example.com', 
-    'te_email_cimed@gmail.com' 
+    'themadteam@gmail.com',
+    'reamira22@gmail.com',
+    'te_email_cimed@gmail.com'
 ];
 
 // --- UTILS ---

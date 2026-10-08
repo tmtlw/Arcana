@@ -1,11 +1,12 @@
 
+import { getAuthHeaders } from '../services/authToken';
 import React, { useState, useEffect } from 'react';
 import { useTarot } from '../context/TarotContext';
 import { Spread, SpreadPosition, MeaningContext, SpreadCategory } from '../types';
 import { CommunityService } from '../services/communityService';
 
 export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () => void, initialSpread?: Spread }) => {
-    const { addCustomSpread, updateCustomSpread, globalSettings, currentUser, showToast } = useTarot();
+    const { addCustomSpread, updateCustomSpread, globalSettings, currentUser, showToast, language } = useTarot();
     const [name, setName] = useState(initialSpread?.name || "");
     const [description, setDescription] = useState(initialSpread?.description || "");
     const [positions, setPositions] = useState<SpreadPosition[]>(initialSpread?.positions || []);
@@ -69,8 +70,8 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (!globalSettings?.geminiApiKey) {
-            alert("A Gemini API kulcs nincs beállítva az Adminisztrációs felületen.");
+        if (!globalSettings?.enableGeminiSpreadImport) {
+            alert("Az AI alapú kirakás-import nincs engedélyezve.");
             return;
         }
 
@@ -93,10 +94,10 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
                 const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Időtúllépés a szerver válaszában")), 30000));
                 const fetchPromise = fetch('./gemini_proxy.php', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: await getAuthHeaders({ 'Content-Type': 'application/json' }),
                     body: JSON.stringify({
                         image: base64String,
-                        apiKey: globalSettings.geminiApiKey
+                        lang: language
                     })
                 });
 
