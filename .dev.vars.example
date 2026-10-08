@@ -1,0 +1,5 @@
+# Másold .dev.vars néven helyi fejlesztéshez (wrangler pages dev). A .dev.vars nem kerül gitbe.
+ADMIN_EMAILS=te@pelda.hu
+GEMINI_API_KEY=
+GITHUB_TOKEN=
+GITHUB_REPO=tmtlw/Arcana

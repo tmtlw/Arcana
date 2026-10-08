@@ -3,7 +3,6 @@ import { ShopItem } from '../constants/shopItems';
 import React, { useState, useEffect } from 'react';
 import { useTarot } from '../context/TarotContext';
 import { AdminService } from '../services/adminService';
-import { UpdateService, UpdateResponse } from '../services/UpdateService';
 import { CommunityService } from '../services/communityService';
 import { User, Reading, Spread, DeckMeta, Lesson, TarotNotification } from '../types';
 import { MarkdownEditor, MarkdownRenderer } from './MarkdownSupport';
@@ -26,9 +25,6 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
 
     // System States
     const [systemInfo, setSystemInfo] = useState<any>(null);
-    const [updateCheckResult, setUpdateCheckResult] = useState<UpdateResponse | null>(null);
-    const [backups, setBackups] = useState<string[]>([]);
-    const [updateLoading, setUpdateLoading] = useState(false);
 
     // Settings State
     const [enableGeminiSpreadImport, setEnableGeminiSpreadImport] = useState(false);
@@ -87,14 +83,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
 
     const loadSystemData = async () => {
         try {
-            const vRes = await fetch('./version.json');
-            if (vRes.ok) {
-                setSystemInfo(await vRes.json());
-            }
-            const bRes = await UpdateService.listBackups();
-            if (bRes.status === 'success' && bRes.backups) {
-                setBackups(bRes.backups);
-            }
+            setSystemInfo({ version: __APP_VERSION__, last_update: __BUILD_TIME__, commit_sha: __COMMIT_SHA__ });
 
             const settings = await CommunityService.getGlobalSettings();
             if (settings) {
@@ -117,59 +106,6 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
             showToast("Beállítások mentve!", "success");
         } catch (e) {
             showToast("Hiba a mentéskor.", "error");
-        }
-    };
-
-    const handleCheckUpdate = async () => {
-        setUpdateLoading(true);
-        try {
-            const res = await UpdateService.checkForUpdates();
-            setUpdateCheckResult(res);
-            if (res.has_update) {
-                showToast("Új frissítés érhető el!", "success");
-            } else {
-                showToast("A rendszer naprakész.", "info");
-            }
-        } catch (e) {
-            showToast("Hiba a frissítés ellenőrzésekor.", "error");
-        } finally {
-            setUpdateLoading(false);
-        }
-    };
-
-    const handlePerformUpdate = async () => {
-        if (!confirm("Biztosan frissíteni szeretnéd a rendszert? A folyamat előtt biztonsági mentés készül.")) return;
-        setUpdateLoading(true);
-        try {
-            const res = await UpdateService.performUpdate();
-            if (res.status === 'success') {
-                alert(`Sikeres frissítés! (Backup ID: ${res.backup_id}) Az oldal újratöltődik...`);
-                window.location.reload();
-            } else {
-                alert("Hiba történt: " + res.message);
-            }
-        } catch (e) {
-            alert("Végzetes hiba a frissítés során.");
-        } finally {
-            setUpdateLoading(false);
-        }
-    };
-
-    const handleRestoreBackup = async (id: string) => {
-        if (!confirm(`Biztosan visszaállítod ezt a verziót: ${id}? A jelenlegi állapot elveszhet.`)) return;
-        setUpdateLoading(true);
-        try {
-            const res = await UpdateService.restoreBackup(id);
-            if (res.status === 'success') {
-                alert("Sikeres visszaállítás! Az oldal újratöltődik...");
-                window.location.reload();
-            } else {
-                alert("Hiba történt: " + res.message);
-            }
-        } catch (e) {
-            alert("Végzetes hiba a visszaállítás során.");
-        } finally {
-            setUpdateLoading(false);
         }
     };
 
@@ -467,7 +403,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                     <p className="text-xs text-red-400 mt-1 font-bold">⚠️ Isten Mód (Mindent lát)</p>
                 </div>
                 <nav className="flex-1 py-4 overflow-y-auto custom-scrollbar">
-                    <TabButton id="system" label="Rendszer & Frissítés" icon="🖥️" />
+                    <TabButton id="system" label="Rendszer" icon="🖥️" />
                     <TabButton id="marketplace" label="Piactér Kezelő" icon="🏷️" />
                     <TabButton id="content" label="Tartalom Szerkesztő" icon="📝" />
                     <div className="my-4 border-t border-white/5"></div>
@@ -489,7 +425,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                 <header className="p-6 bg-[#1e1e2e] border-b border-white/5 flex justify-between items-center">
                     <div>
                         <h3 className="text-lg font-bold text-white">
-                            {activeTab === 'system' && 'Rendszer Állapot & Frissítés Kezelő'}
+                            {activeTab === 'system' && 'Rendszer Állapot'}
                             {activeTab === 'marketplace' && 'Piactér Tartalmak (Hátterek, Borítók)'}
                             {activeTab === 'users' && 'Összes Regisztrált Felhasználó (Személyes adatok védve)'}
                             {activeTab === 'readings' && 'Rendszernapló: Összes Húzás (Privát is látható)'}
@@ -562,7 +498,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                                 <div className="text-2xl font-bold text-gold-400">{systemInfo?.version || 'Ismeretlen'}</div>
                                             </div>
                                             <div className="bg-black/20 p-4 rounded-xl">
-                                                <div className="text-xs text-gray-500 uppercase tracking-widest">Utolsó Frissítés</div>
+                                                <div className="text-xs text-gray-500 uppercase tracking-widest">Build ideje</div>
                                                 <div className="text-sm font-bold text-white">{systemInfo?.last_update || '-'}</div>
                                             </div>
                                             <div className="bg-black/20 p-4 rounded-xl">
@@ -617,7 +553,7 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                             {enableGeminiSpreadImport && (
                                                 <div className="bg-black/20 p-4 rounded-xl">
                                                     <p className="text-xs text-gray-400">
-                                                        A Gemini API kulcs a szerveren van tárolva (<code>config.php</code> → <code>gemini_api_key</code>), a felületen nem állítható.
+                                                        A Gemini API kulcs titokként a Cloudflare-ben van tárolva (<code>GEMINI_API_KEY</code>), a felületen nem állítható.
                                                     </p>
                                                 </div>
                                             )}
@@ -627,56 +563,6 @@ export const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
                                                     Beállítások Mentése
                                                 </button>
                                             </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-[#2a2a3c] rounded-2xl p-6 border border-white/10">
-                                        <h4 className="text-xl font-bold text-white mb-4">Frissítés Kezelő</h4>
-                                        <div className="flex items-center gap-4 mb-6">
-                                            <button
-                                                onClick={handleCheckUpdate}
-                                                disabled={updateLoading}
-                                                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2"
-                                            >
-                                                {updateLoading ? 'Ellenőrzés...' : 'Frissítések Keresése'}
-                                            </button>
-                                            {updateCheckResult && (
-                                                <div className={`px-4 py-3 rounded-xl border ${updateCheckResult.has_update ? 'bg-green-500/20 border-green-500 text-green-300' : 'bg-white/5 border-white/10 text-gray-400'}`}>
-                                                    {updateCheckResult.message}
-                                                    {updateCheckResult.has_update && (
-                                                        <span className="ml-2 font-mono text-xs">({updateCheckResult.remote_sha?.substring(0,7)})</span>
-                                                    )}
-                                                </div>
-                                            )}
-                                            {updateCheckResult?.has_update && (
-                                                <button
-                                                    onClick={handlePerformUpdate}
-                                                    disabled={updateLoading}
-                                                    className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white px-6 py-3 rounded-xl font-bold animate-pulse"
-                                                >
-                                                    🚀 Frissítés Indítása
-                                                </button>
-                                            )}
-                                        </div>
-                                        <div className="border-t border-white/10 pt-6">
-                                            <h5 className="text-sm font-bold text-gray-400 mb-4 uppercase tracking-widest">Biztonsági Mentések</h5>
-                                            {backups.length === 0 ? (
-                                                <div className="text-sm text-gray-600 italic">Nincsenek mentések.</div>
-                                            ) : (
-                                                <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                                                    {backups.map(backup => (
-                                                        <div key={backup} className="flex justify-between items-center bg-black/20 p-3 rounded-lg hover:bg-black/30 transition-colors">
-                                                            <span className="font-mono text-sm text-gray-300">{backup}</span>
-                                                            <button
-                                                                onClick={() => handleRestoreBackup(backup)}
-                                                                className="bg-red-500/10 hover:bg-red-600 hover:text-white text-red-400 px-3 py-1 rounded text-xs font-bold uppercase transition-colors"
-                                                            >
-                                                                Visszaállítás
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
                                 </div>

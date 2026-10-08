@@ -1,4 +1,5 @@
 
+import { ContentApi } from '../services/contentApi';
 import React, { useState, useEffect } from 'react';
 import { Card } from '../types';
 import { useTarot } from '../context/TarotContext';
@@ -160,27 +161,8 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
                     const filePath = `cards/${fileName}`;
 
                     // 1. Fetch current content
-                    let secret = localStorage.getItem('X-Updater-Secret') || 'admin123';
-
-                    const performRequest = async (currentSecret: string) => {
-                        const readRes = await fetch(`./admin_io.php?action=read&file=${filePath}`, {
-                            headers: { 'X-Updater-Secret': currentSecret }
-                        });
-
-                        if (readRes.status === 403) {
-                            const input = window.prompt("Hibás vagy hiányzó biztonsági kulcs! Kérlek add meg az X-Updater-Secret értéket:");
-                            if (input) {
-                                localStorage.setItem('X-Updater-Secret', input);
-                                return performRequest(input);
-                            }
-                            return null;
-                        }
-
-                        return readRes.json();
-                    };
-
-                    const readData = await performRequest(secret);
-                    if (!readData) return;
+                    const readData = await ContentApi.read(filePath);
+                    if (readData.error) throw new Error(readData.error);
 
                     if (readData.content) {
                         let content = readData.content;
@@ -219,19 +201,10 @@ export const CardDetailView = ({ card, theme, onBack, onNavigate }: { card: Card
 
                                 const newContent = content.substring(0, startIdx) + newObjStr + content.substring(endIdx);
 
-                                // 3. Write back using the validated secret
-                                const finalSecret = localStorage.getItem('X-Updater-Secret') || secret;
-                                const writeRes = await fetch(`./admin_io.php?action=write&file=${filePath}`, {
-                                    method: 'POST',
-                                    headers: {
-                                        'X-Updater-Secret': finalSecret,
-                                        'Content-Type': 'application/json'
-                                    },
-                                    body: JSON.stringify({ content: newContent })
-                                });
-                                const writeData = await writeRes.json();
+                                // 3. Commit back via the admin API
+                                const writeData = await ContentApi.write(filePath, newContent);
                                 if (writeData.success) {
-                                    alert(`Sikeres mentés a fájlba! (Backup: ${writeData.backup})`);
+                                    alert(`Sikeres mentés a repóba! (Commit: ${writeData.backup}, az oldal hamarosan újratelepül)`);
                                 } else {
                                     throw new Error(writeData.error || "Hiba a fájl mentésekor.");
                                 }

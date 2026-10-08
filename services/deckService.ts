@@ -56,7 +56,7 @@ export const DeckService = {
     loadAvailableDecks: async (): Promise<DeckMeta[]> => {
         let folderDecks: DeckMeta[] = [];
         try {
-            const response = await fetch('./decks.json');
+            const response = await fetch('/decks.json');
             if (response.ok) {
                 const folderList = await response.json();
                 for (const folder of folderList) {

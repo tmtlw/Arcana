@@ -1,0 +1,11 @@
+name = "arcana"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-01-01"
+
+# Titkok (NE ide írd, hanem Cloudflare Dashboard → Pages → Settings → Variables and Secrets,
+# vagy: npx wrangler pages secret put <NÉV>):
+#   ADMIN_EMAILS     vesszővel elválasztott admin e-mailek (ellenőrzött Firebase e-mail szükséges)
+#   GEMINI_API_KEY   Gemini API kulcs (AI kirakás-import)
+#   GITHUB_TOKEN     fine-grained token: Contents read/write erre a repóra (admin tartalomszerkesztő)
+#   GITHUB_REPO      pl. tmtlw/Arcana
+# Opcionális: GITHUB_BRANCH (alapérték: main), ALLOWED_ORIGINS, FIREBASE_PROJECT_ID.

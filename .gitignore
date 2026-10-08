@@ -24,11 +24,8 @@ dist-ssr
 *.sw?
 
 # Szerveroldali titkok és futásidejű fájlok
-config.php
 .env
 .env.*
-backups/
-storage/
-update_temp*
-temp_del/
 *.bak.*
+.dev.vars
+.wrangler/

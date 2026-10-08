@@ -1,5 +1,5 @@
 
-import { getAuthHeaders } from '../services/authToken';
+import { ContentApi } from '../services/contentApi';
 import React, { useState, useEffect } from 'react';
 import { Card, Spread, Lesson, ShopItem } from '../types';
 import { useTarot } from '../context/TarotContext';
@@ -199,15 +199,12 @@ export const ContentEditor: React.FC<ContentEditorProps> = () => {
         setLoading(true);
         const config = FILES[selectedFileKey as keyof typeof FILES];
         try {
-            const response = await fetch(`./admin_io.php?action=read&file=${config.path}`, {
-                headers: await getAuthHeaders()
-            });
-            const result = await response.json();
+            const result = await ContentApi.read(config.path);
             if (result.error) {
                 showToast(`Hiba: ${result.error}`, 'error');
                 setData([]);
             } else {
-                const content = result.content;
+                const content = result.content ?? '';
                 // Specific regex to match the variable export to avoid false positives
                 // Matches: export const VARIABLE_NAME : Type = [ ... ];
                 // We use the variable name from config to be precise.
@@ -282,14 +279,9 @@ export const ${config.variable}: ${config.type} = ${jsonString};
         }
 
         try {
-            const response = await fetch(`./admin_io.php?action=write&file=${config.path}`, {
-                method: 'POST',
-                headers: await getAuthHeaders({ 'Content-Type': 'application/json' }),
-                body: JSON.stringify({ content: fileContent })
-            });
-            const result = await response.json();
+            const result = await ContentApi.write(config.path, fileContent);
             if (result.success) {
-                showToast("Sikeres mentés! (Backup készült)", "success");
+                showToast("Sikeres mentés! (Commit: ${result.backup}, az oldal hamarosan újratelepül)", "success");
             } else {
                 showToast(`Mentés sikertelen: ${result.error}`, "error");
             }

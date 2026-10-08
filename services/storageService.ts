@@ -30,7 +30,7 @@ export const StorageService = {
     // User requested "absolutely nothing" saved locally.
     // We clear localStorage on each load to be safe.
     clearLocalCache: () => {
-        const keysToKeep = ['X-Updater-Secret', 'tarot_guest_active', 'tarot_guest_start']; // Keep session-critical or explicitly requested keys
+        const keysToKeep = ['tarot_guest_active', 'tarot_guest_start']; // Keep session-critical or explicitly requested keys
         Object.keys(localStorage).forEach(key => {
             if (!keysToKeep.includes(key)) {
                 localStorage.removeItem(key);

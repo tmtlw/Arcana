@@ -92,7 +92,7 @@ export const CustomSpreadBuilder = ({ onCancel, initialSpread }: { onCancel: () 
 
                 setUploadStatus("Küldés a mesterséges intelligenciának...");
                 const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Időtúllépés a szerver válaszában")), 30000));
-                const fetchPromise = fetch('./gemini_proxy.php', {
+                const fetchPromise = fetch('/api/gemini', {
                     method: 'POST',
                     headers: await getAuthHeaders({ 'Content-Type': 'application/json' }),
                     body: JSON.stringify({

@@ -476,7 +476,7 @@ export const AstroService = {
             const lat = location?.lat || DEFAULT_LAT;
             const lng = location?.lng || DEFAULT_LNG;
 
-            const response = await fetch(`./astro.php?date=${dateStr}&lat=${lat}&lng=${lng}`);
+            const response = await fetch(`/api/astro?date=${dateStr}&lat=${lat}&lng=${lng}`);
             if (!response.ok) throw new Error("API Error");
 
             const json = await response.json();
